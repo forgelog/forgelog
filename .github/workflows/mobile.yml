@@ -55,7 +55,7 @@ jobs:
 
       - name: Build debug APK
         working-directory: apps/mobile/android
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -84,7 +84,7 @@ jobs:
 
       - name: Build release APK
         working-directory: apps/mobile/android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
