@@ -11,6 +11,18 @@ export async function getRecordsForExercise(exerciseId: string): Promise<Persona
   );
 }
 
+export type ExerciseRecordRow = PersonalRecord & { exercise_name: string };
+
+export async function listAllRecords(): Promise<ExerciseRecordRow[]> {
+  const db = await getDb();
+  return db.getAllAsync<ExerciseRecordRow>(
+    `SELECT pr.*, e.name AS exercise_name
+       FROM personal_records pr
+       JOIN exercises e ON e.id = pr.exercise_id
+      ORDER BY e.name COLLATE NOCASE, pr.record_type`
+  );
+}
+
 // Recomputes and upserts all record types for an exercise from its completed
 // logged sets. Call after a set is marked completed.
 export async function recalcRecordsForExercise(exerciseId: string): Promise<void> {

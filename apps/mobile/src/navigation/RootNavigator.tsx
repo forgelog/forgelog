@@ -9,6 +9,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { ProgressScreen } from '../screens/ProgressScreen';
 import { RoutineEditorScreen } from '../screens/RoutineEditorScreen';
 import { RoutineListScreen } from '../screens/RoutineListScreen';
+import { WorkoutDetailScreen } from '../screens/WorkoutDetailScreen';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -18,6 +19,7 @@ export type RootStackParamList = {
   ExerciseLibrary: { mode?: 'browse' | 'pick'; onPick?: (exercise: Exercise) => void } | undefined;
   RoutineList: undefined;
   RoutineEditor: { routineId: string };
+  WorkoutDetail: { workoutId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -48,6 +50,11 @@ export function RootNavigator() {
           options={{ title: 'Workout' }}
         />
         <Stack.Screen name="History" component={HistoryScreen} />
+        <Stack.Screen
+          name="WorkoutDetail"
+          component={WorkoutDetailScreen}
+          options={{ title: 'Workout' }}
+        />
         <Stack.Screen name="Progress" component={ProgressScreen} />
       </Stack.Navigator>
     </NavigationContainer>
