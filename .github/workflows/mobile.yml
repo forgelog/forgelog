@@ -48,6 +48,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android
+
       - name: Build debug APK
         working-directory: apps/mobile/android
         run: ./gradlew assembleDebug
