@@ -34,7 +34,7 @@ jobs:
       - name: Test
         run: npm test -- --ci
 
-  build-android:
+  build-debug-apk:
     runs-on: ubuntu-latest
     needs: test
     defaults:
@@ -51,6 +51,8 @@ jobs:
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
 
+      - uses: gradle/actions/setup-gradle@v4
+
       - name: Build debug APK
         working-directory: apps/mobile/android
         run: ./gradlew assembleDebug
@@ -60,3 +62,32 @@ jobs:
         with:
           name: forgelog-debug-apk
           path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+
+  build-release-apk:
+    runs-on: ubuntu-latest
+    needs: test
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: forgelog-release-apk
+          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
