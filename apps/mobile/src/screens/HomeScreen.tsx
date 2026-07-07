@@ -11,6 +11,9 @@ export function HomeScreen({ navigation }: Props) {
       <Pressable style={styles.button} onPress={() => navigation.navigate('ExerciseLibrary')}>
         <Text style={styles.buttonText}>Exercise Library</Text>
       </Pressable>
+      <Pressable style={styles.button} onPress={() => navigation.navigate('RoutineList')}>
+        <Text style={styles.buttonText}>Routines</Text>
+      </Pressable>
     </View>
   );
 }

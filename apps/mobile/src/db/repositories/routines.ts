@@ -156,37 +156,65 @@ export type RoutineSetInput = {
   target_distance_meters?: number | null;
 };
 
-// Replaces the full set list for a routine exercise (positions assigned by order).
-export async function setRoutineSets(
+export async function addRoutineSet(
   routineExerciseId: string,
-  sets: RoutineSetInput[]
+  input: RoutineSetInput = {}
+): Promise<RoutineSet> {
+  const db = await getDb();
+  const newId = id();
+  const row = await db.getFirstAsync<{ next: number }>(
+    'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM routine_sets WHERE routine_exercise_id = $id',
+    { $id: routineExerciseId }
+  );
+  await db.runAsync(
+    `INSERT INTO routine_sets
+       (id, routine_exercise_id, position, set_type,
+        target_weight, target_reps, target_duration_seconds, target_distance_meters)
+     VALUES ($id, $rex, $position, $set_type,
+        $target_weight, $target_reps, $target_duration_seconds, $target_distance_meters)`,
+    {
+      $id: newId,
+      $rex: routineExerciseId,
+      $position: row?.next ?? 0,
+      $set_type: input.set_type ?? 'normal',
+      $target_weight: input.target_weight ?? null,
+      $target_reps: input.target_reps ?? null,
+      $target_duration_seconds: input.target_duration_seconds ?? null,
+      $target_distance_meters: input.target_distance_meters ?? null,
+    }
+  );
+  const created = await db.getFirstAsync<RoutineSet>('SELECT * FROM routine_sets WHERE id = $id', {
+    $id: newId,
+  });
+  if (!created) throw new Error('Failed to add routine set');
+  return created;
+}
+
+export async function updateRoutineSet(
+  setId: string,
+  fields: RoutineSetInput
 ): Promise<void> {
   const db = await getDb();
-  await db.withTransactionAsync(async () => {
-    await db.runAsync('DELETE FROM routine_sets WHERE routine_exercise_id = $id', {
-      $id: routineExerciseId,
-    });
-    for (let i = 0; i < sets.length; i++) {
-      const s = sets[i];
-      await db.runAsync(
-        `INSERT INTO routine_sets
-           (id, routine_exercise_id, position, set_type,
-            target_weight, target_reps, target_duration_seconds, target_distance_meters)
-         VALUES ($id, $rex, $position, $set_type,
-            $target_weight, $target_reps, $target_duration_seconds, $target_distance_meters)`,
-        {
-          $id: id(),
-          $rex: routineExerciseId,
-          $position: i,
-          $set_type: s.set_type ?? 'normal',
-          $target_weight: s.target_weight ?? null,
-          $target_reps: s.target_reps ?? null,
-          $target_duration_seconds: s.target_duration_seconds ?? null,
-          $target_distance_meters: s.target_distance_meters ?? null,
-        }
-      );
-    }
-  });
+  const sets: string[] = [];
+  const params: Record<string, string | number | null> = { $id: setId };
+  const assign = (col: string, key: string, value: string | number | null) => {
+    sets.push(`${col} = ${key}`);
+    params[key] = value;
+  };
+  if (fields.set_type !== undefined) assign('set_type', '$set_type', fields.set_type);
+  if (fields.target_weight !== undefined) assign('target_weight', '$weight', fields.target_weight);
+  if (fields.target_reps !== undefined) assign('target_reps', '$reps', fields.target_reps);
+  if (fields.target_duration_seconds !== undefined)
+    assign('target_duration_seconds', '$duration', fields.target_duration_seconds);
+  if (fields.target_distance_meters !== undefined)
+    assign('target_distance_meters', '$distance', fields.target_distance_meters);
+  if (!sets.length) return;
+  await db.runAsync(`UPDATE routine_sets SET ${sets.join(', ')} WHERE id = $id`, params);
+}
+
+export async function deleteRoutineSet(setId: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM routine_sets WHERE id = $id', { $id: setId });
 }
 
 async function nextRoutinePosition(db: Awaited<ReturnType<typeof getDb>>): Promise<number> {
