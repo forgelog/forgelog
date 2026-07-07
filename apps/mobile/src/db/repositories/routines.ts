@@ -136,6 +136,29 @@ export async function removeRoutineExercise(routineExerciseId: string): Promise<
   await db.runAsync('DELETE FROM routine_exercises WHERE id = $id', { $id: routineExerciseId });
 }
 
+export async function updateRoutineExercise(
+  routineExerciseId: string,
+  fields: { rest_seconds?: number | null; superset_group_id?: string | null; notes?: string | null }
+): Promise<void> {
+  const db = await getDb();
+  const sets: string[] = [];
+  const params: Record<string, string | number | null> = { $id: routineExerciseId };
+  if (fields.rest_seconds !== undefined) {
+    sets.push('rest_seconds = $rest');
+    params.$rest = fields.rest_seconds;
+  }
+  if (fields.superset_group_id !== undefined) {
+    sets.push('superset_group_id = $superset');
+    params.$superset = fields.superset_group_id;
+  }
+  if (fields.notes !== undefined) {
+    sets.push('notes = $notes');
+    params.$notes = fields.notes;
+  }
+  if (!sets.length) return;
+  await db.runAsync(`UPDATE routine_exercises SET ${sets.join(', ')} WHERE id = $id`, params);
+}
+
 export async function reorderRoutineExercises(orderedIds: string[]): Promise<void> {
   const db = await getDb();
   await db.withTransactionAsync(async () => {

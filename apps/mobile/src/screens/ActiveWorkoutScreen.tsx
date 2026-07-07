@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
@@ -15,14 +15,25 @@ import {
   getWorkoutDetail,
   updateLoggedSet,
 } from '../db/repositories/workouts';
-import type { WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
+import type { LoggedSet, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { FIELD_PLACEHOLDER, fieldsFor, SetFieldKey } from './setFields';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveWorkout'>;
+
+const DEFAULT_REST_SECONDS = 90;
+
+const SET_COLUMN: Record<SetFieldKey, keyof LoggedSet> = {
+  weight: 'weight',
+  reps: 'reps',
+  duration: 'duration_seconds',
+  distance: 'distance_meters',
+};
 
 export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const { workoutId } = route.params;
   const [detail, setDetail] = useState<WorkoutDetail | null>(null);
+  const [restRemaining, setRestRemaining] = useState<number | null>(null);
 
   const reload = useCallback(() => {
     getWorkoutDetail(workoutId).then(setDetail);
@@ -30,10 +41,16 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
 
   useFocusEffect(reload);
 
-  function patchExercise(
-    weId: string,
-    fn: (we: WorkoutExerciseDetail) => WorkoutExerciseDetail
-  ) {
+  useEffect(() => {
+    if (restRemaining == null || restRemaining <= 0) return;
+    const handle = setTimeout(
+      () => setRestRemaining((r) => (r == null || r <= 1 ? null : r - 1)),
+      1000
+    );
+    return () => clearTimeout(handle);
+  }, [restRemaining]);
+
+  function patchExercise(weId: string, fn: (we: WorkoutExerciseDetail) => WorkoutExerciseDetail) {
     setDetail((prev) =>
       prev ? { ...prev, exercises: prev.exercises.map((w) => (w.id === weId ? fn(w) : w)) } : prev
     );
@@ -54,19 +71,15 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     patchExercise(we.id, (w) => ({ ...w, sets: [...w.sets, created] }));
   }
 
-  function editSetField(
-    weId: string,
-    setId: string,
-    field: 'weight' | 'reps',
-    raw: string
-  ) {
+  function editSetField(weId: string, setId: string, field: SetFieldKey, raw: string) {
+    const column = SET_COLUMN[field];
     const value = raw.trim() === '' ? null : Number(raw);
     if (value !== null && Number.isNaN(value)) return;
     patchExercise(weId, (w) => ({
       ...w,
-      sets: w.sets.map((s) => (s.id === setId ? { ...s, [field]: value } : s)),
+      sets: w.sets.map((s) => (s.id === setId ? { ...s, [column]: value } : s)),
     }));
-    updateLoggedSet(setId, { [field]: value });
+    updateLoggedSet(setId, { [column]: value });
   }
 
   async function toggleComplete(we: WorkoutExerciseDetail, setId: string, completed: boolean) {
@@ -75,7 +88,10 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       sets: w.sets.map((s) => (s.id === setId ? { ...s, completed } : s)),
     }));
     await updateLoggedSet(setId, { completed });
-    if (completed) await checkForPr(we.exercise.id);
+    if (completed) {
+      setRestRemaining(DEFAULT_REST_SECONDS);
+      await checkForPr(we.exercise.id);
+    }
   }
 
   async function checkForPr(exerciseId: string) {
@@ -88,7 +104,10 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       return prev === undefined || r.value > prev;
     });
     if (improved.length > 0) {
-      Alert.alert('New PR! 🎉', improved.map((r) => `${label(r.record_type)}: ${round(r.value)}`).join('\n'));
+      Alert.alert(
+        'New PR! 🎉',
+        improved.map((r) => `${label(r.record_type)}: ${round(r.value)}`).join('\n')
+      );
     }
   }
 
@@ -113,66 +132,91 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   if (!detail) return null;
 
   return (
-    <FlatList
-      style={styles.container}
-      data={detail.exercises}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={<Text style={styles.title}>{detail.name}</Text>}
-      renderItem={({ item }) => (
-        <View style={styles.exercise}>
-          <Text style={styles.exerciseName}>{item.exercise.name}</Text>
-          {item.sets.map((set, index) => (
-            <View key={set.id} style={styles.setRow}>
-              <Text style={styles.setIndex}>{index + 1}</Text>
-              <TextInput
-                style={styles.setInput}
-                value={set.weight?.toString() ?? ''}
-                onChangeText={(t) => editSetField(item.id, set.id, 'weight', t)}
-                placeholder="kg"
-                keyboardType="numeric"
-              />
-              <Text style={styles.times}>×</Text>
-              <TextInput
-                style={styles.setInput}
-                value={set.reps?.toString() ?? ''}
-                onChangeText={(t) => editSetField(item.id, set.id, 'reps', t)}
-                placeholder="reps"
-                keyboardType="numeric"
-              />
-              <Pressable
-                style={[styles.check, set.completed && styles.checkDone]}
-                onPress={() => toggleComplete(item, set.id, !set.completed)}
-              >
-                <Text style={[styles.checkText, set.completed && styles.checkTextDone]}>✓</Text>
-              </Pressable>
-              <Pressable onPress={() => removeSet(item.id, set.id)}>
-                <Text style={styles.remove}>✕</Text>
+    <View style={styles.container}>
+      <FlatList
+        data={detail.exercises}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={<Text style={styles.title}>{detail.name}</Text>}
+        renderItem={({ item, index }) => {
+          const fields = fieldsFor(item.exercise.tracking_type);
+          const supersetWithPrev =
+            index > 0 &&
+            item.superset_group_id != null &&
+            item.superset_group_id === detail.exercises[index - 1].superset_group_id;
+          return (
+            <View style={styles.exercise}>
+              {supersetWithPrev ? <Text style={styles.supersetTag}>⛓ superset</Text> : null}
+              <Text style={styles.exerciseName}>{item.exercise.name}</Text>
+              {item.sets.map((set, i) => (
+                <View key={set.id} style={styles.setRow}>
+                  <Text style={styles.setIndex}>{i + 1}</Text>
+                  {fields.map((field) => (
+                    <TextInput
+                      key={field}
+                      style={styles.setInput}
+                      value={(set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
+                      onChangeText={(t) => editSetField(item.id, set.id, field, t)}
+                      placeholder={FIELD_PLACEHOLDER[field]}
+                      keyboardType="numeric"
+                    />
+                  ))}
+                  <Pressable
+                    style={[styles.check, set.completed && styles.checkDone]}
+                    onPress={() => toggleComplete(item, set.id, !set.completed)}
+                  >
+                    <Text style={[styles.checkText, set.completed && styles.checkTextDone]}>✓</Text>
+                  </Pressable>
+                  <Pressable onPress={() => removeSet(item.id, set.id)}>
+                    <Text style={styles.remove}>✕</Text>
+                  </Pressable>
+                </View>
+              ))}
+              <Pressable style={styles.addSet} onPress={() => handleAddSet(item)}>
+                <Text style={styles.addSetText}>+ Add set</Text>
               </Pressable>
             </View>
-          ))}
-          <Pressable style={styles.addSet} onPress={() => handleAddSet(item)}>
-            <Text style={styles.addSetText}>+ Add set</Text>
-          </Pressable>
+          );
+        }}
+        ListFooterComponent={
+          <View>
+            <Pressable style={styles.addExercise} onPress={handleAddExercise}>
+              <Text style={styles.addExerciseText}>+ Add exercise</Text>
+            </Pressable>
+            <Pressable style={styles.finish} onPress={handleFinish}>
+              <Text style={styles.finishText}>Finish Workout</Text>
+            </Pressable>
+          </View>
+        }
+      />
+      {restRemaining != null && restRemaining > 0 ? (
+        <View style={styles.restBar}>
+          <Text style={styles.restText}>Rest {formatTime(restRemaining)}</Text>
+          <View style={styles.restActions}>
+            <Pressable onPress={() => setRestRemaining((r) => (r ?? 0) + 15)}>
+              <Text style={styles.restAction}>+15s</Text>
+            </Pressable>
+            <Pressable onPress={() => setRestRemaining(null)}>
+              <Text style={styles.restAction}>Skip</Text>
+            </Pressable>
+          </View>
         </View>
-      )}
-      ListFooterComponent={
-        <View>
-          <Pressable style={styles.addExercise} onPress={handleAddExercise}>
-            <Text style={styles.addExerciseText}>+ Add exercise</Text>
-          </Pressable>
-          <Pressable style={styles.finish} onPress={handleFinish}>
-            <Text style={styles.finishText}>Finish Workout</Text>
-          </Pressable>
-        </View>
-      }
-    />
+      ) : null}
+    </View>
   );
 }
 
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 function label(recordType: string): string {
-  return { max_weight: 'Max weight', max_reps: 'Max reps', max_volume: 'Max volume', est_1rm: 'Est. 1RM' }[
-    recordType
-  ] ?? recordType;
+  return (
+    { max_weight: 'Max weight', max_reps: 'Max reps', max_volume: 'Max volume', est_1rm: 'Est. 1RM' }[
+      recordType
+    ] ?? recordType
+  );
 }
 
 function round(value: number): number {
@@ -183,18 +227,18 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   title: { fontSize: 22, fontWeight: '700', padding: 16 },
   exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#eee' },
+  supersetTag: { color: '#0a7', fontSize: 12, fontWeight: '600', marginBottom: 4 },
   exerciseName: { fontSize: 16, fontWeight: '600' },
   setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
   setIndex: { width: 20, color: '#888' },
   setInput: {
-    width: 60,
+    width: 66,
     height: 36,
     borderRadius: 8,
     backgroundColor: '#f0f0f0',
     textAlign: 'center',
     fontSize: 15,
   },
-  times: { color: '#888' },
   check: {
     width: 36,
     height: 36,
@@ -214,4 +258,20 @@ const styles = StyleSheet.create({
   addExerciseText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   finish: { marginHorizontal: 16, marginBottom: 24, paddingVertical: 14, borderRadius: 12, backgroundColor: '#0a7', alignItems: 'center' },
   finishText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  restBar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  restText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  restActions: { flexDirection: 'row', gap: 16 },
+  restAction: { color: '#0a7', fontSize: 14, fontWeight: '700' },
 });

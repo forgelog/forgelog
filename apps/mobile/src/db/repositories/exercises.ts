@@ -98,6 +98,17 @@ export async function createCustomExercise(input: NewCustomExercise): Promise<Ex
   return created;
 }
 
+export async function setExerciseTrackingType(
+  exerciseId: string,
+  trackingType: string | null
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE exercises SET tracking_type = $t WHERE id = $id', {
+    $t: trackingType,
+    $id: exerciseId,
+  });
+}
+
 export async function listMuscleGroups(): Promise<string[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<{ muscle_group: string }>(

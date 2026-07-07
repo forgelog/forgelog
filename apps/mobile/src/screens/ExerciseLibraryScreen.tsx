@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 
-import { listExercises, listMuscleGroups } from '../db/repositories/exercises';
+import { listEquipment, listExercises, listMuscleGroups } from '../db/repositories/exercises';
 import type { Exercise } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -25,11 +25,14 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
   const [search, setSearch] = useState('');
   const [muscleGroup, setMuscleGroup] = useState<string | null>(null);
   const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
+  const [equipment, setEquipment] = useState<string | null>(null);
+  const [equipmentList, setEquipmentList] = useState<string[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     listMuscleGroups().then(setMuscleGroups);
+    listEquipment().then(setEquipmentList);
   }, []);
 
   useEffect(() => {
@@ -39,6 +42,7 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
       const rows = await listExercises({
         search: search.trim() || undefined,
         muscleGroup: muscleGroup ?? undefined,
+        equipment: equipment ?? undefined,
       });
       if (active) {
         setExercises(rows);
@@ -49,7 +53,7 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
       active = false;
       clearTimeout(handle);
     };
-  }, [search, muscleGroup]);
+  }, [search, muscleGroup, equipment]);
 
   const count = useMemo(() => exercises.length, [exercises]);
 
@@ -70,26 +74,8 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
         autoCorrect={false}
         clearButtonMode="while-editing"
       />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.chipsScroll}
-        contentContainerStyle={styles.chips}
-      >
-        {['All', ...muscleGroups].map((group) => {
-          const value = group === 'All' ? null : group;
-          const selected = muscleGroup === value;
-          return (
-            <Pressable
-              key={group}
-              style={[styles.chip, selected && styles.chipSelected]}
-              onPress={() => setMuscleGroup(value)}
-            >
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{group}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <ChipRow options={muscleGroups} selected={muscleGroup} onSelect={setMuscleGroup} />
+      <ChipRow options={equipmentList} selected={equipment} onSelect={setEquipment} />
       {loading ? (
         <ActivityIndicator style={styles.loader} />
       ) : (
@@ -120,6 +106,40 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
         />
       )}
     </View>
+  );
+}
+
+function ChipRow({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: string[];
+  selected: string | null;
+  onSelect: (value: string | null) => void;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.chipsScroll}
+      contentContainerStyle={styles.chips}
+      keyboardShouldPersistTaps="handled"
+    >
+      {['All', ...options].map((label) => {
+        const value = label === 'All' ? null : label;
+        const isSelected = selected === value;
+        return (
+          <Pressable
+            key={label}
+            style={[styles.chip, isSelected && styles.chipSelected]}
+            onPress={() => onSelect(value)}
+          >
+            <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{label}</Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
   );
 }
 
