@@ -138,7 +138,12 @@ export async function removeRoutineExercise(routineExerciseId: string): Promise<
 
 export async function updateRoutineExercise(
   routineExerciseId: string,
-  fields: { rest_seconds?: number | null; superset_group_id?: string | null; notes?: string | null }
+  fields: {
+    rest_seconds?: number | null;
+    superset_group_id?: string | null;
+    tracking_type?: string | null;
+    notes?: string | null;
+  }
 ): Promise<void> {
   const db = await getDb();
   const sets: string[] = [];
@@ -150,6 +155,10 @@ export async function updateRoutineExercise(
   if (fields.superset_group_id !== undefined) {
     sets.push('superset_group_id = $superset');
     params.$superset = fields.superset_group_id;
+  }
+  if (fields.tracking_type !== undefined) {
+    sets.push('tracking_type = $tracking');
+    params.$tracking = fields.tracking_type;
   }
   if (fields.notes !== undefined) {
     sets.push('notes = $notes');

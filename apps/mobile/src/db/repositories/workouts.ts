@@ -49,14 +49,18 @@ export async function startWorkout(options: {
         for (const re of routine.exercises) {
           const weId = id();
           await db.runAsync(
-            `INSERT INTO workout_exercises (id, workout_id, exercise_id, position, superset_group_id, notes)
-             VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $notes)`,
+            `INSERT INTO workout_exercises
+               (id, workout_id, exercise_id, position, superset_group_id, tracking_type, notes)
+             VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $tracking_type, $notes)`,
             {
               $id: weId,
               $workout_id: workoutId,
               $exercise_id: re.exercise_id,
               $position: re.position,
               $superset_group_id: re.superset_group_id,
+              // snapshot the effective type so editing the routine/catalog later
+              // never rewrites this logged workout.
+              $tracking_type: re.tracking_type ?? re.exercise.tracking_type,
               $notes: re.notes,
             }
           );
@@ -160,6 +164,29 @@ export async function addExerciseToWorkout(
   );
   if (!created) throw new Error('Failed to add exercise to workout');
   return created;
+}
+
+export async function updateWorkoutExercise(
+  workoutExerciseId: string,
+  fields: { superset_group_id?: string | null; tracking_type?: string | null; notes?: string | null }
+): Promise<void> {
+  const db = await getDb();
+  const sets: string[] = [];
+  const params: Record<string, string | null> = { $id: workoutExerciseId };
+  if (fields.superset_group_id !== undefined) {
+    sets.push('superset_group_id = $superset');
+    params.$superset = fields.superset_group_id;
+  }
+  if (fields.tracking_type !== undefined) {
+    sets.push('tracking_type = $tracking');
+    params.$tracking = fields.tracking_type;
+  }
+  if (fields.notes !== undefined) {
+    sets.push('notes = $notes');
+    params.$notes = fields.notes;
+  }
+  if (!sets.length) return;
+  await db.runAsync(`UPDATE workout_exercises SET ${sets.join(', ')} WHERE id = $id`, params);
 }
 
 export async function addSet(workoutExerciseId: string, setType: SetType = 'normal'): Promise<LoggedSet> {

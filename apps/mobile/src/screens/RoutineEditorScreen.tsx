@@ -3,7 +3,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { setExerciseTrackingType } from '../db/repositories/exercises';
 import {
   addExerciseToRoutine,
   addRoutineSet,
@@ -18,7 +17,14 @@ import {
 import { id } from '../db/id';
 import type { RoutineDetail, RoutineExerciseDetail, RoutineSet } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { FIELD_PLACEHOLDER, fieldsFor, SetFieldKey, TRACKING_LABELS, TRACKING_TYPES } from './setFields';
+import {
+  effectiveTrackingType,
+  FIELD_PLACEHOLDER,
+  fieldsFor,
+  SetFieldKey,
+  TRACKING_LABELS,
+  TRACKING_TYPES,
+} from './setFields';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RoutineEditor'>;
 
@@ -104,11 +110,11 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
     updateRoutineExercise(rexId, { rest_seconds: value });
   }
 
-  async function cycleTrackingType(rex: RoutineExerciseDetail) {
-    const current = (rex.exercise.tracking_type ?? 'weight_reps') as (typeof TRACKING_TYPES)[number];
+  function cycleTrackingType(rex: RoutineExerciseDetail) {
+    const current = effectiveTrackingType(rex.tracking_type, rex.exercise.tracking_type);
     const next = TRACKING_TYPES[(TRACKING_TYPES.indexOf(current) + 1) % TRACKING_TYPES.length];
-    await setExerciseTrackingType(rex.exercise.id, next);
-    reload();
+    patchExercise(rex.id, (r) => ({ ...r, tracking_type: next }));
+    updateRoutineExercise(rex.id, { tracking_type: next });
   }
 
   async function move(index: number, delta: number) {
@@ -164,7 +170,8 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
         </View>
       }
       renderItem={({ item, index }) => {
-        const fields = fieldsFor(item.exercise.tracking_type);
+        const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
+        const fields = fieldsFor(trackingType);
         const supersetWithPrev =
           index > 0 &&
           item.superset_group_id != null &&
@@ -189,9 +196,7 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
 
             <View style={styles.metaRow}>
               <Pressable style={styles.metaChip} onPress={() => cycleTrackingType(item)}>
-                <Text style={styles.metaChipText}>
-                  {TRACKING_LABELS[(item.exercise.tracking_type as never) ?? 'weight_reps']}
-                </Text>
+                <Text style={styles.metaChipText}>{TRACKING_LABELS[trackingType]}</Text>
               </Pressable>
               {index > 0 ? (
                 <Pressable

@@ -28,6 +28,7 @@ export type RoutineExercise = {
   position: number;
   superset_group_id: string | null;
   rest_seconds: number | null;
+  tracking_type: string | null;
   notes: string | null;
 };
 
@@ -57,6 +58,7 @@ export type WorkoutExercise = {
   exercise_id: string;
   position: number;
   superset_group_id: string | null;
+  tracking_type: string | null;
   notes: string | null;
 };
 

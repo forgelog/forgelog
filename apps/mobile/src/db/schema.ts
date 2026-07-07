@@ -31,6 +31,7 @@ CREATE TABLE routine_exercises (
   position          INTEGER NOT NULL,
   superset_group_id TEXT,
   rest_seconds      INTEGER,
+  tracking_type     TEXT,
   notes             TEXT
 );
 
@@ -66,6 +67,7 @@ CREATE TABLE workout_exercises (
   exercise_id       TEXT NOT NULL REFERENCES exercises(id),
   position          INTEGER NOT NULL,
   superset_group_id TEXT,
+  tracking_type     TEXT,
   notes             TEXT
 );
 

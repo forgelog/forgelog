@@ -38,7 +38,9 @@ export function WorkoutDetailScreen({ route }: Props) {
           {we.sets.map((set, i) => (
             <View key={set.id} style={styles.setRow}>
               <Text style={styles.setIndex}>{i + 1}</Text>
-              <Text style={styles.setText}>{formatSet(we.exercise.tracking_type, set)}</Text>
+              <Text style={styles.setText}>
+                {formatSet(we.tracking_type ?? we.exercise.tracking_type, set)}
+              </Text>
               <Text style={[styles.status, set.completed && styles.done]}>
                 {set.completed ? 'done' : 'skipped'}
               </Text>

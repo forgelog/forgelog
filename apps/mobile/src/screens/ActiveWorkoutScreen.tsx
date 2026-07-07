@@ -14,10 +14,18 @@ import {
   finishWorkout,
   getWorkoutDetail,
   updateLoggedSet,
+  updateWorkoutExercise,
 } from '../db/repositories/workouts';
 import type { LoggedSet, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { FIELD_PLACEHOLDER, fieldsFor, SetFieldKey } from './setFields';
+import {
+  effectiveTrackingType,
+  FIELD_PLACEHOLDER,
+  fieldsFor,
+  SetFieldKey,
+  TRACKING_LABELS,
+  TRACKING_TYPES,
+} from './setFields';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveWorkout'>;
 
@@ -69,6 +77,13 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   async function handleAddSet(we: WorkoutExerciseDetail) {
     const created = await addSet(we.id);
     patchExercise(we.id, (w) => ({ ...w, sets: [...w.sets, created] }));
+  }
+
+  function cycleTrackingType(we: WorkoutExerciseDetail) {
+    const current = effectiveTrackingType(we.tracking_type, we.exercise.tracking_type);
+    const next = TRACKING_TYPES[(TRACKING_TYPES.indexOf(current) + 1) % TRACKING_TYPES.length];
+    patchExercise(we.id, (w) => ({ ...w, tracking_type: next }));
+    updateWorkoutExercise(we.id, { tracking_type: next });
   }
 
   function editSetField(weId: string, setId: string, field: SetFieldKey, raw: string) {
@@ -138,7 +153,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={<Text style={styles.title}>{detail.name}</Text>}
         renderItem={({ item, index }) => {
-          const fields = fieldsFor(item.exercise.tracking_type);
+          const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
+          const fields = fieldsFor(trackingType);
           const supersetWithPrev =
             index > 0 &&
             item.superset_group_id != null &&
@@ -146,7 +162,12 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           return (
             <View style={styles.exercise}>
               {supersetWithPrev ? <Text style={styles.supersetTag}>⛓ superset</Text> : null}
-              <Text style={styles.exerciseName}>{item.exercise.name}</Text>
+              <View style={styles.exerciseHeader}>
+                <Text style={styles.exerciseName}>{item.exercise.name}</Text>
+                <Pressable style={styles.typeChip} onPress={() => cycleTrackingType(item)}>
+                  <Text style={styles.typeChipText}>{TRACKING_LABELS[trackingType]}</Text>
+                </Pressable>
+              </View>
               {item.sets.map((set, i) => (
                 <View key={set.id} style={styles.setRow}>
                   <Text style={styles.setIndex}>{i + 1}</Text>
@@ -228,7 +249,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700', padding: 16 },
   exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#eee' },
   supersetTag: { color: '#0a7', fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  exerciseName: { fontSize: 16, fontWeight: '600' },
+  exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  exerciseName: { fontSize: 16, fontWeight: '600', flex: 1 },
+  typeChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#f0f0f0' },
+  typeChipText: { fontSize: 12, color: '#333' },
   setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
   setIndex: { width: 20, color: '#888' },
   setInput: {

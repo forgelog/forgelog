@@ -23,6 +23,15 @@ const FIELDS: Record<TrackingType, SetFieldKey[]> = {
   duration_distance: ['duration', 'distance'],
 };
 
+// Resolve the type actually in effect: a per-context override wins over the
+// catalog default; both may be null, in which case we default to weight × reps.
+export function effectiveTrackingType(
+  override: string | null,
+  catalogDefault: string | null
+): TrackingType {
+  return (override ?? catalogDefault ?? 'weight_reps') as TrackingType;
+}
+
 // tracking_type is null for seeded exercises — default to weight × reps.
 export function fieldsFor(trackingType: string | null): SetFieldKey[] {
   return FIELDS[(trackingType as TrackingType) ?? 'weight_reps'] ?? FIELDS.weight_reps;
