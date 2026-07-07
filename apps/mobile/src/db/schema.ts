@@ -6,10 +6,10 @@ CREATE TABLE exercises (
   name          TEXT NOT NULL,
   muscle_group  TEXT NOT NULL,
   equipment     TEXT NOT NULL,
-  tracking_type TEXT NOT NULL,
+  tracking_type TEXT,
   is_custom     INTEGER NOT NULL DEFAULT 0,
   instructions  TEXT,
-  image_url     TEXT,
+  images        TEXT,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

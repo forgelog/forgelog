@@ -1,13 +1,27 @@
-import { StyleSheet, Text, View } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-export function HomeScreen() {
+import type { RootStackParamList } from '../navigation/RootNavigator';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+
+export function HomeScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
-      <Text>Home</Text>
+      <Pressable style={styles.button} onPress={() => navigation.navigate('ExerciseLibrary')}>
+        <Text style={styles.buttonText}>Exercise Library</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  button: {
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#1a1a1a',
+  },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

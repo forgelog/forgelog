@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 import { SCHEMA_SQL } from './schema';
+import { seedExercises } from './seed';
 
 const DB_NAME = 'forgelog.db';
 
@@ -28,6 +29,8 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
     await db.execAsync(SCHEMA_SQL);
     await db.execAsync(`PRAGMA user_version = ${LATEST_SCHEMA_VERSION};`);
   }
+
+  await seedExercises(db);
 
   return db;
 }
