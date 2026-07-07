@@ -1,0 +1,5 @@
+[tools]
+node = "22.20.0"
+java = "21.0.2"
+"npm:eas-cli" = "latest"
+maestro = "latest"
