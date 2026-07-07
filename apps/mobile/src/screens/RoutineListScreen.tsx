@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { createRoutine, deleteRoutine, listRoutines } from '../db/repositories/routines';
+import { startWorkout } from '../db/repositories/workouts';
 import type { Routine } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -21,6 +22,11 @@ export function RoutineListScreen({ navigation }: Props) {
   async function handleCreate() {
     const routine = await createRoutine('New Routine');
     navigation.navigate('RoutineEditor', { routineId: routine.id });
+  }
+
+  async function handleStart(routine: Routine) {
+    const workout = await startWorkout({ routineId: routine.id });
+    navigation.navigate('ActiveWorkout', { workoutId: workout.id });
   }
 
   function confirmDelete(routine: Routine) {
@@ -49,8 +55,13 @@ export function RoutineListScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('RoutineEditor', { routineId: item.id })}
             onLongPress={() => confirmDelete(item)}
           >
-            <Text style={styles.name}>{item.name}</Text>
-            {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
+            <View style={styles.rowText}>
+              <Text style={styles.name}>{item.name}</Text>
+              {item.notes ? <Text style={styles.notes}>{item.notes}</Text> : null}
+            </View>
+            <Pressable style={styles.start} onPress={() => handleStart(item)}>
+              <Text style={styles.startText}>Start</Text>
+            </Pressable>
           </Pressable>
         )}
       />
@@ -64,9 +75,19 @@ export function RoutineListScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   empty: { textAlign: 'center', marginTop: 48, color: '#888' },
-  row: { paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  rowText: { flex: 1 },
   name: { fontSize: 16, fontWeight: '600' },
   notes: { marginTop: 2, color: '#666', fontSize: 13 },
+  start: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: '#0a7' },
+  startText: { color: '#fff', fontWeight: '600' },
   button: {
     margin: 16,
     paddingVertical: 14,

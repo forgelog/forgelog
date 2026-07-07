@@ -1,10 +1,19 @@
-import { render } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { render, waitFor } from '@testing-library/react-native';
 
 import { HomeScreen } from '../HomeScreen';
+import type { RootStackParamList } from '../../navigation/RootNavigator';
 
-test('renders the Home screen', async () => {
-  const navigation = { navigate: jest.fn() } as never;
-  const route = {} as never;
-  const { getByText } = await render(<HomeScreen navigation={navigation} route={route} />);
-  expect(getByText('Exercise Library')).toBeTruthy();
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+test('renders the Home screen with a start action', async () => {
+  const { getByText } = await render(
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="Home" component={HomeScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+  await waitFor(() => expect(getByText('Start Workout')).toBeTruthy());
 });

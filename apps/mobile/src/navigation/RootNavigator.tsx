@@ -2,17 +2,17 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import type { Exercise } from '../db/types';
+import { ActiveWorkoutScreen } from '../screens/ActiveWorkoutScreen';
 import { ExerciseLibraryScreen } from '../screens/ExerciseLibraryScreen';
 import { HistoryScreen } from '../screens/HistoryScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { ProgressScreen } from '../screens/ProgressScreen';
 import { RoutineEditorScreen } from '../screens/RoutineEditorScreen';
 import { RoutineListScreen } from '../screens/RoutineListScreen';
-import { WorkoutScreen } from '../screens/WorkoutScreen';
 
 export type RootStackParamList = {
   Home: undefined;
-  Workout: undefined;
+  ActiveWorkout: { workoutId: string };
   History: undefined;
   Progress: undefined;
   ExerciseLibrary: { mode?: 'browse' | 'pick'; onPick?: (exercise: Exercise) => void } | undefined;
@@ -42,7 +42,11 @@ export function RootNavigator() {
           component={RoutineEditorScreen}
           options={{ title: 'Edit Routine' }}
         />
-        <Stack.Screen name="Workout" component={WorkoutScreen} />
+        <Stack.Screen
+          name="ActiveWorkout"
+          component={ActiveWorkoutScreen}
+          options={{ title: 'Workout' }}
+        />
         <Stack.Screen name="History" component={HistoryScreen} />
         <Stack.Screen name="Progress" component={ProgressScreen} />
       </Stack.Navigator>
