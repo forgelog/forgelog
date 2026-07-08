@@ -65,6 +65,8 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
     if (mode === 'pick' && onPick) {
       onPick(exercise);
       navigation.goBack();
+    } else {
+      navigation.navigate('ExerciseDetail', { exerciseId: exercise.id });
     }
   }
 
@@ -99,11 +101,7 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
           ListHeaderComponent={<Text style={[styles.count, { color: c.sub }]}>{count} exercises</Text>}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
-            <Pressable
-              style={styles.row}
-              onPress={() => handlePress(item)}
-              disabled={mode === 'browse'}
-            >
+            <Pressable style={styles.row} onPress={() => handlePress(item)}>
               {item.images[0] ? (
                 <Image source={{ uri: item.images[0] }} style={styles.thumb} />
               ) : (
@@ -115,6 +113,16 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
                   {item.muscle_group} · {item.equipment}
                 </Text>
               </View>
+              {mode === 'pick' ? (
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: item.id })}
+                >
+                  <Icon name="information-outline" variant="sub" size={20} />
+                </Pressable>
+              ) : (
+                <Icon name="chevron-right" variant="sub" size={20} />
+              )}
             </Pressable>
           )}
         />
@@ -141,6 +149,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
