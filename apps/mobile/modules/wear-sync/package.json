@@ -1,0 +1,8 @@
+{
+  "name": "wear-sync",
+  "version": "1.0.0",
+  "description": "Bridges the phone app to the Wear OS companion app via the Data Layer API.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "license": "UNLICENSED"
+}

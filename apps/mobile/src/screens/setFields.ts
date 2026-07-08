@@ -43,3 +43,14 @@ export const FIELD_PLACEHOLDER: Record<SetFieldKey, string> = {
   duration: 'sec',
   distance: 'm',
 };
+
+export const DEFAULT_REST_SECONDS = 90;
+
+// Per-exercise rest_seconds (snapshotted onto workout_exercises at workout
+// start) wins; null falls back to the default rest duration.
+export function resolveRestSeconds(
+  restSeconds: number | null,
+  defaultSeconds: number = DEFAULT_REST_SECONDS
+): number {
+  return restSeconds ?? defaultSeconds;
+}

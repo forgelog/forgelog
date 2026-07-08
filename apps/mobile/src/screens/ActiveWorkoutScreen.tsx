@@ -22,14 +22,13 @@ import {
   effectiveTrackingType,
   FIELD_PLACEHOLDER,
   fieldsFor,
+  resolveRestSeconds,
   SetFieldKey,
   TRACKING_LABELS,
   TRACKING_TYPES,
 } from './setFields';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveWorkout'>;
-
-const DEFAULT_REST_SECONDS = 90;
 
 const SET_COLUMN: Record<SetFieldKey, keyof LoggedSet> = {
   weight: 'weight',
@@ -104,7 +103,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     }));
     await updateLoggedSet(setId, { completed });
     if (completed) {
-      setRestRemaining(DEFAULT_REST_SECONDS);
+      setRestRemaining(resolveRestSeconds(we.rest_seconds));
       await checkForPr(we.exercise.id);
     }
   }

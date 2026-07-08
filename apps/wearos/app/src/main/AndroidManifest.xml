@@ -1,0 +1,48 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.hardware.type.watch" />
+
+    <!-- Rest-timer countdown ticks and the new-PR moment (Haptics.kt). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault">
+
+        <!-- Fully usable without the phone in range: the WAL is local-first. -->
+        <meta-data
+            android:name="com.google.android.wearable.standalone"
+            android:value="true" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Receives routine/exercise/PR reference data pushed from the phone. -->
+        <service
+            android:name=".sync.PhoneSyncListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/sync-snapshot" />
+            </intent-filter>
+        </service>
+
+        <!-- Glanceable start/resume Tile: deferred to Phase 3. The
+             androidx.wear.tiles / androidx.wear.protolayout API split in the
+             current library version needs verifying against current docs
+             before implementing (see .agents/plans/wearos-companion-plan.md). -->
+
+    </application>
+</manifest>

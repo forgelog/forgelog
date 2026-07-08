@@ -59,6 +59,7 @@ export type WorkoutExercise = {
   position: number;
   superset_group_id: string | null;
   tracking_type: string | null;
+  rest_seconds: number | null;
   notes: string | null;
 };
 

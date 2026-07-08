@@ -50,8 +50,8 @@ export async function startWorkout(options: {
           const weId = id();
           await db.runAsync(
             `INSERT INTO workout_exercises
-               (id, workout_id, exercise_id, position, superset_group_id, tracking_type, notes)
-             VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $tracking_type, $notes)`,
+               (id, workout_id, exercise_id, position, superset_group_id, tracking_type, rest_seconds, notes)
+             VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $tracking_type, $rest_seconds, $notes)`,
             {
               $id: weId,
               $workout_id: workoutId,
@@ -61,6 +61,7 @@ export async function startWorkout(options: {
               // snapshot the effective type so editing the routine/catalog later
               // never rewrites this logged workout.
               $tracking_type: re.tracking_type ?? re.exercise.tracking_type,
+              $rest_seconds: re.rest_seconds,
               $notes: re.notes,
             }
           );

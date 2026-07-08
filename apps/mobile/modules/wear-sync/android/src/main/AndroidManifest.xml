@@ -1,0 +1,17 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- Woken by Play Services when a DataItem lands under /workout, even if
+         the app isn't running — matches the offline write-ahead-log flush. -->
+    <service
+      android:name="expo.modules.wearsync.WearSyncListenerService"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+        <data
+          android:scheme="wear"
+          android:host="*"
+          android:pathPrefix="/workout" />
+      </intent-filter>
+    </service>
+  </application>
+</manifest>

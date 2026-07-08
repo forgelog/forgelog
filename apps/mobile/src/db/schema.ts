@@ -68,6 +68,7 @@ CREATE TABLE workout_exercises (
   position          INTEGER NOT NULL,
   superset_group_id TEXT,
   tracking_type     TEXT,
+  rest_seconds      INTEGER,
   notes             TEXT
 );
 
