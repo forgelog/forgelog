@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [Mobile, Wear OS]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download mobile debug APK
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: mobile.yml
+          branch: main
+          workflow_conclusion: success
+          name: forgelog-debug-apk
+          path: artifacts/mobile-debug
+          if_no_artifact_found: ignore
+
+      - name: Download mobile release APK
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: mobile.yml
+          branch: main
+          workflow_conclusion: success
+          name: forgelog-release-apk
+          path: artifacts/mobile-release
+          if_no_artifact_found: ignore
+
+      - name: Download wear OS debug APK
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: wearos.yml
+          branch: main
+          workflow_conclusion: success
+          name: forgelog-wear-debug-apk
+          path: artifacts/wear-debug
+          if_no_artifact_found: ignore
+
+      - name: Download wear OS release APK
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: wearos.yml
+          branch: main
+          workflow_conclusion: success
+          name: forgelog-wear-release-apk
+          path: artifacts/wear-release
+          if_no_artifact_found: ignore
+
+      - name: Flatten and rename APKs
+        run: |
+          mkdir -p release-apks
+          [ -f artifacts/mobile-debug/app-debug.apk ] && cp artifacts/mobile-debug/app-debug.apk release-apks/forgelog-mobile-debug.apk
+          [ -f artifacts/mobile-release/app-release.apk ] && cp artifacts/mobile-release/app-release.apk release-apks/forgelog-mobile-release.apk
+          [ -f artifacts/wear-debug/app-debug.apk ] && cp artifacts/wear-debug/app-debug.apk release-apks/forgelog-wear-debug.apk
+          [ -f artifacts/wear-release/app-release.apk ] && cp artifacts/wear-release/app-release.apk release-apks/forgelog-wear-release.apk
+          ls -la release-apks
+
+      - name: Publish v0.0.0 release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v0.0.0
+          name: v0.0.0 (latest main)
+          body: Auto-updated build from the latest push to main. Not a stable release.
+          artifacts: release-apks/*.apk
+          allowUpdates: true
+          removeArtifacts: true
+          replacesArtifacts: true
+          makeLatest: true
+          prerelease: true
+          commit: main

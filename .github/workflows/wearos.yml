@@ -3,9 +3,6 @@ name: Wear OS
 on:
   push:
     branches: [main]
-    paths:
-      - 'apps/wearos/**'
-      - '.github/workflows/wearos.yml'
   pull_request:
     paths:
       - 'apps/wearos/**'
@@ -35,3 +32,25 @@ jobs:
         with:
           name: forgelog-wear-debug-apk
           path: apps/wearos/app/build/outputs/apk/debug/app-debug.apk
+
+  build-release-apk:
+    runs-on: ubuntu-latest
+    needs: test
+    defaults:
+      run:
+        working-directory: apps/wearos
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: forgelog-wear-release-apk
+          path: apps/wearos/app/build/outputs/apk/release/app-release.apk

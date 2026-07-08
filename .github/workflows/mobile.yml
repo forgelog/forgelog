@@ -3,9 +3,6 @@ name: Mobile
 on:
   push:
     branches: [main]
-    paths:
-      - 'apps/mobile/**'
-      - '.github/workflows/mobile.yml'
   pull_request:
     paths:
       - 'apps/mobile/**'
