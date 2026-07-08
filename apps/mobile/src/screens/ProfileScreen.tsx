@@ -2,6 +2,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
@@ -35,61 +36,63 @@ export function ProfileScreen() {
   );
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: c.bg }]}>
-      <View style={styles.header}>
-        <View style={[styles.avatar, { backgroundColor: c.asoft }]}>
-          <Text style={[styles.avatarText, { color: c.accent }]}>AR</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]}>
+      <ScrollView>
+        <View style={styles.header}>
+          <View style={[styles.avatar, { backgroundColor: c.asoft }]}>
+            <Text style={[styles.avatarText, { color: c.accent }]}>AR</Text>
+          </View>
+          <View style={styles.identity}>
+            <Text style={[styles.name, { color: c.fg }]}>Alex Rivera</Text>
+            <Text style={[styles.since, { color: c.sub }]}>Member since 2026</Text>
+          </View>
+          <Icon name="pencil" variant="sub" size={20} />
         </View>
-        <View style={styles.identity}>
-          <Text style={[styles.name, { color: c.fg }]}>Alex Rivera</Text>
-          <Text style={[styles.since, { color: c.sub }]}>Member since 2026</Text>
-        </View>
-        <Icon name="pencil" variant="sub" size={20} />
-      </View>
 
-      <View style={styles.statsRow}>
-        <Card style={styles.statCard}>
-          <Text style={[styles.statValue, { color: c.fg }]}>{stats.workoutCount}</Text>
-          <Text style={[styles.statLabel, { color: c.sub }]}>Workouts</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={[styles.statValue, { color: c.fg }]}>{round(stats.totalVolume)}</Text>
-          <Text style={[styles.statLabel, { color: c.sub }]}>Volume kg</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={[styles.statValue, { color: c.accent }]}>{stats.streakDays}</Text>
-          <Text style={[styles.statLabel, { color: c.sub }]}>Streak days</Text>
-        </Card>
-      </View>
-
-      <Text style={[styles.sectionTitle, { color: c.fg }]}>Personal Records</Text>
-      {groups.length === 0 ? (
-        <Text style={[styles.empty, { color: c.sub }]}>No records yet. Complete a set to set a PR.</Text>
-      ) : (
-        groups.map((group) => (
-          <Card key={group.exerciseId} style={styles.recordCard}>
-            <Text style={[styles.recordName, { color: c.fg }]}>{group.name}</Text>
-            {group.records.map((r) => (
-              <View key={r.id} style={styles.recordRow}>
-                <Text style={[styles.recordLabel, { color: c.sub }]}>
-                  {RECORD_LABELS[r.record_type] ?? r.record_type}
-                </Text>
-                <Text style={[styles.recordValue, { color: c.fg }]}>{round(r.value)}</Text>
-              </View>
-            ))}
+        <View style={styles.statsRow}>
+          <Card style={styles.statCard}>
+            <Text style={[styles.statValue, { color: c.fg }]}>{stats.workoutCount}</Text>
+            <Text style={[styles.statLabel, { color: c.sub }]}>Workouts</Text>
           </Card>
-        ))
-      )}
+          <Card style={styles.statCard}>
+            <Text style={[styles.statValue, { color: c.fg }]}>{round(stats.totalVolume)}</Text>
+            <Text style={[styles.statLabel, { color: c.sub }]}>Volume kg</Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={[styles.statValue, { color: c.accent }]}>{stats.streakDays}</Text>
+            <Text style={[styles.statLabel, { color: c.sub }]}>Streak days</Text>
+          </Card>
+        </View>
 
-      <Pressable
-        style={[styles.libraryRow, { borderTopColor: c.sep }]}
-        onPress={() => navigation.navigate('ExerciseLibrary', { mode: 'browse' })}
-      >
-        <Icon name="dumbbell" variant="sub" size={20} />
-        <Text style={[styles.libraryText, { color: c.fg }]}>Exercise Library</Text>
-        <Icon name="chevron-right" variant="sub" size={20} />
-      </Pressable>
-    </ScrollView>
+        <Text style={[styles.sectionTitle, { color: c.fg }]}>Personal Records</Text>
+        {groups.length === 0 ? (
+          <Text style={[styles.empty, { color: c.sub }]}>No records yet. Complete a set to set a PR.</Text>
+        ) : (
+          groups.map((group) => (
+            <Card key={group.exerciseId} style={styles.recordCard}>
+              <Text style={[styles.recordName, { color: c.fg }]}>{group.name}</Text>
+              {group.records.map((r) => (
+                <View key={r.id} style={styles.recordRow}>
+                  <Text style={[styles.recordLabel, { color: c.sub }]}>
+                    {RECORD_LABELS[r.record_type] ?? r.record_type}
+                  </Text>
+                  <Text style={[styles.recordValue, { color: c.fg }]}>{round(r.value)}</Text>
+                </View>
+              ))}
+            </Card>
+          ))
+        )}
+
+        <Pressable
+          style={[styles.libraryRow, { borderTopColor: c.sep }]}
+          onPress={() => navigation.navigate('ExerciseLibrary', { mode: 'browse' })}
+        >
+          <Icon name="dumbbell" variant="sub" size={20} />
+          <Text style={[styles.libraryText, { color: c.fg }]}>Exercise Library</Text>
+          <Icon name="chevron-right" variant="sub" size={20} />
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
