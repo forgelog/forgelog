@@ -6,4 +6,4 @@ appId: com.forgelog.mobile
       visible: "Continue"
     commands:
       - tapOn: "Continue"
-- assertVisible: "Home"
+- assertVisible: "Workout"
