@@ -17,6 +17,7 @@ import {
   addSet,
   deleteLoggedSet,
   finishWorkout,
+  getPreviousSessionSets,
   getWorkoutDetail,
   updateLoggedSet,
   updateWorkoutExercise,
@@ -28,6 +29,7 @@ import {
   effectiveTrackingType,
   FIELD_PLACEHOLDER,
   fieldsFor,
+  formatCompactSet,
   resolveRestSeconds,
   SetFieldKey,
   TRACKING_LABELS,
@@ -50,9 +52,19 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [prSetIds, setPrSetIds] = useState<Set<string>>(new Set());
+  const [prevSets, setPrevSets] = useState<Record<string, LoggedSet[]>>({});
 
   const reload = useCallback(() => {
-    getWorkoutDetail(workoutId).then(setDetail);
+    getWorkoutDetail(workoutId).then((d) => {
+      setDetail(d);
+      if (!d) return;
+      Promise.all(
+        d.exercises.map(async (we) => [
+          we.exercise.id,
+          await getPreviousSessionSets(we.exercise.id, workoutId),
+        ] as const)
+      ).then((entries) => setPrevSets(Object.fromEntries(entries)));
+    });
   }, [workoutId]);
 
   useFocusEffect(reload);
@@ -194,12 +206,22 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             <View style={[styles.exercise, { borderTopColor: c.sep }]}>
               {supersetWithPrev ? <SupersetTag /> : null}
               <View style={styles.exerciseHeader}>
-                <Text style={[styles.exerciseName, { color: c.fg }]}>{item.exercise.name}</Text>
+                <Pressable
+                  style={styles.exerciseNameRow}
+                  onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: item.exercise.id })}
+                  hitSlop={8}
+                >
+                  <Text style={[styles.exerciseName, { color: c.fg }]}>{item.exercise.name}</Text>
+                  <Icon name="information-outline" variant="sub" size={18} />
+                </Pressable>
                 <Chip label={TRACKING_LABELS[trackingType]} onPress={() => cycleTrackingType(item)} />
               </View>
               <View style={styles.columnHeader}>
                 <Text style={[styles.columnLabel, { color: c.sub, width: 26, textAlign: 'center' }]}>
                   SET
+                </Text>
+                <Text style={[styles.columnLabel, { color: c.sub, width: 52, textAlign: 'center' }]}>
+                  PREV
                 </Text>
                 {fields.map((field) => (
                   <Text key={field} style={[styles.columnLabel, { color: c.sub, flex: 1, textAlign: 'center' }]}>
@@ -216,6 +238,12 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
                   ]}
                 >
                   <Text style={[styles.setIndex, { color: c.sub }]}>{i + 1}</Text>
+                  <Text style={[styles.prevValue, { color: c.sub }]} numberOfLines={1}>
+                    {(() => {
+                      const prev = prevSets[item.exercise.id]?.[i];
+                      return (prev ? formatCompactSet(trackingType, prev) : null) ?? '–';
+                    })()}
+                  </Text>
                   {fields.map((field) => (
                     <TextInput
                       key={field}
@@ -298,11 +326,13 @@ const styles = StyleSheet.create({
   timer: { fontSize: 28, fontWeight: '700', textAlign: 'center', paddingVertical: 8, fontVariant: ['tabular-nums'] },
   exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  exerciseName: { fontSize: 16, fontWeight: '700', flex: 1 },
+  exerciseNameRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  exerciseName: { fontSize: 16, fontWeight: '700' },
   columnHeader: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 0 },
   columnLabel: { fontSize: 11, fontWeight: '700' },
   setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8, paddingVertical: 4 },
   setIndex: { width: 26, textAlign: 'center' },
+  prevValue: { width: 52, textAlign: 'center', fontSize: 13 },
   setInput: {
     flex: 1,
     height: 36,

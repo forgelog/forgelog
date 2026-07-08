@@ -1,13 +1,13 @@
 import * as SQLite from 'expo-sqlite';
 
 import { SCHEMA_SQL } from './schema';
-import { seedExercises } from './seed';
+import { backfillSecondaryMuscles, seedExercises } from './seed';
 
 const DB_NAME = 'forgelog.db';
 
 // Bump this and add an `if (currentVersion < N)` branch below whenever the
 // schema changes, so existing installs migrate instead of losing data.
-const LATEST_SCHEMA_VERSION = 2;
+const LATEST_SCHEMA_VERSION = 3;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -28,9 +28,16 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   if (currentVersion === 0) {
     // Fresh install: SCHEMA_SQL is always the current full schema.
     await db.execAsync(SCHEMA_SQL);
-  } else if (currentVersion < 2) {
-    // v2: watch sync needs a per-session rest_seconds snapshot.
-    await db.execAsync('ALTER TABLE workout_exercises ADD COLUMN rest_seconds INTEGER;');
+  } else {
+    if (currentVersion < 2) {
+      // v2: watch sync needs a per-session rest_seconds snapshot.
+      await db.execAsync('ALTER TABLE workout_exercises ADD COLUMN rest_seconds INTEGER;');
+    }
+    if (currentVersion < 3) {
+      // v3: exercise detail screen needs secondary muscles alongside the primary one.
+      await db.execAsync('ALTER TABLE exercises ADD COLUMN secondary_muscles TEXT;');
+      await backfillSecondaryMuscles(db);
+    }
   }
 
   if (currentVersion < LATEST_SCHEMA_VERSION) {

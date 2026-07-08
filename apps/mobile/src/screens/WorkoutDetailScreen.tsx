@@ -6,10 +6,10 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SupersetTag } from '../components/SupersetTag';
 import { getWorkoutDetail } from '../db/repositories/workouts';
-import type { LoggedSet, WorkoutDetail } from '../db/types';
+import type { WorkoutDetail } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
-import { fieldsFor } from './setFields';
+import { formatSet } from './setFields';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WorkoutDetail'>;
 
@@ -90,23 +90,6 @@ function totalVolume(detail: WorkoutDetail): number {
 
 function round(value: number): number {
   return Math.round(value * 10) / 10;
-}
-
-function formatSet(trackingType: string | null, set: LoggedSet): string {
-  return fieldsFor(trackingType)
-    .map((field) => {
-      switch (field) {
-        case 'weight':
-          return `${set.weight ?? '–'} kg`;
-        case 'reps':
-          return `${set.reps ?? '–'} reps`;
-        case 'duration':
-          return `${set.duration_seconds ?? '–'} s`;
-        case 'distance':
-          return `${set.distance_meters ?? '–'} m`;
-      }
-    })
-    .join(' × ');
 }
 
 function formatDate(iso: string): string {

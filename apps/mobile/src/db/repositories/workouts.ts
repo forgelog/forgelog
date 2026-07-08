@@ -19,6 +19,7 @@ type ExerciseRow = {
   is_custom: number;
   instructions: string | null;
   images: string | null;
+  secondary_muscles: string | null;
   created_at: string;
 };
 
@@ -135,6 +136,9 @@ export async function getWorkoutDetail(workoutId: string): Promise<WorkoutDetail
         is_custom: exRow.is_custom === 1,
         instructions: exRow.instructions ? (JSON.parse(exRow.instructions) as string[]) : [],
         images: exRow.images ? (JSON.parse(exRow.images) as string[]) : [],
+        secondary_muscles: exRow.secondary_muscles
+          ? (JSON.parse(exRow.secondary_muscles) as string[])
+          : [],
         created_at: exRow.created_at,
       },
       sets: sets.map(mapLoggedSet),
@@ -142,6 +146,84 @@ export async function getWorkoutDetail(workoutId: string): Promise<WorkoutDetail
   }
 
   return { ...workout, exercises };
+}
+
+// Sets from the most recent other completed workout that logged this
+// exercise — used to show "PREV" reference values while actively logging.
+export async function getPreviousSessionSets(
+  exerciseId: string,
+  excludeWorkoutId: string
+): Promise<LoggedSet[]> {
+  const db = await getDb();
+  const we = await db.getFirstAsync<{ we_id: string }>(
+    `SELECT we.id AS we_id
+       FROM workout_exercises we
+       JOIN workouts w ON w.id = we.workout_id
+      WHERE we.exercise_id = $exerciseId AND w.id != $excludeWorkoutId AND w.ended_at IS NOT NULL
+      ORDER BY w.started_at DESC
+      LIMIT 1`,
+    { $exerciseId: exerciseId, $excludeWorkoutId: excludeWorkoutId }
+  );
+  if (!we) return [];
+  const sets = await db.getAllAsync<RawLoggedSet>(
+    'SELECT * FROM logged_sets WHERE workout_exercise_id = $id ORDER BY position',
+    { $id: we.we_id }
+  );
+  return sets.map(mapLoggedSet);
+}
+
+export type ExerciseSession = {
+  workoutId: string;
+  workoutName: string;
+  startedAt: string;
+  trackingType: string | null;
+  sets: LoggedSet[];
+};
+
+// Past completed sessions that logged this exercise, most recent first —
+// powers the exercise detail screen's History tab. A workout that logs the
+// same exercise more than once (e.g. two separate blocks) folds into a
+// single session with all of its sets combined.
+export async function getSessionsForExercise(
+  exerciseId: string,
+  limit = 20
+): Promise<ExerciseSession[]> {
+  const db = await getDb();
+  const workoutExercises = await db.getAllAsync<{
+    we_id: string;
+    workout_id: string;
+    workout_name: string;
+    started_at: string;
+    tracking_type: string | null;
+  }>(
+    `SELECT we.id AS we_id, w.id AS workout_id, w.name AS workout_name, w.started_at, we.tracking_type
+       FROM workout_exercises we
+       JOIN workouts w ON w.id = we.workout_id
+      WHERE we.exercise_id = $id AND w.ended_at IS NOT NULL
+      ORDER BY w.started_at DESC, we.position`,
+    { $id: exerciseId }
+  );
+
+  const byWorkout = new Map<string, ExerciseSession>();
+  for (const we of workoutExercises) {
+    const sets = await db.getAllAsync<RawLoggedSet>(
+      'SELECT * FROM logged_sets WHERE workout_exercise_id = $id ORDER BY position',
+      { $id: we.we_id }
+    );
+    const existing = byWorkout.get(we.workout_id);
+    if (existing) {
+      existing.sets.push(...sets.map(mapLoggedSet));
+    } else {
+      byWorkout.set(we.workout_id, {
+        workoutId: we.workout_id,
+        workoutName: we.workout_name,
+        startedAt: we.started_at,
+        trackingType: we.tracking_type,
+        sets: sets.map(mapLoggedSet),
+      });
+    }
+  }
+  return [...byWorkout.values()].slice(0, limit);
 }
 
 export async function addExerciseToWorkout(

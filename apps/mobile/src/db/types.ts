@@ -9,6 +9,7 @@ export type Exercise = {
   is_custom: boolean;
   instructions: string[];
   images: string[];
+  secondary_muscles: string[];
   created_at: string;
 };
 

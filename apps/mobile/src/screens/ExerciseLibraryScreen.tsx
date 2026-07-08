@@ -5,16 +5,15 @@ import {
   FlatList,
   Image,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
-import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { Select } from '../components/Select';
 import { listEquipment, listExercises, listMuscleGroups } from '../db/repositories/exercises';
 import type { Exercise } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -87,8 +86,10 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
           clearButtonMode="while-editing"
         />
       </View>
-      <ChipRow options={muscleGroups} selected={muscleGroup} onSelect={setMuscleGroup} />
-      <ChipRow options={equipmentList} selected={equipment} onSelect={setEquipment} />
+      <View style={styles.filters}>
+        <Select label="Muscle group" value={muscleGroup} options={muscleGroups} onChange={setMuscleGroup} />
+        <Select label="Equipment" value={equipment} options={equipmentList} onChange={setEquipment} />
+      </View>
       {loading ? (
         <ActivityIndicator style={styles.loader} />
       ) : (
@@ -122,34 +123,6 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
   );
 }
 
-function ChipRow({
-  options,
-  selected,
-  onSelect,
-}: {
-  options: string[];
-  selected: string | null;
-  onSelect: (value: string | null) => void;
-}) {
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.chipsScroll}
-      contentContainerStyle={styles.chips}
-      keyboardShouldPersistTaps="handled"
-    >
-      {['All', ...options].map((label) => {
-        const value = label === 'All' ? null : label;
-        const isSelected = selected === value;
-        return (
-          <Chip key={label} label={label} selected={isSelected} onPress={() => onSelect(value)} showCheck />
-        );
-      })}
-    </ScrollView>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   search: {
@@ -162,8 +135,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   searchInput: { flex: 1, fontSize: 16 },
-  chipsScroll: { flexGrow: 0 },
-  chips: { paddingHorizontal: 12, paddingBottom: 8, gap: 8, alignItems: 'center' },
+  filters: { flexDirection: 'row', gap: 10, paddingHorizontal: 12, paddingBottom: 12 },
   loader: { marginTop: 24 },
   count: { paddingHorizontal: 16, paddingBottom: 8, fontSize: 13 },
   row: {

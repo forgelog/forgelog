@@ -1,4 +1,4 @@
-import { computeRecords, estimatedOneRepMax } from '../records';
+import { computeRecords, estimatedOneRepMax, isPrSet } from '../records';
 
 test('Epley 1RM formula', () => {
   expect(estimatedOneRepMax(100, 0)).toBe(100);
@@ -30,4 +30,26 @@ test('reps-only sets produce max_reps but no weight-based records', () => {
 
 test('empty set list produces no records', () => {
   expect(computeRecords([])).toEqual({});
+});
+
+const records = { max_weight: 100, max_reps: 12, max_volume: 800 };
+
+test('isPrSet flags a set matching the max weight record', () => {
+  expect(isPrSet({ weight: 100, reps: 5, completed: true }, records)).toBe(true);
+});
+
+test('isPrSet flags a set matching the max reps record', () => {
+  expect(isPrSet({ weight: 40, reps: 12, completed: true }, records)).toBe(true);
+});
+
+test('isPrSet flags a set matching the max volume record', () => {
+  expect(isPrSet({ weight: 80, reps: 10, completed: true }, records)).toBe(true);
+});
+
+test('isPrSet ignores incomplete sets', () => {
+  expect(isPrSet({ weight: 100, reps: 5, completed: false }, records)).toBe(false);
+});
+
+test('isPrSet returns false when nothing matches', () => {
+  expect(isPrSet({ weight: 50, reps: 6, completed: true }, records)).toBe(false);
 });

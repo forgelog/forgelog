@@ -10,6 +10,7 @@ CREATE TABLE exercises (
   is_custom     INTEGER NOT NULL DEFAULT 0,
   instructions  TEXT,
   images        TEXT,
+  secondary_muscles TEXT,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

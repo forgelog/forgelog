@@ -29,3 +29,23 @@ export function computeRecords(sets: SetPerformance[]): Partial<Record<RecordTyp
   }
   return records;
 }
+
+// Flags a completed set as a PR if it matches one of the exercise's current
+// record values — used to badge past sessions in exercise history.
+export function isPrSet(
+  set: { weight: number | null; reps: number | null; completed: boolean },
+  records: Partial<Record<RecordType, number>>
+): boolean {
+  if (!set.completed) return false;
+  if (set.weight != null && set.weight === records.max_weight) return true;
+  if (set.reps != null && records.max_reps != null && set.reps === records.max_reps) return true;
+  if (
+    set.weight != null &&
+    set.reps != null &&
+    records.max_volume != null &&
+    set.weight * set.reps === records.max_volume
+  ) {
+    return true;
+  }
+  return false;
+}

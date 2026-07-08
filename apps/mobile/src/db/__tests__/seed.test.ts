@@ -6,6 +6,7 @@ const sample: RawSeedExercise = {
   name: '3/4 Sit-Up',
   equipment: 'body only',
   primaryMuscles: ['abdominals'],
+  secondaryMuscles: ['calves'],
   instructions: ['Lie down.', 'Sit up.'],
   images: ['https://example.com/0.jpg', 'https://example.com/1.jpg'],
 };
@@ -33,6 +34,17 @@ test('falls back to "other" when equipment is null', () => {
   expect(toExerciseRow({ ...sample, equipment: null }).equipment).toBe('other');
 });
 
+test('serialises secondaryMuscles as a JSON array', () => {
+  const row = toExerciseRow(sample);
+  expect(JSON.parse(row.secondary_muscles!)).toEqual(['calves']);
+});
+
+test('defaults secondaryMuscles to an empty array when absent', () => {
+  const { secondaryMuscles, ...rest } = sample;
+  const row = toExerciseRow(rest as RawSeedExercise);
+  expect(JSON.parse(row.secondary_muscles!)).toEqual([]);
+});
+
 test('every bundled exercise transforms into a valid row', () => {
   const rows = (seedData as RawSeedExercise[]).map(toExerciseRow);
   expect(rows).toHaveLength(873);
@@ -43,5 +55,6 @@ test('every bundled exercise transforms into a valid row', () => {
     expect(row.equipment).toBeTruthy();
     expect(() => JSON.parse(row.instructions!)).not.toThrow();
     expect(() => JSON.parse(row.images!)).not.toThrow();
+    expect(() => JSON.parse(row.secondary_muscles!)).not.toThrow();
   }
 });

@@ -7,6 +7,7 @@ export type RawSeedExercise = {
   name: string;
   equipment: string | null;
   primaryMuscles: string[];
+  secondaryMuscles: string[];
   instructions: string[];
   images: string[];
 };
@@ -20,6 +21,7 @@ export type ExerciseRow = {
   is_custom: number;
   instructions: string | null;
   images: string | null;
+  secondary_muscles: string | null;
 };
 
 export function toExerciseRow(raw: RawSeedExercise): ExerciseRow {
@@ -32,7 +34,31 @@ export function toExerciseRow(raw: RawSeedExercise): ExerciseRow {
     is_custom: 0,
     instructions: JSON.stringify(raw.instructions ?? []),
     images: JSON.stringify(raw.images ?? []),
+    secondary_muscles: JSON.stringify(raw.secondaryMuscles ?? []),
   };
+}
+
+// Existing installs seeded before the secondary_muscles column existed have
+// NULL there; backfill from the same seed JSON without touching anything else.
+export async function backfillSecondaryMuscles(db: SQLiteDatabase): Promise<void> {
+  const rows = seedData as RawSeedExercise[];
+
+  await db.withTransactionAsync(async () => {
+    const stmt = await db.prepareAsync(
+      `UPDATE exercises SET secondary_muscles = $secondary_muscles
+       WHERE id = $id AND secondary_muscles IS NULL`
+    );
+    try {
+      for (const row of rows) {
+        await stmt.executeAsync({
+          $id: row.id,
+          $secondary_muscles: JSON.stringify(row.secondaryMuscles ?? []),
+        });
+      }
+    } finally {
+      await stmt.finalizeAsync();
+    }
+  });
 }
 
 export async function seedExercises(db: SQLiteDatabase): Promise<void> {
@@ -46,8 +72,8 @@ export async function seedExercises(db: SQLiteDatabase): Promise<void> {
   await db.withTransactionAsync(async () => {
     const stmt = await db.prepareAsync(
       `INSERT OR IGNORE INTO exercises
-         (id, name, muscle_group, equipment, tracking_type, is_custom, instructions, images)
-       VALUES ($id, $name, $muscle_group, $equipment, $tracking_type, $is_custom, $instructions, $images)`
+         (id, name, muscle_group, equipment, tracking_type, is_custom, instructions, images, secondary_muscles)
+       VALUES ($id, $name, $muscle_group, $equipment, $tracking_type, $is_custom, $instructions, $images, $secondary_muscles)`
     );
     try {
       for (const row of rows) {
@@ -60,6 +86,7 @@ export async function seedExercises(db: SQLiteDatabase): Promise<void> {
           $is_custom: row.is_custom,
           $instructions: row.instructions,
           $images: row.images,
+          $secondary_muscles: row.secondary_muscles,
         });
       }
     } finally {

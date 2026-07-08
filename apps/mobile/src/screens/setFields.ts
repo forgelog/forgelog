@@ -44,6 +44,52 @@ export const FIELD_PLACEHOLDER: Record<SetFieldKey, string> = {
   distance: 'm',
 };
 
+type SetLike = {
+  weight: number | null;
+  reps: number | null;
+  duration_seconds: number | null;
+  distance_meters: number | null;
+};
+
+// Full display format with units, e.g. "80 kg × 8 reps" — used for read-only
+// history views (workout detail, exercise history).
+export function formatSet(trackingType: string | null, set: SetLike): string {
+  return fieldsFor(trackingType)
+    .map((field) => {
+      switch (field) {
+        case 'weight':
+          return `${set.weight ?? '–'} kg`;
+        case 'reps':
+          return `${set.reps ?? '–'} reps`;
+        case 'duration':
+          return `${set.duration_seconds ?? '–'} s`;
+        case 'distance':
+          return `${set.distance_meters ?? '–'} m`;
+      }
+    })
+    .join(' × ');
+}
+
+// Compact, unit-less format, e.g. "77.5 × 8" — used for the narrow PREV
+// column while actively logging a set.
+export function formatCompactSet(trackingType: string | null, set: SetLike): string | null {
+  const fields = fieldsFor(trackingType);
+  const values = fields.map((field) => {
+    switch (field) {
+      case 'weight':
+        return set.weight;
+      case 'reps':
+        return set.reps;
+      case 'duration':
+        return set.duration_seconds;
+      case 'distance':
+        return set.distance_meters;
+    }
+  });
+  if (values.some((v) => v == null)) return null;
+  return values.join(' × ');
+}
+
 export const DEFAULT_REST_SECONDS = 90;
 
 // Per-exercise rest_seconds (snapshotted onto workout_exercises at workout

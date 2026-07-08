@@ -11,6 +11,7 @@ type ExerciseRow = {
   is_custom: number;
   instructions: string | null;
   images: string | null;
+  secondary_muscles: string | null;
   created_at: string;
 };
 
@@ -24,6 +25,7 @@ function mapExercise(row: ExerciseRow): Exercise {
     is_custom: row.is_custom === 1,
     instructions: row.instructions ? (JSON.parse(row.instructions) as string[]) : [],
     images: row.images ? (JSON.parse(row.images) as string[]) : [],
+    secondary_muscles: row.secondary_muscles ? (JSON.parse(row.secondary_muscles) as string[]) : [],
     created_at: row.created_at,
   };
 }

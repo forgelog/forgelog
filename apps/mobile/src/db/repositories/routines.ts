@@ -18,6 +18,7 @@ type ExerciseRow = {
   is_custom: number;
   instructions: string | null;
   images: string | null;
+  secondary_muscles: string | null;
   created_at: string;
 };
 
@@ -59,6 +60,9 @@ export async function getRoutineDetail(routineId: string): Promise<RoutineDetail
         is_custom: exRow.is_custom === 1,
         instructions: exRow.instructions ? (JSON.parse(exRow.instructions) as string[]) : [],
         images: exRow.images ? (JSON.parse(exRow.images) as string[]) : [],
+        secondary_muscles: exRow.secondary_muscles
+          ? (JSON.parse(exRow.secondary_muscles) as string[])
+          : [],
         created_at: exRow.created_at,
       },
       sets,
