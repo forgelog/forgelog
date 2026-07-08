@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { initWearSync, publishSyncSnapshot } from './src/sync/wearSync';
+import { ThemeProvider } from './src/theme/ThemeContext';
 
 export default function App() {
   useEffect(() => {
@@ -13,7 +14,9 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <RootNavigator />
+      <ThemeProvider>
+        <RootNavigator />
+      </ThemeProvider>
       <StatusBar style="auto" />
     </GestureHandlerRootView>
   );
