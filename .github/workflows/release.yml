@@ -10,8 +10,33 @@ permissions:
   contents: write
 
 jobs:
+  # workflow_run fires once per listed workflow, independently. Only proceed
+  # once *both* Mobile and Wear OS have reached a terminal state (success,
+  # failure, or cancelled) for this commit — otherwise the first one to
+  # finish would race ahead of the other's artifacts.
+  check-ready:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - name: Check both workflows are done for this commit
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          mobile_status=$(gh api "repos/${{ github.repository }}/actions/workflows/mobile.yml/runs?head_sha=$HEAD_SHA&per_page=1" --jq '.workflow_runs[0].status // "missing"')
+          wear_status=$(gh api "repos/${{ github.repository }}/actions/workflows/wearos.yml/runs?head_sha=$HEAD_SHA&per_page=1" --jq '.workflow_runs[0].status // "missing"')
+          echo "mobile=$mobile_status wear=$wear_status"
+          if [ "$mobile_status" = "completed" ] && [ "$wear_status" = "completed" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: check-ready
+    if: needs.check-ready.outputs.ready == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Download mobile debug APK
@@ -63,6 +88,11 @@ jobs:
           [ -f artifacts/wear-release/app-release.apk ] && cp artifacts/wear-release/app-release.apk release-apks/forgelog-wear-release.apk
           ls -la release-apks
 
+      - name: Delete existing v0.0.0 release and tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete v0.0.0 --repo ${{ github.repository }} --yes --cleanup-tag || true
+
       - name: Publish v0.0.0 release
         uses: ncipollo/release-action@v1
         with:
@@ -70,9 +100,6 @@ jobs:
           name: v0.0.0 (latest main)
           body: Auto-updated build from the latest push to main. Not a stable release.
           artifacts: release-apks/*.apk
-          allowUpdates: true
-          removeArtifacts: true
-          replacesArtifacts: true
           makeLatest: true
           prerelease: true
           commit: main
