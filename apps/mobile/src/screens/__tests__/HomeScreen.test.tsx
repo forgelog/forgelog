@@ -3,9 +3,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { render, waitFor } from '@testing-library/react-native';
 
 import { HomeScreen } from '../HomeScreen';
-import type { RootStackParamList } from '../../navigation/RootNavigator';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+type TestParamList = { Home: undefined };
+
+const Stack = createNativeStackNavigator<TestParamList>();
 
 test('renders the Home screen with a start action', async () => {
   const { getByText } = await render(
@@ -15,5 +16,5 @@ test('renders the Home screen with a start action', async () => {
       </Stack.Navigator>
     </NavigationContainer>
   );
-  await waitFor(() => expect(getByText('Start Workout')).toBeTruthy());
+  await waitFor(() => expect(getByText('Start Empty Workout')).toBeTruthy());
 });

@@ -3,6 +3,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { Chip } from '../components/Chip';
+import { Icon } from '../components/Icon';
+import { PillButton } from '../components/PillButton';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { SupersetTag } from '../components/SupersetTag';
 import {
   addExerciseToRoutine,
   addRoutineSet,
@@ -17,6 +22,7 @@ import {
 import { id } from '../db/id';
 import type { RoutineDetail, RoutineExerciseDetail, RoutineSet } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { useTheme } from '../theme/ThemeContext';
 import {
   effectiveTrackingType,
   FIELD_PLACEHOLDER,
@@ -37,6 +43,7 @@ const SET_COLUMN: Record<SetFieldKey, keyof RoutineSet> = {
 
 export function RoutineEditorScreen({ route, navigation }: Props) {
   const { routineId } = route.params;
+  const c = useTheme();
   const [detail, setDetail] = useState<RoutineDetail | null>(null);
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
@@ -146,152 +153,140 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
   if (!detail) return null;
 
   return (
-    <FlatList
-      style={styles.container}
-      data={detail.exercises}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={
-        <View style={styles.header}>
-          <TextInput
-            style={styles.nameInput}
-            value={name}
-            onChangeText={setName}
-            onBlur={() => updateRoutine(routineId, { name })}
-            placeholder="Routine name"
-          />
-          <TextInput
-            style={styles.notesInput}
-            value={notes}
-            onChangeText={setNotes}
-            onBlur={() => updateRoutine(routineId, { notes: notes.trim() || null })}
-            placeholder="Notes"
-            multiline
-          />
-        </View>
-      }
-      renderItem={({ item, index }) => {
-        const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
-        const fields = fieldsFor(trackingType);
-        const supersetWithPrev =
-          index > 0 &&
-          item.superset_group_id != null &&
-          item.superset_group_id === detail.exercises[index - 1].superset_group_id;
-        return (
-          <View style={styles.exercise}>
-            {supersetWithPrev ? <Text style={styles.supersetTag}>⛓ superset</Text> : null}
-            <View style={styles.exerciseHeader}>
-              <Text style={styles.exerciseName}>{item.exercise.name}</Text>
-              <View style={styles.headerActions}>
-                <Pressable onPress={() => move(index, -1)}>
-                  <Text style={styles.moveBtn}>↑</Text>
-                </Pressable>
-                <Pressable onPress={() => move(index, 1)}>
-                  <Text style={styles.moveBtn}>↓</Text>
-                </Pressable>
-                <Pressable onPress={() => handleRemoveExercise(item)}>
-                  <Text style={styles.remove}>Remove</Text>
-                </Pressable>
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <ScreenHeader
+        title="Edit routine"
+        onLeadingPress={() => navigation.goBack()}
+        trailing={<PillButton label="Save" onPress={() => navigation.goBack()} variant="filled" />}
+      />
+      <FlatList
+        data={detail.exercises}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <TextInput
+              style={[styles.nameInput, { color: c.fg, borderBottomColor: c.accent }]}
+              value={name}
+              onChangeText={setName}
+              onBlur={() => updateRoutine(routineId, { name })}
+              placeholder="Routine name"
+              placeholderTextColor={c.sub}
+            />
+            <TextInput
+              style={[styles.notesInput, { color: c.sub }]}
+              value={notes}
+              onChangeText={setNotes}
+              onBlur={() => updateRoutine(routineId, { notes: notes.trim() || null })}
+              placeholder="Notes"
+              placeholderTextColor={c.sub}
+              multiline
+            />
+          </View>
+        }
+        renderItem={({ item, index }) => {
+          const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
+          const fields = fieldsFor(trackingType);
+          const supersetWithPrev =
+            index > 0 &&
+            item.superset_group_id != null &&
+            item.superset_group_id === detail.exercises[index - 1].superset_group_id;
+          return (
+            <View style={[styles.exercise, { borderTopColor: c.sep }]}>
+              {supersetWithPrev ? <SupersetTag /> : null}
+              <View style={styles.exerciseHeader}>
+                <Text style={[styles.exerciseName, { color: c.fg }]}>{item.exercise.name}</Text>
+                <View style={styles.headerActions}>
+                  <Pressable onPress={() => move(index, -1)} hitSlop={8}>
+                    <Icon name="chevron-up" variant="sub" size={20} />
+                  </Pressable>
+                  <Pressable onPress={() => move(index, 1)} hitSlop={8}>
+                    <Icon name="chevron-down" variant="sub" size={20} />
+                  </Pressable>
+                </View>
               </View>
-            </View>
 
-            <View style={styles.metaRow}>
-              <Pressable style={styles.metaChip} onPress={() => cycleTrackingType(item)}>
-                <Text style={styles.metaChipText}>{TRACKING_LABELS[trackingType]}</Text>
-              </Pressable>
-              {index > 0 ? (
-                <Pressable
-                  style={[styles.metaChip, supersetWithPrev && styles.metaChipOn]}
-                  onPress={() => toggleSuperset(index)}
-                >
-                  <Text style={[styles.metaChipText, supersetWithPrev && styles.metaChipTextOn]}>
-                    Superset
-                  </Text>
-                </Pressable>
-              ) : null}
-              <View style={styles.restBox}>
-                <Text style={styles.restLabel}>Rest</Text>
-                <TextInput
-                  style={styles.restInput}
-                  value={item.rest_seconds?.toString() ?? ''}
-                  onChangeText={(t) => editRest(item.id, t)}
-                  placeholder="sec"
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-
-            {item.sets.map((set, i) => (
-              <View key={set.id} style={styles.setRow}>
-                <Text style={styles.setIndex}>{i + 1}</Text>
-                {fields.map((field) => (
+              <View style={styles.metaRow}>
+                <Chip label={TRACKING_LABELS[trackingType]} onPress={() => cycleTrackingType(item)} />
+                {index > 0 ? (
+                  <Chip
+                    label={supersetWithPrev ? 'Superset ✓' : '+ Superset'}
+                    selected={supersetWithPrev}
+                    onPress={() => toggleSuperset(index)}
+                  />
+                ) : null}
+                <View style={styles.restBox}>
+                  <Text style={[styles.restLabel, { color: c.sub }]}>Rest</Text>
                   <TextInput
-                    key={field}
-                    style={styles.setInput}
-                    value={(set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
-                    onChangeText={(t) => editSetField(item.id, set.id, field, t)}
-                    placeholder={FIELD_PLACEHOLDER[field]}
+                    style={[styles.restInput, { backgroundColor: c.fill, color: c.fg }]}
+                    value={item.rest_seconds?.toString() ?? ''}
+                    onChangeText={(t) => editRest(item.id, t)}
+                    placeholder="sec"
+                    placeholderTextColor={c.sub}
                     keyboardType="numeric"
                   />
-                ))}
-                <Pressable onPress={() => removeSet(item.id, set.id)}>
-                  <Text style={styles.remove}>✕</Text>
-                </Pressable>
+                </View>
               </View>
-            ))}
-            <Pressable style={styles.addSet} onPress={() => addSet(item)}>
-              <Text style={styles.addSetText}>+ Add set</Text>
-            </Pressable>
-          </View>
-        );
-      }}
-      ListFooterComponent={
-        <Pressable style={styles.addExercise} onPress={handleAddExercise}>
-          <Text style={styles.addExerciseText}>+ Add exercise</Text>
-        </Pressable>
-      }
-    />
+
+              {item.sets.map((set, i) => (
+                <View key={set.id} style={styles.setRow}>
+                  <Text style={[styles.setIndex, { color: c.sub }]}>{i + 1}</Text>
+                  {fields.map((field) => (
+                    <TextInput
+                      key={field}
+                      style={[styles.setInput, { backgroundColor: c.fill, color: c.fg }]}
+                      value={(set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
+                      onChangeText={(t) => editSetField(item.id, set.id, field, t)}
+                      placeholder={FIELD_PLACEHOLDER[field]}
+                      placeholderTextColor={c.sub}
+                      keyboardType="numeric"
+                    />
+                  ))}
+                  <Pressable onPress={() => removeSet(item.id, set.id)} hitSlop={8}>
+                    <Icon name="close" variant="sub" size={18} />
+                  </Pressable>
+                </View>
+              ))}
+              <Pressable style={styles.addSet} onPress={() => addSet(item)}>
+                <Text style={[styles.addSetText, { color: c.accent }]}>+ Add set</Text>
+              </Pressable>
+              <Pressable style={styles.removeExercise} onPress={() => handleRemoveExercise(item)}>
+                <Text style={[styles.removeExerciseText, { color: c.danger }]}>Remove exercise</Text>
+              </Pressable>
+            </View>
+          );
+        }}
+        ListFooterComponent={
+          <PillButton
+            label="+ Add Exercise"
+            onPress={handleAddExercise}
+            variant="dark"
+            style={styles.addExercise}
+          />
+        }
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   header: { padding: 16, gap: 8 },
-  nameInput: { fontSize: 22, fontWeight: '700' },
-  notesInput: { fontSize: 14, color: '#444', minHeight: 20 },
-  exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#eee' },
-  supersetTag: { color: '#0a7', fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  nameInput: { fontSize: 22, fontWeight: '700', borderBottomWidth: 2, paddingBottom: 6 },
+  notesInput: { fontSize: 14, minHeight: 20 },
+  exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  exerciseName: { fontSize: 16, fontWeight: '600', flex: 1 },
+  exerciseName: { fontSize: 16, fontWeight: '700', flex: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  moveBtn: { fontSize: 18, color: '#666' },
-  remove: { color: '#c00', fontSize: 13 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  metaChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#f0f0f0' },
-  metaChipOn: { backgroundColor: '#0a7' },
-  metaChipText: { fontSize: 12, color: '#333' },
-  metaChipTextOn: { color: '#fff' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   restBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
-  restLabel: { fontSize: 12, color: '#888' },
-  restInput: {
-    width: 52,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-    textAlign: 'center',
-    fontSize: 14,
-  },
+  restLabel: { fontSize: 12 },
+  restInput: { width: 52, height: 32, borderRadius: 8, textAlign: 'center', fontSize: 14 },
   setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
-  setIndex: { width: 20, color: '#888' },
-  setInput: {
-    width: 72,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-    textAlign: 'center',
-    fontSize: 15,
-  },
+  setIndex: { width: 20, fontSize: 13 },
+  setInput: { width: 72, height: 36, borderRadius: 8, textAlign: 'center', fontSize: 15 },
   addSet: { marginTop: 10 },
-  addSetText: { color: '#0a7', fontSize: 14, fontWeight: '600' },
-  addExercise: { margin: 16, paddingVertical: 14, borderRadius: 12, backgroundColor: '#1a1a1a', alignItems: 'center' },
-  addExerciseText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  addSetText: { fontSize: 14, fontWeight: '600' },
+  removeExercise: { marginTop: 8 },
+  removeExerciseText: { fontSize: 13, fontWeight: '600' },
+  addExercise: { margin: 16 },
 });

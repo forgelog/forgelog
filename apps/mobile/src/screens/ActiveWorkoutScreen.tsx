@@ -3,6 +3,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { Chip } from '../components/Chip';
+import { Icon } from '../components/Icon';
+import { PillButton } from '../components/PillButton';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { SupersetTag } from '../components/SupersetTag';
 import {
   getRecordsForExercise,
   recalcRecordsForExercise,
@@ -18,6 +23,7 @@ import {
 } from '../db/repositories/workouts';
 import type { LoggedSet, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { useTheme } from '../theme/ThemeContext';
 import {
   effectiveTrackingType,
   FIELD_PLACEHOLDER,
@@ -39,14 +45,28 @@ const SET_COLUMN: Record<SetFieldKey, keyof LoggedSet> = {
 
 export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const { workoutId } = route.params;
+  const c = useTheme();
   const [detail, setDetail] = useState<WorkoutDetail | null>(null);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [prSetIds, setPrSetIds] = useState<Set<string>>(new Set());
 
   const reload = useCallback(() => {
     getWorkoutDetail(workoutId).then(setDetail);
   }, [workoutId]);
 
   useFocusEffect(reload);
+
+  const startedAt = detail?.started_at;
+
+  useEffect(() => {
+    if (!startedAt) return;
+    const startedAtMs = new Date(startedAt).getTime();
+    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000)));
+    tick();
+    const handle = setInterval(tick, 1000);
+    return () => clearInterval(handle);
+  }, [startedAt]);
 
   useEffect(() => {
     if (restRemaining == null || restRemaining <= 0) return;
@@ -104,11 +124,17 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     await updateLoggedSet(setId, { completed });
     if (completed) {
       setRestRemaining(resolveRestSeconds(we.rest_seconds));
-      await checkForPr(we.exercise.id);
+      await checkForPr(we.exercise.id, setId);
+    } else {
+      setPrSetIds((prev) => {
+        const next = new Set(prev);
+        next.delete(setId);
+        return next;
+      });
     }
   }
 
-  async function checkForPr(exerciseId: string) {
+  async function checkForPr(exerciseId: string, setId: string) {
     const before = await getRecordsForExercise(exerciseId);
     await recalcRecordsForExercise(exerciseId);
     const after = await getRecordsForExercise(exerciseId);
@@ -118,6 +144,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       return prev === undefined || r.value > prev;
     });
     if (improved.length > 0) {
+      setPrSetIds((prev) => new Set(prev).add(setId));
       Alert.alert(
         'New PR! 🎉',
         improved.map((r) => `${label(r.record_type)}: ${round(r.value)}`).join('\n')
@@ -146,11 +173,16 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   if (!detail) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
+      <ScreenHeader
+        title={detail.name}
+        onLeadingPress={() => navigation.goBack()}
+        trailing={<PillButton label="Finish" onPress={handleFinish} variant="filled" />}
+      />
+      <Text style={[styles.timer, { color: c.accent }]}>{formatTime(elapsed)}</Text>
       <FlatList
         data={detail.exercises}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={<Text style={styles.title}>{detail.name}</Text>}
         renderItem={({ item, index }) => {
           const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
           const fields = fieldsFor(trackingType);
@@ -159,64 +191,82 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             item.superset_group_id != null &&
             item.superset_group_id === detail.exercises[index - 1].superset_group_id;
           return (
-            <View style={styles.exercise}>
-              {supersetWithPrev ? <Text style={styles.supersetTag}>⛓ superset</Text> : null}
+            <View style={[styles.exercise, { borderTopColor: c.sep }]}>
+              {supersetWithPrev ? <SupersetTag /> : null}
               <View style={styles.exerciseHeader}>
-                <Text style={styles.exerciseName}>{item.exercise.name}</Text>
-                <Pressable style={styles.typeChip} onPress={() => cycleTrackingType(item)}>
-                  <Text style={styles.typeChipText}>{TRACKING_LABELS[trackingType]}</Text>
-                </Pressable>
+                <Text style={[styles.exerciseName, { color: c.fg }]}>{item.exercise.name}</Text>
+                <Chip label={TRACKING_LABELS[trackingType]} onPress={() => cycleTrackingType(item)} />
+              </View>
+              <View style={styles.columnHeader}>
+                <Text style={[styles.columnLabel, { color: c.sub, width: 26, textAlign: 'center' }]}>
+                  SET
+                </Text>
+                {fields.map((field) => (
+                  <Text key={field} style={[styles.columnLabel, { color: c.sub, flex: 1, textAlign: 'center' }]}>
+                    {field.toUpperCase()}
+                  </Text>
+                ))}
               </View>
               {item.sets.map((set, i) => (
-                <View key={set.id} style={styles.setRow}>
-                  <Text style={styles.setIndex}>{i + 1}</Text>
+                <View
+                  key={set.id}
+                  style={[
+                    styles.setRow,
+                    set.completed ? { backgroundColor: c.asoft, borderRadius: 10 } : null,
+                  ]}
+                >
+                  <Text style={[styles.setIndex, { color: c.sub }]}>{i + 1}</Text>
                   {fields.map((field) => (
                     <TextInput
                       key={field}
-                      style={styles.setInput}
+                      style={[styles.setInput, { backgroundColor: c.fill, color: c.fg }]}
                       value={(set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
                       onChangeText={(t) => editSetField(item.id, set.id, field, t)}
                       placeholder={FIELD_PLACEHOLDER[field]}
+                      placeholderTextColor={c.sub}
                       keyboardType="numeric"
                     />
                   ))}
+                  {prSetIds.has(set.id) ? <Text style={styles.prBadge}>🏆</Text> : null}
                   <Pressable
-                    style={[styles.check, set.completed && styles.checkDone]}
+                    style={[
+                      styles.check,
+                      { borderColor: c.chipbd },
+                      set.completed && { backgroundColor: c.accent, borderColor: c.accent },
+                    ]}
                     onPress={() => toggleComplete(item, set.id, !set.completed)}
                   >
-                    <Text style={[styles.checkText, set.completed && styles.checkTextDone]}>✓</Text>
+                    <Icon name="check" size={18} color={set.completed ? '#fff' : c.sub} />
                   </Pressable>
-                  <Pressable onPress={() => removeSet(item.id, set.id)}>
-                    <Text style={styles.remove}>✕</Text>
+                  <Pressable onPress={() => removeSet(item.id, set.id)} hitSlop={8}>
+                    <Icon name="close" variant="sub" size={16} />
                   </Pressable>
                 </View>
               ))}
               <Pressable style={styles.addSet} onPress={() => handleAddSet(item)}>
-                <Text style={styles.addSetText}>+ Add set</Text>
+                <Text style={[styles.addSetText, { color: c.accent }]}>+ Add set</Text>
               </Pressable>
             </View>
           );
         }}
         ListFooterComponent={
-          <View>
-            <Pressable style={styles.addExercise} onPress={handleAddExercise}>
-              <Text style={styles.addExerciseText}>+ Add exercise</Text>
-            </Pressable>
-            <Pressable style={styles.finish} onPress={handleFinish}>
-              <Text style={styles.finishText}>Finish Workout</Text>
-            </Pressable>
-          </View>
+          <PillButton
+            label="Add Exercise"
+            onPress={handleAddExercise}
+            variant="outlined"
+            style={styles.addExercise}
+          />
         }
       />
       {restRemaining != null && restRemaining > 0 ? (
-        <View style={styles.restBar}>
-          <Text style={styles.restText}>Rest {formatTime(restRemaining)}</Text>
+        <View style={[styles.restBar, { backgroundColor: c.fg }]}>
+          <Text style={[styles.restText, { color: c.bg }]}>Rest {formatTime(restRemaining)}</Text>
           <View style={styles.restActions}>
             <Pressable onPress={() => setRestRemaining((r) => (r ?? 0) + 15)}>
-              <Text style={styles.restAction}>+15s</Text>
+              <Text style={[styles.restAction, { color: c.accent }]}>+15s</Text>
             </Pressable>
             <Pressable onPress={() => setRestRemaining(null)}>
-              <Text style={styles.restAction}>Skip</Text>
+              <Text style={[styles.restAction, { color: c.accent }]}>Skip</Text>
             </Pressable>
           </View>
         </View>
@@ -244,43 +294,34 @@ function round(value: number): number {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  title: { fontSize: 22, fontWeight: '700', padding: 16 },
-  exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#eee' },
-  supersetTag: { color: '#0a7', fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  container: { flex: 1 },
+  timer: { fontSize: 28, fontWeight: '700', textAlign: 'center', paddingVertical: 8, fontVariant: ['tabular-nums'] },
+  exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  exerciseName: { fontSize: 16, fontWeight: '600', flex: 1 },
-  typeChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: '#f0f0f0' },
-  typeChipText: { fontSize: 12, color: '#333' },
-  setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
-  setIndex: { width: 20, color: '#888' },
+  exerciseName: { fontSize: 16, fontWeight: '700', flex: 1 },
+  columnHeader: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 0 },
+  columnLabel: { fontSize: 11, fontWeight: '700' },
+  setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8, paddingVertical: 4 },
+  setIndex: { width: 26, textAlign: 'center' },
   setInput: {
-    width: 66,
+    flex: 1,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
     textAlign: 'center',
     fontSize: 15,
   },
+  prBadge: { fontSize: 16 },
   check: {
     width: 36,
     height: 36,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ccc',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkDone: { backgroundColor: '#0a7', borderColor: '#0a7' },
-  checkText: { color: '#ccc', fontWeight: '700' },
-  checkTextDone: { color: '#fff' },
-  remove: { color: '#c00', fontSize: 16 },
   addSet: { marginTop: 10 },
-  addSetText: { color: '#0a7', fontSize: 14, fontWeight: '600' },
-  addExercise: { margin: 16, marginBottom: 8, paddingVertical: 14, borderRadius: 12, backgroundColor: '#1a1a1a', alignItems: 'center' },
-  addExerciseText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  finish: { marginHorizontal: 16, marginBottom: 24, paddingVertical: 14, borderRadius: 12, backgroundColor: '#0a7', alignItems: 'center' },
-  finishText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  addSetText: { fontSize: 14, fontWeight: '600' },
+  addExercise: { margin: 16, marginBottom: 8 },
   restBar: {
     position: 'absolute',
     left: 16,
@@ -289,12 +330,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1a1a1a',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  restText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  restText: { fontSize: 16, fontWeight: '700' },
   restActions: { flexDirection: 'row', gap: 16 },
-  restAction: { color: '#0a7', fontSize: 14, fontWeight: '700' },
+  restAction: { fontSize: 14, fontWeight: '700' },
 });
