@@ -274,6 +274,70 @@ export async function listWorkouts(): Promise<Workout[]> {
   );
 }
 
+export type ProfileStats = {
+  workoutCount: number;
+  totalVolume: number;
+  streakDays: number;
+};
+
+export async function getProfileStats(): Promise<ProfileStats> {
+  const db = await getDb();
+
+  const countRow = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) AS count FROM workouts WHERE ended_at IS NOT NULL'
+  );
+
+  const volumeRow = await db.getFirstAsync<{ volume: number | null }>(
+    `SELECT SUM(ls.weight * ls.reps) AS volume
+       FROM logged_sets ls
+       JOIN workout_exercises we ON we.id = ls.workout_exercise_id
+       JOIN workouts w ON w.id = we.workout_id
+      WHERE ls.completed = 1 AND w.ended_at IS NOT NULL
+        AND ls.weight IS NOT NULL AND ls.reps IS NOT NULL`
+  );
+
+  const dateRows = await db.getAllAsync<{ day: string }>(
+    `SELECT DISTINCT date(started_at) AS day FROM workouts WHERE ended_at IS NOT NULL ORDER BY day DESC`
+  );
+
+  return {
+    workoutCount: countRow?.count ?? 0,
+    totalVolume: volumeRow?.volume ?? 0,
+    streakDays: computeStreakDays(dateRows.map((r) => r.day)),
+  };
+}
+
+export function computeStreakDays(sortedDescDays: string[]): number {
+  if (sortedDescDays.length === 0) return 0;
+  const days = new Set(sortedDescDays);
+  let cursor = todayUtc();
+
+  if (!days.has(toDateKey(cursor))) {
+    cursor = addUtcDays(cursor, -1);
+    if (!days.has(toDateKey(cursor))) return 0;
+  }
+
+  let streak = 0;
+  while (days.has(toDateKey(cursor))) {
+    streak += 1;
+    cursor = addUtcDays(cursor, -1);
+  }
+  return streak;
+}
+
+function todayUtc(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+function addUtcDays(date: Date, delta: number): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + delta));
+}
+
+function toDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
 type RawLoggedSet = Omit<LoggedSet, 'completed'> & { completed: number };
 
 function mapLoggedSet(row: RawLoggedSet): LoggedSet {

@@ -68,6 +68,23 @@ export async function getRoutineDetail(routineId: string): Promise<RoutineDetail
   return { ...routine, exercises };
 }
 
+export type RoutineSummary = Routine & { exerciseCount: number; muscles: string[] };
+
+export async function listRoutineSummaries(): Promise<RoutineSummary[]> {
+  const routines = await listRoutines();
+  const summaries: RoutineSummary[] = [];
+  for (const routine of routines) {
+    const detail = await getRoutineDetail(routine.id);
+    const muscles = [...new Set((detail?.exercises ?? []).map((e) => e.exercise.muscle_group))];
+    summaries.push({
+      ...routine,
+      exerciseCount: detail?.exercises.length ?? 0,
+      muscles,
+    });
+  }
+  return summaries;
+}
+
 export async function createRoutine(name: string, notes?: string): Promise<Routine> {
   const db = await getDb();
   const newId = id();
