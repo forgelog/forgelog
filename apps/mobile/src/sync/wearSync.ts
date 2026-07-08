@@ -17,8 +17,13 @@ export function initWearSync(): void {
 }
 
 // Pushes the current routines/exercises/PR baseline to the watch so it can
-// start a workout and detect a PR while offline.
+// start a workout and detect a PR while offline. Best-effort: no paired
+// watch (or no Wearable API on this device) shouldn't be a fatal error.
 export async function publishSyncSnapshot(): Promise<void> {
   const snapshot = await getSyncSnapshot();
-  await WearSync.publishSnapshot(JSON.stringify(snapshot));
+  try {
+    await WearSync.publishSnapshot(JSON.stringify(snapshot));
+  } catch {
+    // No reachable watch — nothing to sync to right now.
+  }
 }
