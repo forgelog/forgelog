@@ -1,4 +1,5 @@
 import { getDb } from '../index';
+import { NAME_MAX_LENGTH, validateText } from '../../validation/textInput';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -9,8 +10,14 @@ export async function getProfileName(): Promise<string> {
 }
 
 export async function setProfileName(name: string): Promise<void> {
+  const { value, error } = validateText(name, {
+    required: true,
+    maxLength: NAME_MAX_LENGTH,
+    fieldLabel: 'Name',
+  });
+  if (error) throw new Error(error);
   const db = await getDb();
-  await db.runAsync('UPDATE profile SET name = $name WHERE id = 0', { $name: name });
+  await db.runAsync('UPDATE profile SET name = $name WHERE id = 0', { $name: value });
 }
 
 export async function getThemeMode(): Promise<ThemeMode> {

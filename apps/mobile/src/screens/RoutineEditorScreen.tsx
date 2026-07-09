@@ -21,6 +21,7 @@ import {
 import type { RoutineDetail, RoutineExerciseDetail, RoutineSet } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
+import { NAME_MAX_LENGTH, NOTES_MAX_LENGTH, validateText } from '../validation/textInput';
 import {
   effectiveTrackingType,
   FIELD_PLACEHOLDER,
@@ -49,6 +50,8 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
   const [detail, setDetail] = useState<RoutineDetail | null>(null);
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [notesError, setNotesError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     getRoutineDetail(routineId).then((d) => {
@@ -56,11 +59,37 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
       if (d) {
         setName(d.name);
         setNotes(d.notes ?? '');
+        setNameError(null);
+        setNotesError(null);
       }
     });
   }, [routineId]);
 
   useFocusEffect(reload);
+
+  function saveName() {
+    const result = validateText(name, {
+      required: true,
+      maxLength: NAME_MAX_LENGTH,
+      fieldLabel: 'Routine name',
+    });
+    setNameError(result.error);
+    if (result.error) return;
+    setName(result.value);
+    updateRoutine(routineId, { name: result.value });
+  }
+
+  function saveNotes() {
+    const result = validateText(notes, {
+      maxLength: NOTES_MAX_LENGTH,
+      fieldLabel: 'Notes',
+      multiline: true,
+    });
+    setNotesError(result.error);
+    if (result.error) return;
+    setNotes(result.value);
+    updateRoutine(routineId, { notes: result.value || null });
+  }
 
   function handleAddExercise() {
     navigation.navigate('ExerciseLibrary', {
@@ -140,7 +169,13 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
 
   function handleDone() {
     if (!detail) return;
-    if (name.trim() === '') {
+    const nameResult = validateText(name, {
+      required: true,
+      maxLength: NAME_MAX_LENGTH,
+      fieldLabel: 'Routine name',
+    });
+    setNameError(nameResult.error);
+    if (nameResult.error) {
       Alert.alert('Name required', 'Give this routine a name before saving.');
       return;
     }
@@ -169,19 +204,27 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
               style={[styles.nameInput, { color: c.fg, borderBottomColor: c.accent }]}
               value={name}
               onChangeText={setName}
-              onBlur={() => updateRoutine(routineId, { name })}
+              onBlur={saveName}
               placeholder="Routine name"
               placeholderTextColor={c.sub}
+              maxLength={NAME_MAX_LENGTH}
             />
+            {nameError ? (
+              <Text style={[styles.errorText, { color: c.danger }]}>{nameError}</Text>
+            ) : null}
             <TextInput
               style={[styles.notesInput, { color: c.sub }]}
               value={notes}
               onChangeText={setNotes}
-              onBlur={() => updateRoutine(routineId, { notes: notes.trim() || null })}
+              onBlur={saveNotes}
               placeholder="Notes"
               placeholderTextColor={c.sub}
               multiline
+              maxLength={NOTES_MAX_LENGTH}
             />
+            {notesError ? (
+              <Text style={[styles.errorText, { color: c.danger }]}>{notesError}</Text>
+            ) : null}
           </View>
         }
         renderItem={({ item, index }) => {
@@ -268,6 +311,7 @@ const styles = StyleSheet.create({
   header: { padding: 16, gap: 8 },
   nameInput: { fontSize: 22, fontWeight: '700', borderBottomWidth: 2, paddingBottom: 6 },
   notesInput: { fontSize: 14, minHeight: 20 },
+  errorText: { fontSize: 12, marginTop: -4 },
   exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseName: { fontSize: 16, fontWeight: '700', flex: 1, minWidth: 0 },
