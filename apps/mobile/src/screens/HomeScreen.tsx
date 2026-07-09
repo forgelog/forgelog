@@ -99,7 +99,13 @@ export function HomeScreen() {
               onLongPress={() => confirmDelete(item)}
             >
               <View style={styles.routineText}>
-                <Text style={[styles.routineName, { color: c.fg }]}>{item.name}</Text>
+                <Text
+                  style={[styles.routineName, { color: c.fg }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.name}
+                </Text>
                 <Text style={[styles.routineMeta, { color: c.sub }]}>
                   {item.exerciseCount} exercises
                   {item.muscles.length ? ` · ${item.muscles.join(', ')}` : ''}
@@ -133,7 +139,7 @@ const styles = StyleSheet.create({
   empty: { textAlign: 'center', marginTop: 24 },
   routineCard: { marginBottom: 0 },
   routineTouchable: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  routineText: { flex: 1 },
+  routineText: { flex: 1, minWidth: 0 },
   routineName: { fontSize: 16, fontWeight: '700' },
   routineMeta: { marginTop: 4, fontSize: 13 },
 });
