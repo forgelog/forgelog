@@ -7,15 +7,21 @@ plugins {
 }
 
 android {
-    namespace = "dev.bishnoi.forgelog.wear"
+    // Must match the mobile app's applicationId exactly: the Data Layer API
+    // (Wearable.getDataClient) requires identical package name AND signing
+    // certificate between the phone and watch app, or synced data silently
+    // never crosses over. Verified empirically via paired emulator testing.
+    namespace = "dev.bishnoi.forgelog.mobile"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "dev.bishnoi.forgelog.wear"
+        applicationId = "dev.bishnoi.forgelog.mobile"
         minSdk = 30
         targetSdk = 36
+        // Must stay lower than the mobile app's versionCode — Play requires
+        // this for apps bundled together under one listing.
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -27,12 +33,27 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        create("release") {
+            val storeFilePath = System.getenv("FORGELOG_RELEASE_STORE_FILE")
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+                storePassword = System.getenv("FORGELOG_RELEASE_STORE_PASSWORD")
+                keyAlias = System.getenv("FORGELOG_RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("FORGELOG_RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            // Same upload keystore as the mobile app (via the same env vars)
+            // so both APKs carry an identical signing certificate.
+            signingConfig = if (System.getenv("FORGELOG_RELEASE_STORE_FILE") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 
