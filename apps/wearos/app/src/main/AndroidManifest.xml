@@ -11,10 +11,15 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault">
 
-        <!-- Fully usable without the phone in range: the WAL is local-first. -->
+        <!-- Companion-required: routines/exercises/PR baselines only exist on the
+             watch after the phone app pushes a sync snapshot (PhoneSyncListenerService).
+             The local WAL lets an in-progress workout keep logging sets without the
+             phone in range, but there's no watch-side routine creation, so a fresh
+             install has nothing to do until it has synced with the phone at least
+             once. Not standalone. -->
         <meta-data
             android:name="com.google.android.wearable.standalone"
-            android:value="true" />
+            android:value="false" />
 
         <activity
             android:name="dev.bishnoi.forgelog.wear.MainActivity"
