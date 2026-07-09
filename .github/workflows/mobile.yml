@@ -88,3 +88,43 @@ jobs:
         with:
           name: forgelog-release-apk
           path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+
+  build-release-aab:
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Decode release keystore
+        env:
+          FORGELOG_RELEASE_KEYSTORE_BASE64: ${{ secrets.FORGELOG_RELEASE_KEYSTORE_BASE64 }}
+        run: echo "$FORGELOG_RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release AAB
+        working-directory: apps/mobile/android
+        env:
+          FORGELOG_RELEASE_STORE_FILE: ${{ runner.temp }}/release.jks
+          FORGELOG_RELEASE_STORE_PASSWORD: ${{ secrets.FORGELOG_RELEASE_STORE_PASSWORD }}
+          FORGELOG_RELEASE_KEY_ALIAS: ${{ secrets.FORGELOG_RELEASE_KEY_ALIAS }}
+          FORGELOG_RELEASE_KEY_PASSWORD: ${{ secrets.FORGELOG_RELEASE_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: forgelog-release-aab
+          path: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
