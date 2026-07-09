@@ -103,7 +103,8 @@ CREATE TABLE personal_records (
 );
 
 CREATE TABLE profile (
-  id   INTEGER PRIMARY KEY CHECK (id = 0),
-  name TEXT NOT NULL DEFAULT 'Alex Rivera'
+  id         INTEGER PRIMARY KEY CHECK (id = 0),
+  name       TEXT NOT NULL DEFAULT 'Alex Rivera',
+  theme_mode TEXT NOT NULL DEFAULT 'system'
 );
 `;
