@@ -1,4 +1,11 @@
-import { formatCompactSet, formatSet, resolveRestSeconds } from '../setFields';
+import {
+  formatCompactSet,
+  formatSet,
+  hasLoggedValue,
+  parseNonNegativeInteger,
+  parseNonNegativeNumber,
+  resolveRestSeconds,
+} from '../setFields';
 
 test('per-exercise rest_seconds wins when set', () => {
   expect(resolveRestSeconds(45)).toBe(45);
@@ -30,4 +37,49 @@ test('formatCompactSet renders weight × reps without units', () => {
 test('formatCompactSet returns null when any field is missing', () => {
   expect(formatCompactSet('weight_reps', emptySet)).toBeNull();
   expect(formatCompactSet('weight_reps', { ...set, reps: null })).toBeNull();
+});
+
+test('parseNonNegativeNumber clears the field on empty input', () => {
+  expect(parseNonNegativeNumber('')).toBeNull();
+  expect(parseNonNegativeNumber('   ')).toBeNull();
+});
+
+test('parseNonNegativeNumber accepts non-negative decimals', () => {
+  expect(parseNonNegativeNumber('80')).toBe(80);
+  expect(parseNonNegativeNumber('77.5')).toBe(77.5);
+  expect(parseNonNegativeNumber('0')).toBe(0);
+});
+
+test('parseNonNegativeNumber rejects negative, non-finite, and malformed input', () => {
+  expect(parseNonNegativeNumber('-5')).toBeUndefined();
+  expect(parseNonNegativeNumber('Infinity')).toBeUndefined();
+  expect(parseNonNegativeNumber('abc')).toBeUndefined();
+});
+
+test('parseNonNegativeInteger accepts non-negative whole numbers', () => {
+  expect(parseNonNegativeInteger('8')).toBe(8);
+  expect(parseNonNegativeInteger('0')).toBe(0);
+  expect(parseNonNegativeInteger('')).toBeNull();
+});
+
+test('parseNonNegativeInteger rejects decimals and negatives', () => {
+  expect(parseNonNegativeInteger('2.5')).toBeUndefined();
+  expect(parseNonNegativeInteger('-3')).toBeUndefined();
+});
+
+test('hasLoggedValue requires positive reps for weight_reps and reps_only sets', () => {
+  expect(hasLoggedValue('weight_reps', { ...emptySet, reps: 8 })).toBe(true);
+  expect(hasLoggedValue('weight_reps', { ...emptySet, reps: 0 })).toBe(false);
+  expect(hasLoggedValue('weight_reps', emptySet)).toBe(false);
+  expect(hasLoggedValue('reps_only', { ...emptySet, reps: 12 })).toBe(true);
+});
+
+test('hasLoggedValue requires positive duration for duration-based sets', () => {
+  expect(hasLoggedValue('duration', { ...emptySet, duration_seconds: 30 })).toBe(true);
+  expect(hasLoggedValue('duration', emptySet)).toBe(false);
+  expect(hasLoggedValue('duration_distance', { ...emptySet, duration_seconds: 60 })).toBe(true);
+});
+
+test('hasLoggedValue does not require weight (bodyweight sets are valid)', () => {
+  expect(hasLoggedValue('weight_reps', { ...emptySet, weight: null, reps: 10 })).toBe(true);
 });

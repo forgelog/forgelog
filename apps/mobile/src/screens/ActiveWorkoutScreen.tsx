@@ -32,11 +32,16 @@ import {
   FIELD_PLACEHOLDER,
   fieldsFor,
   formatCompactSet,
+  hasLoggedValue,
+  parseNonNegativeInteger,
+  parseNonNegativeNumber,
   resolveRestSeconds,
   SetFieldKey,
   TRACKING_LABELS,
   TRACKING_TYPES,
 } from './setFields';
+
+const INTEGER_FIELDS: SetFieldKey[] = ['reps', 'duration'];
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveWorkout'>;
 
@@ -121,8 +126,10 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
 
   function editSetField(weId: string, setId: string, field: SetFieldKey, raw: string) {
     const column = SET_COLUMN[field];
-    const value = raw.trim() === '' ? null : Number(raw);
-    if (value !== null && Number.isNaN(value)) return;
+    const value = INTEGER_FIELDS.includes(field)
+      ? parseNonNegativeInteger(raw)
+      : parseNonNegativeNumber(raw);
+    if (value === undefined) return;
     patchExercise(weId, (w) => ({
       ...w,
       sets: w.sets.map((s) => (s.id === setId ? { ...s, [column]: value } : s)),
@@ -131,6 +138,14 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }
 
   async function toggleComplete(we: WorkoutExerciseDetail, setId: string, completed: boolean) {
+    if (completed) {
+      const set = we.sets.find((s) => s.id === setId);
+      const trackingType = effectiveTrackingType(we.tracking_type, we.exercise.tracking_type);
+      if (!set || !hasLoggedValue(trackingType, set)) {
+        Alert.alert('Missing values', 'Enter reps (or time) before marking this set complete.');
+        return;
+      }
+    }
     patchExercise(we.id, (w) => ({
       ...w,
       sets: w.sets.map((s) => (s.id === setId ? { ...s, completed } : s)),

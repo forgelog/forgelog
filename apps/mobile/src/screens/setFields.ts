@@ -90,6 +90,38 @@ export function formatCompactSet(trackingType: string | null, set: SetLike): str
   return values.join(' × ');
 }
 
+// Parses a numeric text input, rejecting negative and non-finite values
+// (e.g. "-5", "Infinity", "abc"). Returns null when the field was
+// intentionally cleared, or undefined when the input should be rejected.
+export function parseNonNegativeNumber(raw: string): number | null | undefined {
+  if (raw.trim() === '') return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) return undefined;
+  return value;
+}
+
+// Same as parseNonNegativeNumber but also rejects decimals — for
+// integer-only fields like reps, duration, and rest seconds.
+export function parseNonNegativeInteger(raw: string): number | null | undefined {
+  const value = parseNonNegativeNumber(raw);
+  if (value == null) return value;
+  return Number.isInteger(value) ? value : undefined;
+}
+
+// The field whose value proves a set was actually performed, per tracking
+// type — weight is never required so bodyweight sets stay valid.
+const LOGGED_VALUE_FIELD: Record<TrackingType, 'reps' | 'duration_seconds'> = {
+  weight_reps: 'reps',
+  reps_only: 'reps',
+  duration: 'duration_seconds',
+  duration_distance: 'duration_seconds',
+};
+
+export function hasLoggedValue(trackingType: string | null, set: SetLike): boolean {
+  const field = LOGGED_VALUE_FIELD[(trackingType as TrackingType) ?? 'weight_reps'] ?? 'reps';
+  return (set[field] ?? 0) > 0;
+}
+
 export const DEFAULT_REST_SECONDS = 90;
 
 // Per-exercise rest_seconds (snapshotted onto workout_exercises at workout

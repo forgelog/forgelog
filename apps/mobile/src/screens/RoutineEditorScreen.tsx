@@ -27,10 +27,14 @@ import {
   effectiveTrackingType,
   FIELD_PLACEHOLDER,
   fieldsFor,
+  parseNonNegativeInteger,
+  parseNonNegativeNumber,
   SetFieldKey,
   TRACKING_LABELS,
   TRACKING_TYPES,
 } from './setFields';
+
+const INTEGER_FIELDS: SetFieldKey[] = ['reps', 'duration'];
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RoutineEditor'>;
 
@@ -89,8 +93,10 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
 
   function editSetField(rexId: string, setId: string, field: SetFieldKey, raw: string) {
     const column = SET_COLUMN[field];
-    const value = raw.trim() === '' ? null : Number(raw);
-    if (value !== null && Number.isNaN(value)) return;
+    const value = INTEGER_FIELDS.includes(field)
+      ? parseNonNegativeInteger(raw)
+      : parseNonNegativeNumber(raw);
+    if (value === undefined) return;
     patchExercise(rexId, (r) => ({
       ...r,
       sets: r.sets.map((s) => (s.id === setId ? { ...s, [column]: value } : s)),
@@ -111,8 +117,8 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
   }
 
   function editRest(rexId: string, raw: string) {
-    const value = raw.trim() === '' ? null : Number(raw);
-    if (value !== null && Number.isNaN(value)) return;
+    const value = parseNonNegativeInteger(raw);
+    if (value === undefined) return;
     patchExercise(rexId, (r) => ({ ...r, rest_seconds: value }));
     updateRoutineExercise(rexId, { rest_seconds: value });
   }
@@ -151,7 +157,12 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
   }
 
   function handleDone() {
-    if (!detail || detail.exercises.length === 0) {
+    if (!detail) return;
+    if (name.trim() === '') {
+      Alert.alert('Name required', 'Give this routine a name before saving.');
+      return;
+    }
+    if (detail.exercises.length === 0) {
       Alert.alert('No exercises', 'Add at least one exercise before saving.');
       return;
     }
