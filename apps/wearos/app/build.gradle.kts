@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.forgelog.wear"
+    namespace = "dev.bishnoi.forgelog.wear"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.forgelog.wear"
+        applicationId = "dev.bishnoi.forgelog.wear"
         minSdk = 30
         targetSdk = 36
         versionCode = 1

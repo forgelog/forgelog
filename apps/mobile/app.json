@@ -17,7 +17,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.forgelog.mobile"
+      "package": "dev.bishnoi.forgelog.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
