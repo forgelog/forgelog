@@ -15,16 +15,20 @@ class WearSyncModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("WearSync")
 
-    Events("onWorkoutReceived")
+    Events("onWorkoutReceived", "onSyncRequested")
 
     OnCreate {
       WearSyncBridge.attach { payload ->
         sendEvent("onWorkoutReceived", mapOf(PAYLOAD_KEY to payload))
       }
+      WearSyncBridge.attachSyncRequestListener {
+        sendEvent("onSyncRequested", mapOf())
+      }
     }
 
     OnDestroy {
       WearSyncBridge.detach()
+      WearSyncBridge.detachSyncRequestListener()
     }
 
     // Publishes a JSON SyncSnapshot as a DataItem. DataItems persist on the
