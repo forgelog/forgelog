@@ -7,7 +7,7 @@ const DB_NAME = 'forgelog.db';
 
 // Bump this and add an `if (currentVersion < N)` branch below whenever the
 // schema changes, so existing installs migrate instead of losing data.
-const LATEST_SCHEMA_VERSION = 4;
+const LATEST_SCHEMA_VERSION = 5;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -43,6 +43,10 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
       await db.execAsync(
         "CREATE TABLE profile (id INTEGER PRIMARY KEY CHECK (id = 0), name TEXT NOT NULL DEFAULT 'Alex Rivera');"
       );
+    }
+    if (currentVersion < 5) {
+      // v5: theme selector on the Profile screen (system/light/dark).
+      await db.execAsync("ALTER TABLE profile ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'system';");
     }
   }
 
