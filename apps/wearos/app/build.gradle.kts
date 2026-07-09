@@ -18,9 +18,11 @@ android {
         applicationId = "dev.bishnoi.forgelog.mobile"
         minSdk = 30
         targetSdk = 36
-        // Must stay lower than the mobile app's versionCode — Play requires
-        // this for apps bundled together under one listing.
-        versionCode = 1
+        // versionCode must be unique across every form factor in this Play
+        // listing. Scheme: [targetSdk:2][formFactor:1][version:6], where
+        // version is major/minor/patch each zero-padded to 2 digits
+        // (0.1.0 -> 000100). formFactor 1=mobile, 2=wear.
+        versionCode = 362000100
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

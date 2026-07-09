@@ -18,7 +18,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "dev.bishnoi.forgelog.mobile",
-      "versionCode": 2
+      "versionCode": 361000100
     },
     "web": {
       "favicon": "./assets/favicon.png"
