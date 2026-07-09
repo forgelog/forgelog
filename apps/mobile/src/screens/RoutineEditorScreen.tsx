@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
@@ -150,14 +150,22 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
     reload();
   }
 
+  function handleDone() {
+    if (!detail || detail.exercises.length === 0) {
+      Alert.alert('No exercises', 'Add at least one exercise before saving.');
+      return;
+    }
+    navigation.goBack();
+  }
+
   if (!detail) return null;
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <ScreenHeader
         title="Edit routine"
-        onLeadingPress={() => navigation.goBack()}
-        trailing={<PillButton label="Save" onPress={() => navigation.goBack()} variant="filled" />}
+        onLeadingPress={handleDone}
+        trailing={<PillButton label="Save" onPress={handleDone} variant="filled" />}
       />
       <FlatList
         data={detail.exercises}
