@@ -2,7 +2,7 @@
   "expo": {
     "name": "ForgeLog",
     "slug": "forgelog",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -17,7 +17,8 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "dev.bishnoi.forgelog.mobile"
+      "package": "dev.bishnoi.forgelog.mobile",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
