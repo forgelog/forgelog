@@ -16,9 +16,21 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
 import dev.bishnoi.forgelog.wear.data.RoutineEntity
 
+private fun syncButtonLabel(state: SyncRequestState): String = when (state) {
+    SyncRequestState.IDLE -> "Sync Routines"
+    SyncRequestState.SENDING -> "Requesting sync…"
+    SyncRequestState.SENT -> "Sync requested"
+    SyncRequestState.FAILED -> "Phone not reachable"
+}
+
 /** Screen 1 per docs/wearos-scope.md: pick a routine to start a workout. */
 @Composable
-fun RoutineListScreen(routines: List<RoutineEntity>, onStart: (String) -> Unit) {
+fun RoutineListScreen(
+    routines: List<RoutineEntity>,
+    syncRequestState: SyncRequestState = SyncRequestState.IDLE,
+    onStart: (String) -> Unit,
+    onRequestSync: () -> Unit = {},
+) {
     MaterialTheme {
         if (routines.isEmpty()) {
             // Companion-required, no watch-side routine creation (see #7/#8): a
@@ -34,6 +46,11 @@ fun RoutineListScreen(routines: List<RoutineEntity>, onStart: (String) -> Unit) 
                 Text(
                     "Sync from ForgeLog on your phone to start training.",
                     textAlign = TextAlign.Center,
+                )
+                Chip(
+                    label = { Text(syncButtonLabel(syncRequestState)) },
+                    onClick = onRequestSync,
+                    enabled = syncRequestState != SyncRequestState.SENDING,
                 )
             }
         } else {

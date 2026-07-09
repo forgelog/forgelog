@@ -30,13 +30,16 @@ fun ForgeLogNavHost() {
                 factory = SimpleViewModelFactory { RoutineListViewModel(application) },
             )
             val routines by viewModel.routines.collectAsState()
+            val syncRequestState by viewModel.syncRequestState.collectAsState()
             RoutineListScreen(
                 routines = routines,
+                syncRequestState = syncRequestState,
                 onStart = { routineId ->
                     viewModel.startWorkout(routineId) { workoutId ->
                         navController.navigate(ROUTE_EXERCISES.replace("{$ARG_WORKOUT_ID}", workoutId))
                     }
                 },
+                onRequestSync = { viewModel.requestSync() },
             )
         }
 

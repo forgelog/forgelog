@@ -1,17 +1,23 @@
 package expo.modules.wearsync
 
+import android.util.Log
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
+import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
 
+private const val TAG = "WearSyncListenerService"
+
 private const val PAYLOAD_KEY = "payload"
+private const val REQUEST_SYNC_PATH = "/request-sync"
 
 /**
- * Receives the watch's write-ahead-log flush (DataItems under /workout).
- * Only unpacks bytes and hands the JSON payload to [WearSyncBridge] — all
- * parsing/DB writes happen in JS (src/sync/wearSync.ts), so PR logic and
- * schema stay single-sourced in the existing repositories.
+ * Receives the watch's write-ahead-log flush (DataItems under /workout) and
+ * on-demand sync requests (Messages at /request-sync). Only unpacks bytes
+ * and hands them to [WearSyncBridge] — all parsing/DB writes/snapshot
+ * building happen in JS (src/sync/wearSync.ts), so PR logic and schema stay
+ * single-sourced in the existing repositories.
  */
 class WearSyncListenerService : WearableListenerService() {
   override fun onDataChanged(dataEvents: DataEventBuffer) {
@@ -26,6 +32,17 @@ class WearSyncListenerService : WearableListenerService() {
       }
     } finally {
       dataEvents.release()
+    }
+  }
+
+  override fun onMessageReceived(messageEvent: MessageEvent) {
+    if (messageEvent.path != REQUEST_SYNC_PATH) return
+    try {
+      WearSyncBridge.deliverSyncRequest()
+    } catch (e: Exception) {
+      // Never let a listener-service callback crash the process — matches
+      // the defensive try/finally around onDataChanged above.
+      Log.w(TAG, "onMessageReceived failed to deliver /request-sync", e)
     }
   }
 }

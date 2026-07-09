@@ -6,13 +6,19 @@ let started = false;
 
 // Subscribes once to the watch's WAL flush and republishes it into the
 // phone's SQLite DB via the existing repositories (single writer, so PR
-// logic stays sourced from recalcRecordsForExercise).
+// logic stays sourced from recalcRecordsForExercise). Also subscribes to the
+// watch's on-demand "/request-sync" ping and answers it with the same
+// publishSyncSnapshot() used on app-open, so the watch isn't stuck waiting
+// for the phone to happen to be foregrounded.
 export function initWearSync(): void {
   if (started) return;
   started = true;
   WearSync.addListener('onWorkoutReceived', async (event) => {
     const payload = JSON.parse(event.payload) as WatchWorkoutPayload;
     await ingestWatchWorkout(payload);
+  });
+  WearSync.addListener('onSyncRequested', () => {
+    publishSyncSnapshot();
   });
 }
 

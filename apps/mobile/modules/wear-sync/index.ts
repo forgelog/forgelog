@@ -7,6 +7,8 @@ export type WorkoutReceivedEvent = { payload: string };
 
 type WearSyncEvents = {
   onWorkoutReceived: (event: WorkoutReceivedEvent) => void;
+  // Fired when the watch pings /request-sync asking for a fresh snapshot.
+  onSyncRequested: () => void;
 };
 
 declare class WearSyncModule extends NativeModule<WearSyncEvents> {
