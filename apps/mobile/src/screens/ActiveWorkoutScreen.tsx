@@ -7,7 +7,6 @@ import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { SupersetTag } from '../components/SupersetTag';
 import {
   getRecordsForExercise,
   recalcRecordsForExercise,
@@ -240,13 +239,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         renderItem={({ item, index }) => {
           const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
           const fields = fieldsFor(trackingType);
-          const supersetWithPrev =
-            index > 0 &&
-            item.superset_group_id != null &&
-            item.superset_group_id === detail.exercises[index - 1].superset_group_id;
           return (
             <View style={[styles.exercise, { borderTopColor: c.sep }]}>
-              {supersetWithPrev ? <SupersetTag /> : null}
               <View style={styles.exerciseHeader}>
                 <Pressable
                   style={styles.exerciseNameRow}
