@@ -336,6 +336,10 @@ export async function deleteLoggedSet(loggedSetId: string): Promise<void> {
   await db.runAsync('DELETE FROM logged_sets WHERE id = $id', { $id: loggedSetId });
 }
 
+export function hasCompletedSet(exercises: { sets: { completed: boolean }[] }[]): boolean {
+  return exercises.some((we) => we.sets.some((s) => s.completed));
+}
+
 export async function finishWorkout(workoutId: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('UPDATE workouts SET ended_at = $ended WHERE id = $id', {

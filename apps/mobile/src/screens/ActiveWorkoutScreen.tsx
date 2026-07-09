@@ -16,9 +16,11 @@ import {
   addExerciseToWorkout,
   addSet,
   deleteLoggedSet,
+  deleteWorkout,
   finishWorkout,
   getPreviousSessionSets,
   getWorkoutDetail,
+  hasCompletedSet,
   updateLoggedSet,
   updateWorkoutExercise,
 } from '../db/repositories/workouts';
@@ -170,12 +172,30 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }
 
   function handleFinish() {
+    if (!detail || !hasCompletedSet(detail.exercises)) {
+      Alert.alert('No sets completed', 'Complete at least one set before finishing.');
+      return;
+    }
     Alert.alert('Finish workout', 'Mark this workout as complete?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Finish',
         onPress: async () => {
           await finishWorkout(workoutId);
+          navigation.popToTop();
+        },
+      },
+    ]);
+  }
+
+  function handleDiscard() {
+    Alert.alert('Discard workout', 'This workout will be permanently deleted.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Discard',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteWorkout(workoutId);
           navigation.popToTop();
         },
       },
@@ -189,7 +209,14 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       <ScreenHeader
         title={detail.name}
         onLeadingPress={() => navigation.goBack()}
-        trailing={<PillButton label="Finish" onPress={handleFinish} variant="filled" />}
+        trailing={
+          <View style={styles.headerActions}>
+            <Pressable onPress={handleDiscard} hitSlop={8}>
+              <Icon name="trash-can-outline" variant="sub" size={20} />
+            </Pressable>
+            <PillButton label="Finish" onPress={handleFinish} variant="filled" />
+          </View>
+        }
       />
       <Text style={[styles.timer, { color: c.accent }]}>{formatTime(elapsed)}</Text>
       <FlatList
@@ -323,6 +350,7 @@ function round(value: number): number {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   timer: { fontSize: 28, fontWeight: '700', textAlign: 'center', paddingVertical: 8, fontVariant: ['tabular-nums'] },
   exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
