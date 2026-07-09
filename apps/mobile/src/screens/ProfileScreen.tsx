@@ -12,6 +12,7 @@ import { getProfileName, setProfileName } from '../db/repositories/profile';
 import { getProfileStats, ProfileStats } from '../db/repositories/workouts';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme, type ThemeMode } from '../theme/ThemeContext';
+import { NAME_MAX_LENGTH, sanitizeText } from '../validation/textInput';
 
 const THEME_OPTIONS: { mode: ThemeMode; label: string }[] = [
   { mode: 'system', label: 'System' },
@@ -47,9 +48,9 @@ export function ProfileScreen() {
   );
 
   function saveName() {
-    const trimmed = name.trim() || 'Alex Rivera';
-    setName(trimmed);
-    setProfileName(trimmed);
+    const sanitized = sanitizeText(name) || 'Alex Rivera';
+    setName(sanitized);
+    setProfileName(sanitized);
   }
 
   return (
@@ -68,6 +69,7 @@ export function ProfileScreen() {
               onBlur={saveName}
               placeholder="Your name"
               placeholderTextColor={c.sub}
+              maxLength={NAME_MAX_LENGTH}
             />
             <Text style={[styles.since, { color: c.sub }]}>Member since 2026</Text>
           </View>

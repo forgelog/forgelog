@@ -1,15 +1,16 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import type { RoutineDetail } from '../../db/types';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 
 jest.mock('../../db/repositories/routines');
 
-import { getRoutineDetail } from '../../db/repositories/routines';
+import { getRoutineDetail, updateRoutine } from '../../db/repositories/routines';
 
 const mockGetRoutineDetail = getRoutineDetail as jest.MockedFunction<typeof getRoutineDetail>;
+const mockUpdateRoutine = updateRoutine as jest.MockedFunction<typeof updateRoutine>;
 
 type TestParamList = { RoutineEditor: { routineId: string } };
 
@@ -70,4 +71,52 @@ test('does not show superset toggle or tag controls, even with a superset_group_
 
   await waitFor(() => expect(getByText('Overhead Press')).toBeTruthy());
   expect(queryByText(/Superset/)).toBeNull();
+});
+
+test('clearing the routine name shows an error and does not persist it', async () => {
+  const { getByDisplayValue, getByText, queryByText } = await render(
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen
+          name="RoutineEditor"
+          component={RoutineEditorScreen}
+          initialParams={{ routineId: 'r1' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+
+  await waitFor(() => expect(getByDisplayValue('Push Day')).toBeTruthy());
+  const nameInput = getByDisplayValue('Push Day');
+
+  await act(async () => fireEvent.changeText(nameInput, '   '));
+  await act(async () => fireEvent(nameInput, 'blur'));
+
+  await waitFor(() => expect(getByText('Routine name is required.')).toBeTruthy());
+  expect(mockUpdateRoutine).not.toHaveBeenCalledWith('r1', expect.objectContaining({ name: expect.anything() }));
+  expect(queryByText('Routine name is required.')).toBeTruthy();
+});
+
+test('saving a valid routine name persists the trimmed value', async () => {
+  const { getByDisplayValue } = await render(
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen
+          name="RoutineEditor"
+          component={RoutineEditorScreen}
+          initialParams={{ routineId: 'r1' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+
+  await waitFor(() => expect(getByDisplayValue('Push Day')).toBeTruthy());
+  const nameInput = getByDisplayValue('Push Day');
+
+  await act(async () => fireEvent.changeText(nameInput, '  Leg Day  '));
+  await act(async () => fireEvent(nameInput, 'blur'));
+
+  await waitFor(() =>
+    expect(mockUpdateRoutine).toHaveBeenCalledWith('r1', { name: 'Leg Day' })
+  );
 });

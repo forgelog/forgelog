@@ -1,5 +1,6 @@
 import { getDb } from '../index';
 import { id } from '../id';
+import { NAME_MAX_LENGTH, NOTES_MAX_LENGTH, validateText } from '../../validation/textInput';
 import type {
   Routine,
   RoutineDetail,
@@ -89,13 +90,36 @@ export async function listRoutineSummaries(): Promise<RoutineSummary[]> {
   return summaries;
 }
 
+function validateRoutineName(name: string): string {
+  const { value, error } = validateText(name, {
+    required: true,
+    maxLength: NAME_MAX_LENGTH,
+    fieldLabel: 'Routine name',
+  });
+  if (error) throw new Error(error);
+  return value;
+}
+
+function validateRoutineNotes(notes: string | null | undefined): string | null {
+  if (notes == null) return null;
+  const { value, error } = validateText(notes, {
+    maxLength: NOTES_MAX_LENGTH,
+    fieldLabel: 'Notes',
+    multiline: true,
+  });
+  if (error) throw new Error(error);
+  return value || null;
+}
+
 export async function createRoutine(name: string, notes?: string): Promise<Routine> {
+  const validName = validateRoutineName(name);
+  const validNotes = validateRoutineNotes(notes);
   const db = await getDb();
   const newId = id();
   const position = await nextRoutinePosition(db);
   await db.runAsync(
     'INSERT INTO routines (id, name, notes, position) VALUES ($id, $name, $notes, $position)',
-    { $id: newId, $name: name, $notes: notes ?? null, $position: position }
+    { $id: newId, $name: validName, $notes: validNotes, $position: position }
   );
   const created = await db.getFirstAsync<Routine>('SELECT * FROM routines WHERE id = $id', {
     $id: newId,
@@ -113,11 +137,11 @@ export async function updateRoutine(
   const params: Record<string, string | null> = { $id: routineId };
   if (fields.name !== undefined) {
     sets.push('name = $name');
-    params.$name = fields.name;
+    params.$name = validateRoutineName(fields.name);
   }
   if (fields.notes !== undefined) {
     sets.push('notes = $notes');
-    params.$notes = fields.notes;
+    params.$notes = validateRoutineNotes(fields.notes);
   }
   if (!sets.length) return;
   sets.push("updated_at = datetime('now')");
