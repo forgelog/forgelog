@@ -5,7 +5,6 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 
 import { Icon } from '../components/Icon';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { SupersetTag } from '../components/SupersetTag';
 import { deleteWorkout, getWorkoutDetail } from '../db/repositories/workouts';
 import type { WorkoutDetail } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -60,14 +59,9 @@ export function WorkoutDetailScreen({ route }: Props) {
           {round(volume)} kg
         </Text>
         {detail.notes ? <Text style={[styles.notes, { color: c.fg }]}>{detail.notes}</Text> : null}
-        {detail.exercises.map((we, index) => {
-          const supersetWithPrev =
-            index > 0 &&
-            we.superset_group_id != null &&
-            we.superset_group_id === detail.exercises[index - 1].superset_group_id;
+        {detail.exercises.map((we) => {
           return (
             <View key={we.id} style={[styles.exercise, { borderTopColor: c.sep }]}>
-              {supersetWithPrev ? <SupersetTag /> : null}
               <Text style={[styles.exerciseName, { color: c.fg }]}>{we.exercise.name}</Text>
               {we.sets.map((set, i) => (
                 <View key={set.id} style={styles.setRow}>

@@ -7,7 +7,6 @@ import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { SupersetTag } from '../components/SupersetTag';
 import {
   addExerciseToRoutine,
   addRoutineSet,
@@ -19,7 +18,6 @@ import {
   updateRoutineExercise,
   updateRoutineSet,
 } from '../db/repositories/routines';
-import { id } from '../db/id';
 import type { RoutineDetail, RoutineExerciseDetail, RoutineSet } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
@@ -140,22 +138,6 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
     await reorderRoutineExercises(reordered.map((r) => r.id));
   }
 
-  // Superset with the previous exercise: share a group id. Toggling off clears it.
-  async function toggleSuperset(index: number) {
-    if (!detail || index === 0) return;
-    const prev = detail.exercises[index - 1];
-    const curr = detail.exercises[index];
-    const grouped = curr.superset_group_id != null && curr.superset_group_id === prev.superset_group_id;
-    if (grouped) {
-      await updateRoutineExercise(curr.id, { superset_group_id: null });
-    } else {
-      const groupId = prev.superset_group_id ?? id();
-      await updateRoutineExercise(prev.id, { superset_group_id: groupId });
-      await updateRoutineExercise(curr.id, { superset_group_id: groupId });
-    }
-    reload();
-  }
-
   function handleDone() {
     if (!detail) return;
     if (name.trim() === '') {
@@ -205,13 +187,8 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
         renderItem={({ item, index }) => {
           const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
           const fields = fieldsFor(trackingType);
-          const supersetWithPrev =
-            index > 0 &&
-            item.superset_group_id != null &&
-            item.superset_group_id === detail.exercises[index - 1].superset_group_id;
           return (
             <View style={[styles.exercise, { borderTopColor: c.sep }]}>
-              {supersetWithPrev ? <SupersetTag /> : null}
               <View style={styles.exerciseHeader}>
                 <Text
                   style={[styles.exerciseName, { color: c.fg }]}
@@ -232,13 +209,6 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
 
               <View style={styles.metaRow}>
                 <Chip label={TRACKING_LABELS[trackingType]} onPress={() => cycleTrackingType(item)} />
-                {index > 0 ? (
-                  <Chip
-                    label={supersetWithPrev ? 'Superset ✓' : '+ Superset'}
-                    selected={supersetWithPrev}
-                    onPress={() => toggleSuperset(index)}
-                  />
-                ) : null}
                 <View style={styles.restBox}>
                   <Text style={[styles.restLabel, { color: c.sub }]}>Rest</Text>
                   <TextInput

@@ -98,3 +98,35 @@ test('truncates a long exercise name instead of overlapping the info icon and tr
   // tracking-type chip stays reachable alongside the name, not pushed off-screen
   await waitFor(() => expect(getByText('Weight × reps')).toBeTruthy());
 });
+
+test('does not show a superset tag even when exercises share a superset_group_id', async () => {
+  const groupedDetail: WorkoutDetail = {
+    ...workoutDetail,
+    exercises: [
+      { ...workoutDetail.exercises[0], id: 'we1', superset_group_id: 'g1' },
+      {
+        ...workoutDetail.exercises[0],
+        id: 'we2',
+        exercise: { ...workoutDetail.exercises[0].exercise, id: 'e2', name: 'Second Exercise' },
+        superset_group_id: 'g1',
+        sets: [],
+      },
+    ],
+  };
+  mockGetWorkoutDetail.mockResolvedValue(groupedDetail);
+
+  const { queryByText, getByText } = await render(
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen
+          name="ActiveWorkout"
+          component={ActiveWorkoutScreen}
+          initialParams={{ workoutId: 'w1' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+
+  await waitFor(() => expect(getByText('Second Exercise')).toBeTruthy());
+  expect(queryByText(/Superset/)).toBeNull();
+});
