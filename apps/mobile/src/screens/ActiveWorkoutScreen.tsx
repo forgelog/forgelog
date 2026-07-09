@@ -253,7 +253,13 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
                   onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: item.exercise.id })}
                   hitSlop={8}
                 >
-                  <Text style={[styles.exerciseName, { color: c.fg }]}>{item.exercise.name}</Text>
+                  <Text
+                    style={[styles.exerciseName, { color: c.fg }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.exercise.name}
+                  </Text>
                   <Icon name="information-outline" variant="sub" size={18} />
                 </Pressable>
                 <Chip label={TRACKING_LABELS[trackingType]} onPress={() => cycleTrackingType(item)} />
@@ -369,8 +375,8 @@ const styles = StyleSheet.create({
   timer: { fontSize: 28, fontWeight: '700', textAlign: 'center', paddingVertical: 8, fontVariant: ['tabular-nums'] },
   exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  exerciseNameRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  exerciseName: { fontSize: 16, fontWeight: '700' },
+  exerciseNameRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  exerciseName: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
   columnHeader: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 0 },
   columnLabel: { fontSize: 11, fontWeight: '700' },
   setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8, paddingVertical: 4 },

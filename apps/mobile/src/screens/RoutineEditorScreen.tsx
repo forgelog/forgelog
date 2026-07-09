@@ -213,7 +213,13 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
             <View style={[styles.exercise, { borderTopColor: c.sep }]}>
               {supersetWithPrev ? <SupersetTag /> : null}
               <View style={styles.exerciseHeader}>
-                <Text style={[styles.exerciseName, { color: c.fg }]}>{item.exercise.name}</Text>
+                <Text
+                  style={[styles.exerciseName, { color: c.fg }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.exercise.name}
+                </Text>
                 <View style={styles.headerActions}>
                   <Pressable onPress={() => move(index, -1)} hitSlop={8}>
                     <Icon name="chevron-up" variant="sub" size={20} />
@@ -294,7 +300,7 @@ const styles = StyleSheet.create({
   notesInput: { fontSize: 14, minHeight: 20 },
   exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  exerciseName: { fontSize: 16, fontWeight: '700', flex: 1 },
+  exerciseName: { fontSize: 16, fontWeight: '700', flex: 1, minWidth: 0 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   restBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },

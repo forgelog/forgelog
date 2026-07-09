@@ -108,7 +108,9 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
                 <View style={[styles.thumb, { backgroundColor: c.fill }]} />
               )}
               <View style={styles.rowText}>
-                <Text style={[styles.name, { color: c.fg }]}>{item.name}</Text>
+                <Text style={[styles.name, { color: c.fg }]} numberOfLines={1} ellipsizeMode="tail">
+                  {item.name}
+                </Text>
                 <Text style={[styles.meta, { color: c.sub }]}>
                   {item.muscle_group} · {item.equipment}
                 </Text>
@@ -154,7 +156,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   thumb: { width: 56, height: 56, borderRadius: 8 },
-  rowText: { marginLeft: 12, flex: 1 },
+  rowText: { marginLeft: 12, flex: 1, minWidth: 0 },
   name: { fontSize: 16, fontWeight: '600' },
   meta: { marginTop: 2, fontSize: 13, textTransform: 'capitalize' },
 });
