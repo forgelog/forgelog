@@ -101,4 +101,9 @@ CREATE TABLE personal_records (
   achieved_at   TEXT NOT NULL,
   UNIQUE(exercise_id, record_type)
 );
+
+CREATE TABLE profile (
+  id   INTEGER PRIMARY KEY CHECK (id = 0),
+  name TEXT NOT NULL DEFAULT 'Alex Rivera'
+);
 `;

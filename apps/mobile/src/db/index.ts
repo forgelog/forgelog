@@ -7,7 +7,7 @@ const DB_NAME = 'forgelog.db';
 
 // Bump this and add an `if (currentVersion < N)` branch below whenever the
 // schema changes, so existing installs migrate instead of losing data.
-const LATEST_SCHEMA_VERSION = 3;
+const LATEST_SCHEMA_VERSION = 4;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -38,12 +38,19 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
       await db.execAsync('ALTER TABLE exercises ADD COLUMN secondary_muscles TEXT;');
       await backfillSecondaryMuscles(db);
     }
+    if (currentVersion < 4) {
+      // v4: editable profile name on the Profile screen.
+      await db.execAsync(
+        "CREATE TABLE profile (id INTEGER PRIMARY KEY CHECK (id = 0), name TEXT NOT NULL DEFAULT 'Alex Rivera');"
+      );
+    }
   }
 
   if (currentVersion < LATEST_SCHEMA_VERSION) {
     await db.execAsync(`PRAGMA user_version = ${LATEST_SCHEMA_VERSION};`);
   }
 
+  await db.execAsync("INSERT OR IGNORE INTO profile (id, name) VALUES (0, 'Alex Rivera');");
   await seedExercises(db);
 
   return db;

@@ -1,12 +1,13 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { ExerciseRecordRow, listAllRecords } from '../db/repositories/personalRecords';
+import { getProfileName, setProfileName } from '../db/repositories/profile';
 import { getProfileStats, ProfileStats } from '../db/repositories/workouts';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
@@ -27,26 +28,45 @@ export function ProfileScreen() {
   const navigation = useNavigation<Nav>();
   const [groups, setGroups] = useState<ExerciseGroup[]>([]);
   const [stats, setStats] = useState<ProfileStats>({ workoutCount: 0, totalVolume: 0, streakDays: 0 });
+  const [name, setName] = useState('');
+  const nameInputRef = useRef<TextInput>(null);
 
   useFocusEffect(
     useCallback(() => {
       listAllRecords().then((rows) => setGroups(groupByExercise(rows)));
       getProfileStats().then(setStats);
+      getProfileName().then(setName);
     }, [])
   );
+
+  function saveName() {
+    const trimmed = name.trim() || 'Alex Rivera';
+    setName(trimmed);
+    setProfileName(trimmed);
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]}>
       <ScrollView>
         <View style={styles.header}>
           <View style={[styles.avatar, { backgroundColor: c.asoft }]}>
-            <Text style={[styles.avatarText, { color: c.accent }]}>AR</Text>
+            <Text style={[styles.avatarText, { color: c.accent }]}>{initials(name)}</Text>
           </View>
           <View style={styles.identity}>
-            <Text style={[styles.name, { color: c.fg }]}>Alex Rivera</Text>
+            <TextInput
+              ref={nameInputRef}
+              style={[styles.name, { color: c.fg }]}
+              value={name}
+              onChangeText={setName}
+              onBlur={saveName}
+              placeholder="Your name"
+              placeholderTextColor={c.sub}
+            />
             <Text style={[styles.since, { color: c.sub }]}>Member since 2026</Text>
           </View>
-          <Icon name="pencil" variant="sub" size={20} />
+          <Pressable onPress={() => nameInputRef.current?.focus()} hitSlop={8}>
+            <Icon name="pencil" variant="sub" size={20} />
+          </Pressable>
         </View>
 
         <View style={styles.statsRow}>
@@ -111,6 +131,15 @@ function groupByExercise(rows: ExerciseRecordRow[]): ExerciseGroup[] {
 
 function round(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+export function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'AR';
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join('');
 }
 
 const styles = StyleSheet.create({
