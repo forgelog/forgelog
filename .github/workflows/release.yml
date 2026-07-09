@@ -79,13 +79,35 @@ jobs:
           path: artifacts/wear-release
           if_no_artifact_found: ignore
 
-      - name: Flatten and rename APKs
+      - name: Download mobile release AAB
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: mobile.yml
+          branch: main
+          workflow_conclusion: success
+          name: forgelog-release-aab
+          path: artifacts/mobile-release-aab
+          if_no_artifact_found: ignore
+
+      - name: Download wear OS release AAB
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: wearos.yml
+          branch: main
+          workflow_conclusion: success
+          name: forgelog-wear-release-aab
+          path: artifacts/wear-release-aab
+          if_no_artifact_found: ignore
+
+      - name: Flatten and rename APKs/AABs
         run: |
           mkdir -p release-apks
           [ -f artifacts/mobile-debug/app-debug.apk ] && cp artifacts/mobile-debug/app-debug.apk release-apks/forgelog-mobile-debug.apk
           [ -f artifacts/mobile-release/app-release.apk ] && cp artifacts/mobile-release/app-release.apk release-apks/forgelog-mobile-release.apk
           [ -f artifacts/wear-debug/app-debug.apk ] && cp artifacts/wear-debug/app-debug.apk release-apks/forgelog-wear-debug.apk
           [ -f artifacts/wear-release/app-release.apk ] && cp artifacts/wear-release/app-release.apk release-apks/forgelog-wear-release.apk
+          [ -f artifacts/mobile-release-aab/app-release.aab ] && cp artifacts/mobile-release-aab/app-release.aab release-apks/forgelog-mobile-release.aab
+          [ -f artifacts/wear-release-aab/app-release.aab ] && cp artifacts/wear-release-aab/app-release.aab release-apks/forgelog-wear-release.aab
           ls -la release-apks
 
       - name: Delete existing v0.0.0 release and tag
@@ -99,7 +121,7 @@ jobs:
           tag: v0.0.0
           name: v0.0.0 (latest main)
           body: Auto-updated build from the latest push to main. Not a stable release.
-          artifacts: release-apks/*.apk
+          artifacts: release-apks/*.apk,release-apks/*.aab
           makeLatest: true
           prerelease: true
           commit: main
