@@ -110,18 +110,22 @@ jobs:
           [ -f artifacts/wear-release-aab/app-release.aab ] && cp artifacts/wear-release-aab/app-release.aab release-apks/forgelog-wear-release.aab
           ls -la release-apks
 
-      - name: Delete existing v0.0.0 release and tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release delete v0.0.0 --repo ${{ github.repository }} --yes --cleanup-tag || true
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Publish v0.0.0 release
+      - name: Determine release version
+        id: version
+        run: |
+          VERSION=$(jq -r '.expo.version' apps/mobile/app.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.0.0
-          name: v0.0.0 (latest main)
-          body: Auto-updated build from the latest push to main. Not a stable release.
+          tag: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: Build from main at ${{ github.sha }}.
           artifacts: release-apks/*.apk,release-apks/*.aab
+          allowUpdates: true
           makeLatest: true
-          prerelease: true
           commit: main
