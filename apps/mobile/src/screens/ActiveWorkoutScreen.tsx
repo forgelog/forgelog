@@ -52,7 +52,7 @@ const SET_COLUMN: Record<SetFieldKey, keyof LoggedSet> = {
 };
 
 export function ActiveWorkoutScreen({ route, navigation }: Props) {
-  const { workoutId } = route.params;
+  const { workoutId, pickedExerciseId } = route.params;
   const c = useTheme();
   const [detail, setDetail] = useState<WorkoutDetail | null>(null);
   const [restRemaining, setRestRemaining] = useState<number | null>(null);
@@ -74,6 +74,17 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }, [workoutId]);
 
   useFocusEffect(reload);
+
+  useEffect(() => {
+    if (!pickedExerciseId) return;
+    navigation.setParams({ pickedExerciseId: undefined });
+    addExerciseToWorkout(workoutId, pickedExerciseId)
+      .then(() => reload())
+      .catch(() => {
+        Alert.alert('Save failed', 'Could not add exercise.');
+        reload();
+      });
+  }, [pickedExerciseId, workoutId, reload, navigation]);
 
   const startedAt = detail?.started_at;
 
@@ -102,13 +113,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }
 
   function handleAddExercise() {
-    navigation.navigate('ExerciseLibrary', {
-      mode: 'pick',
-      onPick: async (exercise) => {
-        await addExerciseToWorkout(workoutId, exercise.id);
-        reload();
-      },
-    });
+    navigation.navigate('ExerciseLibrary', { mode: 'pick', returnTo: 'ActiveWorkout' });
   }
 
   async function handleAddSet(we: WorkoutExerciseDetail) {

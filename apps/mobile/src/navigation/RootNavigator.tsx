@@ -1,7 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import type { Exercise } from '../db/types';
 import { ActiveWorkoutScreen } from '../screens/ActiveWorkoutScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { ExerciseDetailScreen } from '../screens/ExerciseDetailScreen';
@@ -12,11 +11,11 @@ import { MainTabs } from './MainTabs';
 
 export type RootStackParamList = {
   MainTabs: undefined;
-  ActiveWorkout: { workoutId: string };
+  ActiveWorkout: { workoutId: string; pickedExerciseId?: string };
   EditProfile: undefined;
   ExerciseDetail: { exerciseId: string };
-  ExerciseLibrary: { mode?: 'browse' | 'pick'; onPick?: (exercise: Exercise) => void } | undefined;
-  RoutineEditor: { routineId: string };
+  ExerciseLibrary: { mode?: 'browse' | 'pick'; returnTo?: 'ActiveWorkout' | 'RoutineEditor' } | undefined;
+  RoutineEditor: { routineId: string; pickedExerciseId?: string };
   WorkoutDetail: { workoutId: string };
 };
 

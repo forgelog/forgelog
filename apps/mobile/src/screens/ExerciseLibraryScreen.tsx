@@ -24,7 +24,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ExerciseLibrary'>;
 export function ExerciseLibraryScreen({ route, navigation }: Props) {
   const c = useTheme();
   const mode = route.params?.mode ?? 'browse';
-  const onPick = route.params?.onPick;
+  const returnTo = route.params?.returnTo;
 
   const [search, setSearch] = useState('');
   const [muscleGroup, setMuscleGroup] = useState<string | null>(null);
@@ -62,9 +62,8 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
   const count = useMemo(() => exercises.length, [exercises]);
 
   function handlePress(exercise: Exercise) {
-    if (mode === 'pick' && onPick) {
-      onPick(exercise);
-      navigation.goBack();
+    if (mode === 'pick' && returnTo) {
+      (navigation as any).navigate(returnTo, { pickedExerciseId: exercise.id }, { merge: true });
     } else {
       navigation.navigate('ExerciseDetail', { exerciseId: exercise.id });
     }
