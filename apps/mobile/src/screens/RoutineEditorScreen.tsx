@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Chip } from '../components/Chip';
@@ -45,7 +45,7 @@ const SET_COLUMN: Record<SetFieldKey, keyof RoutineSet> = {
 };
 
 export function RoutineEditorScreen({ route, navigation }: Props) {
-  const { routineId } = route.params;
+  const { routineId, pickedExerciseId } = route.params;
   const c = useTheme();
   const [detail, setDetail] = useState<RoutineDetail | null>(null);
   const [name, setName] = useState('');
@@ -67,7 +67,18 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
 
   useFocusEffect(reload);
 
-  function saveName() {
+  useEffect(() => {
+    if (!pickedExerciseId) return;
+    navigation.setParams({ pickedExerciseId: undefined });
+    addExerciseToRoutine(routineId, pickedExerciseId)
+      .then(() => reload())
+      .catch(() => {
+        Alert.alert('Save failed', 'Could not add exercise.');
+        reload();
+      });
+  }, [pickedExerciseId, routineId, reload, navigation]);
+
+  async function saveName() {
     const result = validateText(name, {
       required: true,
       maxLength: NAME_MAX_LENGTH,
@@ -76,10 +87,15 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
     setNameError(result.error);
     if (result.error) return;
     setName(result.value);
-    updateRoutine(routineId, { name: result.value });
+    try {
+      await updateRoutine(routineId, { name: result.value });
+    } catch {
+      Alert.alert('Save failed', 'Could not save routine name.');
+      reload();
+    }
   }
 
-  function saveNotes() {
+  async function saveNotes() {
     const result = validateText(notes, {
       maxLength: NOTES_MAX_LENGTH,
       fieldLabel: 'Notes',
@@ -88,17 +104,16 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
     setNotesError(result.error);
     if (result.error) return;
     setNotes(result.value);
-    updateRoutine(routineId, { notes: result.value || null });
+    try {
+      await updateRoutine(routineId, { notes: result.value || null });
+    } catch {
+      Alert.alert('Save failed', 'Could not save notes.');
+      reload();
+    }
   }
 
   function handleAddExercise() {
-    navigation.navigate('ExerciseLibrary', {
-      mode: 'pick',
-      onPick: async (exercise) => {
-        await addExerciseToRoutine(routineId, exercise.id);
-        reload();
-      },
-    });
+    navigation.navigate('ExerciseLibrary', { mode: 'pick', returnTo: 'RoutineEditor' });
   }
 
   function patchExercise(rexId: string, fn: (rex: RoutineExerciseDetail) => RoutineExerciseDetail) {
@@ -128,7 +143,10 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
       ...r,
       sets: r.sets.map((s) => (s.id === setId ? { ...s, [column]: value } : s)),
     }));
-    updateRoutineSet(setId, { [column]: value });
+    updateRoutineSet(setId, { [column]: value }).catch(() => {
+      Alert.alert('Save failed', 'Could not save set value.');
+      reload();
+    });
   }
 
   async function removeSet(rexId: string, setId: string) {
@@ -147,14 +165,20 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
     const value = parseNonNegativeInteger(raw);
     if (value === undefined) return;
     patchExercise(rexId, (r) => ({ ...r, rest_seconds: value }));
-    updateRoutineExercise(rexId, { rest_seconds: value });
+    updateRoutineExercise(rexId, { rest_seconds: value }).catch(() => {
+      Alert.alert('Save failed', 'Could not save rest time.');
+      reload();
+    });
   }
 
   function cycleTrackingType(rex: RoutineExerciseDetail) {
     const current = effectiveTrackingType(rex.tracking_type, rex.exercise.tracking_type);
     const next = TRACKING_TYPES[(TRACKING_TYPES.indexOf(current) + 1) % TRACKING_TYPES.length];
     patchExercise(rex.id, (r) => ({ ...r, tracking_type: next }));
-    updateRoutineExercise(rex.id, { tracking_type: next });
+    updateRoutineExercise(rex.id, { tracking_type: next }).catch(() => {
+      Alert.alert('Save failed', 'Could not save tracking type.');
+      reload();
+    });
   }
 
   async function move(index: number, delta: number) {
