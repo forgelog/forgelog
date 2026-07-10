@@ -87,6 +87,14 @@ class ExerciseDetailViewModel(
         viewModelScope.launch { workoutRepository.updateSetValues(set, weight, reps) }
     }
 
+    fun updateDuration(set: LoggedSetEntity, durationSeconds: Int?) {
+        viewModelScope.launch { workoutRepository.updateSetDuration(set, durationSeconds) }
+    }
+
+    fun updateDistance(set: LoggedSetEntity, distanceMeters: Double?) {
+        viewModelScope.launch { workoutRepository.updateSetDistance(set, distanceMeters) }
+    }
+
     fun markDone(set: LoggedSetEntity) {
         viewModelScope.launch {
             workoutRepository.markSetCompleted(set, true)
@@ -105,6 +113,17 @@ class ExerciseDetailViewModel(
 
     fun removeSet(set: LoggedSetEntity) {
         viewModelScope.launch { workoutRepository.removeSet(set.id) }
+    }
+
+    fun cycleSetType(set: LoggedSetEntity) {
+        viewModelScope.launch { workoutRepository.cycleSetType(set) }
+    }
+
+    fun deleteExercise(onDone: () -> Unit) {
+        viewModelScope.launch {
+            workoutRepository.deleteExercise(workoutExerciseId)
+            onDone()
+        }
     }
 
     fun skipRest() {

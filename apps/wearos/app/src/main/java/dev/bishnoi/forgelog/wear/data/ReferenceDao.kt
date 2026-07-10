@@ -35,6 +35,9 @@ interface ReferenceDao {
     @Query("SELECT * FROM routine_exercises WHERE routineId = :routineId ORDER BY position")
     suspend fun routineExercises(routineId: String): List<RoutineExerciseEntity>
 
+    @Query("SELECT COUNT(*) FROM routine_exercises WHERE routineId = :routineId")
+    suspend fun routineExerciseCount(routineId: String): Int
+
     @Query("SELECT * FROM routine_sets WHERE routineExerciseId = :routineExerciseId ORDER BY position")
     suspend fun routineSets(routineExerciseId: String): List<RoutineSetEntity>
 

@@ -2,6 +2,7 @@ package dev.bishnoi.forgelog.wear.data
 
 import dev.bishnoi.forgelog.wear.logic.effectiveTrackingType
 import dev.bishnoi.forgelog.wear.logic.newId
+import dev.bishnoi.forgelog.wear.logic.nextSetType
 import java.time.Instant
 
 /**
@@ -86,6 +87,14 @@ class WorkoutRepository(
         workoutDao.updateLoggedSet(loggedSet.copy(weight = weight, reps = reps))
     }
 
+    suspend fun updateSetDuration(loggedSet: LoggedSetEntity, durationSeconds: Int?) {
+        workoutDao.updateLoggedSet(loggedSet.copy(durationSeconds = durationSeconds))
+    }
+
+    suspend fun updateSetDistance(loggedSet: LoggedSetEntity, distanceMeters: Double?) {
+        workoutDao.updateLoggedSet(loggedSet.copy(distanceMeters = distanceMeters))
+    }
+
     suspend fun addSet(workoutExerciseId: String): LoggedSetEntity {
         val set = LoggedSetEntity(
             id = newId(),
@@ -106,5 +115,22 @@ class WorkoutRepository(
 
     suspend fun removeSet(loggedSetId: String) {
         workoutDao.deleteLoggedSet(loggedSetId)
+    }
+
+    suspend fun cycleSetType(loggedSet: LoggedSetEntity) {
+        workoutDao.updateLoggedSet(loggedSet.copy(setType = nextSetType(loggedSet.setType)))
+    }
+
+    /**
+     * Discards an in-progress workout entirely. Mirrors
+     * apps/mobile/src/db/repositories/workouts.ts deleteWorkout (a hard DELETE,
+     * not a soft flag), so a discarded session never enters the sync WAL.
+     */
+    suspend fun discardWorkout(workoutId: String) {
+        workoutDao.deleteWorkoutCascade(workoutId)
+    }
+
+    suspend fun deleteExercise(workoutExerciseId: String) {
+        workoutDao.deleteExerciseCascade(workoutExerciseId)
     }
 }
