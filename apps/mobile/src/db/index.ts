@@ -50,13 +50,16 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
     }
     if (currentVersion < 6) {
       // v6: lifter profile fields (#15); drops the 'Alex Rivera' seeded default.
-      await db.execAsync(
-        "ALTER TABLE profile ADD COLUMN sex TEXT CHECK (sex IN ('male', 'female', 'prefer_not_to_say'));"
-      );
-      await db.execAsync('ALTER TABLE profile ADD COLUMN birth_date TEXT;');
-      await db.execAsync('ALTER TABLE profile ADD COLUMN height_cm REAL;');
-      await db.execAsync('ALTER TABLE profile ADD COLUMN bodyweight_kg REAL;');
-      await db.execAsync("UPDATE profile SET name = '' WHERE name = 'Alex Rivera';");
+      // Transactional so a crash mid-migration can't leave columns half-added.
+      await db.withTransactionAsync(async () => {
+        await db.execAsync(
+          "ALTER TABLE profile ADD COLUMN sex TEXT CHECK (sex IN ('male', 'female', 'prefer_not_to_say'));"
+        );
+        await db.execAsync('ALTER TABLE profile ADD COLUMN birth_date TEXT;');
+        await db.execAsync('ALTER TABLE profile ADD COLUMN height_cm REAL;');
+        await db.execAsync('ALTER TABLE profile ADD COLUMN bodyweight_kg REAL;');
+        await db.execAsync("UPDATE profile SET name = '' WHERE name = 'Alex Rivera';");
+      });
     }
   }
 

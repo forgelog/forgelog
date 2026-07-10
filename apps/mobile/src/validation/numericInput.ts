@@ -65,7 +65,14 @@ export function validateBirthDateIso(iso: string | null): ValidateDateResult {
   if (iso === null) {
     return { value: null, error: null };
   }
-  return validateBirthDate(parseIsoDate(iso));
+  const date = parseIsoDate(iso);
+  // JS Date normalizes out-of-range components (e.g. 2021-02-30 rolls over
+  // to March 2) instead of erroring, so round-trip through toIsoDate to
+  // catch calendar dates that don't actually exist.
+  if (!Number.isNaN(date.getTime()) && toIsoDate(date) !== iso) {
+    return { value: null, error: 'Birth date is invalid.' };
+  }
+  return validateBirthDate(date);
 }
 
 // Deliberately local-time throughout: the native date picker returns a Date

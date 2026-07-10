@@ -111,7 +111,12 @@ export function ProfileScreen() {
 
         <View style={styles.bodySectionHeader}>
           <Text style={[styles.sectionTitle, { color: c.fg, margin: 0 }]}>Body</Text>
-          <Pressable onPress={() => navigation.navigate('EditProfile')} hitSlop={8}>
+          <Pressable
+            onPress={() => navigation.navigate('EditProfile')}
+            hitSlop={8}
+            accessibilityLabel="Edit profile"
+            accessibilityRole="button"
+          >
             <Icon name="pencil" variant="sub" size={20} />
           </Pressable>
         </View>
@@ -203,7 +208,7 @@ function round(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-function computeAge(birthDateIso: string): number {
+export function computeAge(birthDateIso: string): number {
   const [year, month, day] = birthDateIso.split('-').map(Number);
   const today = new Date();
   let age = today.getFullYear() - year;

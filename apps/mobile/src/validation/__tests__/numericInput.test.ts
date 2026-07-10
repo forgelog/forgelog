@@ -99,4 +99,9 @@ describe('validateBirthDateIso', () => {
     const { error } = validateBirthDateIso('1899-12-31');
     expect(error).toBe('Birth date must be after 1900.');
   });
+
+  test('rejects a calendar date that does not exist', () => {
+    const { error } = validateBirthDateIso('2021-02-30');
+    expect(error).toBe('Birth date is invalid.');
+  });
 });
