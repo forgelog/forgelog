@@ -62,8 +62,10 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
   const count = useMemo(() => exercises.length, [exercises]);
 
   function handlePress(exercise: Exercise) {
-    if (mode === 'pick' && returnTo) {
-      (navigation as any).navigate(returnTo, { pickedExerciseId: exercise.id }, { merge: true });
+    if (mode === 'pick' && returnTo === 'ActiveWorkout') {
+      navigation.navigate('ActiveWorkout', { pickedExerciseId: exercise.id } as any, { merge: true, pop: true });
+    } else if (mode === 'pick' && returnTo === 'RoutineEditor') {
+      navigation.navigate('RoutineEditor', { pickedExerciseId: exercise.id } as any, { merge: true, pop: true });
     } else {
       navigation.navigate('ExerciseDetail', { exerciseId: exercise.id });
     }
