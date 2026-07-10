@@ -31,7 +31,7 @@ class WorkoutOverviewViewModel(
     private val workoutDao: WorkoutDao,
     private val referenceDao: ReferenceDao,
     private val workoutRepository: WorkoutRepository,
-    private val finishWorkout: FinishWorkout,
+    private val finishWorkoutUseCase: FinishWorkout,
     private val workoutId: String,
 ) : ViewModel() {
     private val nameCache = mutableMapOf<String, String>()
@@ -69,7 +69,7 @@ class WorkoutOverviewViewModel(
 
     fun finishWorkout(onDone: () -> Unit) {
         viewModelScope.launch {
-            finishWorkout(workoutId)
+            finishWorkoutUseCase(workoutId)
             onDone()
         }
     }

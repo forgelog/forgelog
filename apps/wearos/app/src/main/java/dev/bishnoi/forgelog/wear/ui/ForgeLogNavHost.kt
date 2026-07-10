@@ -95,7 +95,7 @@ fun ForgeLogNavHost() {
             val workoutId = entry.arguments?.getString(WearRoutes.ARG_WORKOUT_ID).orEmpty()
             val vm: WorkoutOverviewViewModel = viewModel(
                 factory = SimpleViewModelFactory {
-                    WorkoutOverviewViewModel(workoutDao, referenceDao, workoutRepository, finishWorkout, workoutId)
+                    WorkoutOverviewViewModel(workoutDao, referenceDao, workoutRepository, finishWorkoutUseCase = finishWorkout, workoutId)
                 },
             )
             val exercises by vm.exercises.collectAsState()

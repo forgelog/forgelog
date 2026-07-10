@@ -23,9 +23,18 @@ class FinishWorkout(
     }
 
     suspend fun drainUnsynced() {
-        for (workout in workoutDao.unsyncedWorkouts()) {
+        val unsynced = try {
+            workoutDao.unsyncedWorkouts()
+        } catch (_: Exception) {
+            return
+        }
+        for (workout in unsynced) {
             if (workout.endedAt == null) continue
-            val payload = syncRepository.buildWorkoutPayload(workout)
+            val payload = try {
+                syncRepository.buildWorkoutPayload(workout)
+            } catch (_: Exception) {
+                continue
+            }
             try {
                 publish(payload)
                 workoutDao.markSynced(workout.id)

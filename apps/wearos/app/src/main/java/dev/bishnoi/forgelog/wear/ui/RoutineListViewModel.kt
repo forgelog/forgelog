@@ -33,7 +33,7 @@ class RoutineListViewModel(
     fun requestSync() {
         viewModelScope.launch {
             _syncRequestState.value = SyncRequestState.SENDING
-            val sent = syncWithPhone()
+            val sent = try { syncWithPhone() } catch (_: Exception) { false }
             _syncRequestState.value = if (sent) SyncRequestState.SENT else SyncRequestState.FAILED
         }
     }
