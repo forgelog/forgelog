@@ -1,0 +1,43 @@
+{
+  "routines": [
+    {
+      "id": "r1",
+      "name": "Push Day",
+      "position": 0,
+      "exercises": [
+        {
+          "id": "re1",
+          "routine_id": "r1",
+          "exercise_id": "ex1",
+          "position": 0,
+          "superset_group_id": null,
+          "rest_seconds": 90,
+          "tracking_type": null,
+          "exercise": { "id": "ex1", "name": "Bench Press", "tracking_type": "weight_reps" },
+          "sets": [
+            {
+              "id": "rs1",
+              "routine_exercise_id": "re1",
+              "position": 0,
+              "set_type": "normal",
+              "target_weight": 60.0,
+              "target_reps": 8,
+              "target_duration_seconds": null,
+              "target_distance_meters": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "personalRecords": [
+    {
+      "id": "pr1",
+      "exercise_id": "ex1",
+      "record_type": "max_weight",
+      "value": 62.5,
+      "logged_set_id": null,
+      "achieved_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

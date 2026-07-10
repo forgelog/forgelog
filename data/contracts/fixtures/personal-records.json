@@ -1,0 +1,11 @@
+{
+  "weighted_sets": [
+    { "weight": 100, "reps": 5 },
+    { "weight": 120, "reps": 3 },
+    { "weight": 80, "reps": 10 }
+  ],
+  "reps_only_sets": [
+    { "weight": null, "reps": 15 },
+    { "weight": null, "reps": 20 }
+  ]
+}
