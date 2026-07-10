@@ -1,15 +1,58 @@
-// Test-only stub so modules that import the db layer can load under jest-expo
-// (the real native module needs expo-asset, which isn't available in node).
-// Screen behaviour is verified on-device, not here.
-const db = {
-  execAsync: async () => {},
-  runAsync: async () => ({ changes: 0, lastInsertRowId: 0 }),
-  getFirstAsync: async () => null,
-  getAllAsync: async () => [],
-  prepareAsync: async () => ({ executeAsync: async () => {}, finalizeAsync: async () => {} }),
-  withTransactionAsync: async (fn) => fn(),
-};
+// In-memory SQLite adapter using better-sqlite3 for jest.
+// Replaces the no-op stub so application-layer tests run against a real DB.
+const BetterSqlite = require('better-sqlite3');
+
+function stripDollar(params) {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) return params;
+  const out = {};
+  for (const [k, v] of Object.entries(params)) {
+    out[k.startsWith('$') ? k.slice(1) : k] = v;
+  }
+  return out;
+}
+
+function makeDb(raw) {
+  return {
+    execAsync: async (sql) => {
+      raw.exec(sql);
+    },
+    runAsync: async (sql, params) => {
+      const stripped = stripDollar(params);
+      const info = stripped != null ? raw.prepare(sql).run(stripped) : raw.prepare(sql).run();
+      return { changes: info.changes, lastInsertRowId: info.lastInsertRowid };
+    },
+    getFirstAsync: async (sql, params) => {
+      const stripped = stripDollar(params);
+      const row = stripped != null ? raw.prepare(sql).get(stripped) : raw.prepare(sql).get();
+      return row ?? null;
+    },
+    getAllAsync: async (sql, params) => {
+      const stripped = stripDollar(params);
+      return stripped != null ? raw.prepare(sql).all(stripped) : raw.prepare(sql).all();
+    },
+    withTransactionAsync: async (fn) => {
+      raw.exec('BEGIN');
+      try {
+        await fn();
+        raw.exec('COMMIT');
+      } catch (err) {
+        raw.exec('ROLLBACK');
+        throw err;
+      }
+    },
+    prepareAsync: async (sql) => {
+      const stmt = raw.prepare(sql);
+      return {
+        executeAsync: async (params) => {
+          const info = stmt.run(stripDollar(params));
+          return { changes: info.changes, lastInsertRowId: info.lastInsertRowid };
+        },
+        finalizeAsync: async () => {},
+      };
+    },
+  };
+}
 
 module.exports = {
-  openDatabaseAsync: async () => db,
+  openDatabaseAsync: async () => makeDb(new BetterSqlite(':memory:')),
 };
