@@ -18,6 +18,10 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
   return dbPromise;
 }
 
+export function resetDbForTests(): void {
+  dbPromise = null;
+}
+
 async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   await db.execAsync('PRAGMA foreign_keys = ON;');
