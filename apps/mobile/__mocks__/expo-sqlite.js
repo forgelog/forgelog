@@ -44,7 +44,8 @@ function makeDb(raw) {
       const stmt = raw.prepare(sql);
       return {
         executeAsync: async (params) => {
-          const info = stmt.run(stripDollar(params));
+          const stripped = stripDollar(params);
+          const info = stripped != null ? stmt.run(stripped) : stmt.run();
           return { changes: info.changes, lastInsertRowId: info.lastInsertRowid };
         },
         finalizeAsync: async () => {},

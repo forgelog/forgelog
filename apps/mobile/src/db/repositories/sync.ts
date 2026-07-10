@@ -1,7 +1,7 @@
 import { getDb } from '../index';
 import type { LoggedSet, PersonalRecord, RoutineDetail, SetType } from '../types';
 import { listRoutines, getRoutineDetail } from './routines';
-import { getRecordsForExercise, recalcRecordsForExercise } from './personalRecords';
+import { getRecordsForExercise, replaceRecordsForExercise } from './personalRecords';
 
 // Everything the watch needs to log a workout offline: routine templates
 // (with rest_seconds/tracking_type/superset info and their sets), the
@@ -136,12 +136,10 @@ export async function ingestWatchWorkout(payload: WatchWorkoutPayload): Promise<
         );
       }
     }
-  });
 
-  // PR logic stays single-sourced on the phone: recompute for every exercise
-  // touched by this payload.
-  const touchedExerciseIds = new Set(payload.exercises.map((we) => we.exercise_id));
-  for (const exerciseId of touchedExerciseIds) {
-    await recalcRecordsForExercise(exerciseId);
-  }
+    const touchedExerciseIds = new Set(payload.exercises.map((we) => we.exercise_id));
+    for (const exerciseId of touchedExerciseIds) {
+      await replaceRecordsForExercise(exerciseId);
+    }
+  });
 }

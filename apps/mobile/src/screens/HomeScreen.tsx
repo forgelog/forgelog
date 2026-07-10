@@ -13,7 +13,8 @@ import {
   listRoutineSummaries,
   RoutineSummary,
 } from '../db/repositories/routines';
-import { getActiveWorkout, startWorkout } from '../db/repositories/workouts';
+import { getActiveWorkout } from '../db/repositories/workouts';
+import { discardWorkout, startOrResumeWorkout } from '../application/activeWorkout';
 import type { Workout } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
@@ -34,12 +35,46 @@ export function HomeScreen() {
   useFocusEffect(reload);
 
   async function handleStartEmpty() {
-    const workout = active ?? (await startWorkout({}));
-    navigation.navigate('ActiveWorkout', { workoutId: workout.id });
+    try {
+      const { workout } = await startOrResumeWorkout();
+      navigation.navigate('ActiveWorkout', { workoutId: workout.id });
+    } catch {
+      Alert.alert('Error', 'Could not start workout.');
+    }
   }
 
   async function handleStartRoutine(routine: RoutineSummary) {
-    const workout = await startWorkout({ routineId: routine.id });
+    let workout: Workout;
+    let resumed: boolean;
+    try {
+      ({ workout, resumed } = await startOrResumeWorkout(routine.id));
+    } catch {
+      Alert.alert('Error', 'Could not start workout.');
+      return;
+    }
+    if (resumed) {
+      Alert.alert(
+        'Workout in progress',
+        'You have an active workout. Resume it or discard it to start this routine.',
+        [
+          { text: 'Resume', onPress: () => navigation.navigate('ActiveWorkout', { workoutId: workout.id }) },
+          {
+            text: 'Discard & start',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await discardWorkout(workout.id);
+                const fresh = await startOrResumeWorkout(routine.id);
+                navigation.navigate('ActiveWorkout', { workoutId: fresh.workout.id });
+              } catch {
+                Alert.alert('Error', 'Could not discard the current workout.');
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
     navigation.navigate('ActiveWorkout', { workoutId: workout.id });
   }
 
