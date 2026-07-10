@@ -25,10 +25,20 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+data class SetRow(
+    val id: String,
+    val setType: String,
+    val weight: Double?,
+    val reps: Int?,
+    val durationSeconds: Int?,
+    val distanceMeters: Double?,
+    val completed: Boolean,
+)
+
 data class ExerciseDetailUiState(
     val exerciseName: String = "",
     val trackingType: TrackingType = TrackingType.WEIGHT_REPS,
-    val sets: List<LoggedSetEntity> = emptyList(),
+    val sets: List<SetRow> = emptyList(),
     val currentIndex: Int = 0,
     val restRemaining: Int? = null,
 )
@@ -48,6 +58,7 @@ class ExerciseDetailViewModel(
     private val currentIndex = MutableStateFlow(0)
     private val restRemaining = MutableStateFlow<Int?>(null)
     private var restJob: Job? = null
+    private var latestSets: List<LoggedSetEntity> = emptyList()
 
     private val prEvents = MutableSharedFlow<List<RecordType>>(extraBufferCapacity = 1)
     val prEvent: SharedFlow<List<RecordType>> = prEvents.asSharedFlow()
@@ -65,10 +76,11 @@ class ExerciseDetailViewModel(
         currentIndex,
         restRemaining,
     ) { we, sets, name, index, rest ->
+        latestSets = sets
         ExerciseDetailUiState(
             exerciseName = name,
             trackingType = effectiveTrackingType(we?.trackingType, null),
-            sets = sets,
+            sets = sets.map { it.toSetRow() },
             currentIndex = index.coerceIn(0, (sets.size - 1).coerceAtLeast(0)),
             restRemaining = rest,
         )
@@ -82,25 +94,29 @@ class ExerciseDetailViewModel(
         currentIndex.value = (currentIndex.value - 1).coerceAtLeast(0)
     }
 
-    fun updateValues(set: LoggedSetEntity, weight: Double?, reps: Int?) {
+    fun updateValues(setId: String, weight: Double?, reps: Int?) {
+        val set = latestSets.find { it.id == setId } ?: return
         viewModelScope.launch { workoutRepository.updateSetValues(set, weight, reps) }
     }
 
-    fun updateDuration(set: LoggedSetEntity, durationSeconds: Int?) {
+    fun updateDuration(setId: String, durationSeconds: Int?) {
+        val set = latestSets.find { it.id == setId } ?: return
         viewModelScope.launch { workoutRepository.updateSetDuration(set, durationSeconds) }
     }
 
-    fun updateDistance(set: LoggedSetEntity, distanceMeters: Double?) {
+    fun updateDistance(setId: String, distanceMeters: Double?) {
+        val set = latestSets.find { it.id == setId } ?: return
         viewModelScope.launch { workoutRepository.updateSetDistance(set, distanceMeters) }
     }
 
-    fun markDone(set: LoggedSetEntity) {
+    fun markDone(setId: String) {
+        val set = latestSets.find { it.id == setId } ?: return
         viewModelScope.launch {
             workoutRepository.markSetCompleted(set, true)
 
             val we = workoutDao.getWorkoutExercise(workoutExerciseId) ?: return@launch
             val improved = recordsTracker.checkAndUpdate(we.exerciseId, SetPerformance(set.weight, set.reps))
-            if (improved.isNotEmpty()) prEvents.emit(improved)
+            if (improved.isNotEmpty()) prEvents.tryEmit(improved)
 
             startRest(resolveRestSeconds(we.restSeconds))
         }
@@ -110,11 +126,12 @@ class ExerciseDetailViewModel(
         viewModelScope.launch { workoutRepository.addSet(workoutExerciseId) }
     }
 
-    fun removeSet(set: LoggedSetEntity) {
-        viewModelScope.launch { workoutRepository.removeSet(set.id) }
+    fun removeSet(setId: String) {
+        viewModelScope.launch { workoutRepository.removeSet(setId) }
     }
 
-    fun cycleSetType(set: LoggedSetEntity) {
+    fun cycleSetType(setId: String) {
+        val set = latestSets.find { it.id == setId } ?: return
         viewModelScope.launch { workoutRepository.cycleSetType(set) }
     }
 
@@ -144,3 +161,13 @@ class ExerciseDetailViewModel(
         }
     }
 }
+
+private fun LoggedSetEntity.toSetRow() = SetRow(
+    id = id,
+    setType = setType,
+    weight = weight,
+    reps = reps,
+    durationSeconds = durationSeconds,
+    distanceMeters = distanceMeters,
+    completed = completed,
+)
