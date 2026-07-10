@@ -16,9 +16,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.drop
 import androidx.compose.ui.Alignment
@@ -38,7 +38,6 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Picker
 import androidx.wear.compose.material.PickerState
 import androidx.wear.compose.material.Text
-import dev.bishnoi.forgelog.wear.data.LoggedSetEntity
 import dev.bishnoi.forgelog.wear.logic.TrackingType
 import dev.bishnoi.forgelog.wear.logic.setTypeLabel
 
@@ -49,15 +48,21 @@ import dev.bishnoi.forgelog.wear.logic.setTypeLabel
  */
 @Composable
 fun ExerciseDetailScreen(
-    viewModel: ExerciseDetailViewModel,
-    onExerciseDeleted: () -> Unit = {},
+    state: ExerciseDetailUiState,
+    onMarkDone: (setId: String) -> Unit,
+    onUpdateValues: (setId: String, weight: Double?, reps: Int?) -> Unit,
+    onUpdateDuration: (setId: String, durationSeconds: Int?) -> Unit,
+    onUpdateDistance: (setId: String, distanceMeters: Double?) -> Unit,
+    onCycleSetType: (setId: String) -> Unit,
+    onRemoveSet: (setId: String) -> Unit,
+    onAddSet: () -> Unit,
+    onNextSet: () -> Unit,
+    onPrevSet: () -> Unit,
+    onSkipRest: () -> Unit,
+    onDeleteExercise: () -> Unit,
 ) {
-    val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    LaunchedEffect(viewModel) {
-        viewModel.prEvent.collect { Haptics.celebrate(context) }
-    }
     LaunchedEffect(state.restRemaining) {
         if (state.restRemaining != null) Haptics.tick(context)
     }
@@ -65,15 +70,18 @@ fun ExerciseDetailScreen(
     MaterialTheme {
         val resting = state.restRemaining
         if (resting != null) {
-            RestingView(secondsRemaining = resting, onSkip = viewModel::skipRest)
+            RestingView(secondsRemaining = resting, onSkip = onSkipRest)
         } else {
             val pagerState = rememberPagerState(pageCount = { 2 })
             Box(modifier = Modifier.fillMaxSize()) {
                 HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                     if (page == 0) {
-                        SetEditorPage(state, viewModel)
+                        SetEditorPage(
+                            state, onMarkDone, onUpdateValues, onUpdateDuration,
+                            onUpdateDistance, onNextSet, onPrevSet, onAddSet,
+                        )
                     } else {
-                        OptionsPage(state, viewModel, onExerciseDeleted)
+                        OptionsPage(state, onCycleSetType, onRemoveSet, onAddSet, onDeleteExercise)
                     }
                 }
                 PageDots(
@@ -107,7 +115,16 @@ private fun PageDots(count: Int, selected: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SetEditorPage(state: ExerciseDetailUiState, viewModel: ExerciseDetailViewModel) {
+private fun SetEditorPage(
+    state: ExerciseDetailUiState,
+    onMarkDone: (setId: String) -> Unit,
+    onUpdateValues: (setId: String, weight: Double?, reps: Int?) -> Unit,
+    onUpdateDuration: (setId: String, durationSeconds: Int?) -> Unit,
+    onUpdateDistance: (setId: String, distanceMeters: Double?) -> Unit,
+    onNextSet: () -> Unit,
+    onPrevSet: () -> Unit,
+    onAddSet: () -> Unit,
+) {
     val set = state.sets.getOrNull(state.currentIndex)
     Column(
         modifier = Modifier
@@ -123,7 +140,7 @@ private fun SetEditorPage(state: ExerciseDetailUiState, viewModel: ExerciseDetai
             Spacer(Modifier.height(8.dp))
             Chip(
                 label = { Text("Add set") },
-                onClick = viewModel::addSet,
+                onClick = onAddSet,
                 colors = ChipDefaults.primaryChipColors(),
             )
             return@Column
@@ -139,7 +156,7 @@ private fun SetEditorPage(state: ExerciseDetailUiState, viewModel: ExerciseDetai
         )
         Spacer(Modifier.height(4.dp))
 
-        MetricPickers(set, state.trackingType, viewModel)
+        MetricPickers(set, state.trackingType, onUpdateValues, onUpdateDuration, onUpdateDistance)
 
         Spacer(Modifier.height(8.dp))
         Row(
@@ -147,12 +164,12 @@ private fun SetEditorPage(state: ExerciseDetailUiState, viewModel: ExerciseDetai
             verticalAlignment = Alignment.CenterVertically,
         ) {
             CompactButton(
-                onClick = viewModel::prevSet,
+                onClick = onPrevSet,
                 enabled = state.currentIndex > 0,
             ) { Text("‹") }
-            Button(onClick = { viewModel.markDone(set) }) { Text("✓") }
+            Button(onClick = { onMarkDone(set.id) }) { Text("✓") }
             CompactButton(
-                onClick = viewModel::nextSet,
+                onClick = onNextSet,
                 enabled = state.currentIndex < state.sets.size - 1,
             ) { Text("›") }
         }
@@ -161,9 +178,11 @@ private fun SetEditorPage(state: ExerciseDetailUiState, viewModel: ExerciseDetai
 
 @Composable
 private fun MetricPickers(
-    set: LoggedSetEntity,
+    set: SetRow,
     trackingType: TrackingType,
-    viewModel: ExerciseDetailViewModel,
+    onUpdateValues: (setId: String, weight: Double?, reps: Int?) -> Unit,
+    onUpdateDuration: (setId: String, durationSeconds: Int?) -> Unit,
+    onUpdateDistance: (setId: String, distanceMeters: Double?) -> Unit,
 ) {
     val weights = remember { (0..300).toList() }
     val reps = remember { (0..50).toList() }
@@ -174,28 +193,28 @@ private fun MetricPickers(
         when (trackingType) {
             TrackingType.REPS_ONLY -> {
                 ValueWheel("Reps", reps, set.reps ?: 0, set.id) {
-                    viewModel.updateValues(set, set.weight, it)
+                    onUpdateValues(set.id, set.weight, it)
                 }
             }
             TrackingType.DURATION -> {
                 ValueWheel("Sec", durations, set.durationSeconds ?: 0, set.id) {
-                    viewModel.updateDuration(set, it)
+                    onUpdateDuration(set.id, it)
                 }
             }
             TrackingType.DURATION_DISTANCE -> {
                 ValueWheel("Sec", durations, set.durationSeconds ?: 0, set.id) {
-                    viewModel.updateDuration(set, it)
+                    onUpdateDuration(set.id, it)
                 }
                 ValueWheel("Meters", distances, (set.distanceMeters ?: 0.0).toInt(), set.id) {
-                    viewModel.updateDistance(set, it.toDouble())
+                    onUpdateDistance(set.id, it.toDouble())
                 }
             }
             TrackingType.WEIGHT_REPS -> {
                 ValueWheel("kg", weights, (set.weight ?: 0.0).toInt(), set.id) {
-                    viewModel.updateValues(set, it.toDouble(), set.reps)
+                    onUpdateValues(set.id, it.toDouble(), set.reps)
                 }
                 ValueWheel("Reps", reps, set.reps ?: 0, set.id) {
-                    viewModel.updateValues(set, set.weight, it)
+                    onUpdateValues(set.id, set.weight, it)
                 }
             }
         }
@@ -220,11 +239,12 @@ private fun ValueWheel(
             repeatItems = false,
         )
     }
+    val currentOnChange by rememberUpdatedState(onChange)
     LaunchedEffect(pickerState) {
         // drop(1) skips the initial value so we never auto-overwrite the stored set.
         snapshotFlow { pickerState.selectedOption }
             .drop(1)
-            .collect { index -> onChange(values[index]) }
+            .collect { index -> currentOnChange(values[index]) }
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
@@ -248,8 +268,10 @@ private fun ValueWheel(
 @Composable
 private fun OptionsPage(
     state: ExerciseDetailUiState,
-    viewModel: ExerciseDetailViewModel,
-    onExerciseDeleted: () -> Unit,
+    onCycleSetType: (setId: String) -> Unit,
+    onRemoveSet: (setId: String) -> Unit,
+    onAddSet: () -> Unit,
+    onDeleteExercise: () -> Unit,
 ) {
     val set = state.sets.getOrNull(state.currentIndex)
     val listState = rememberScalingLazyListState()
@@ -259,7 +281,7 @@ private fun OptionsPage(
             item {
                 Chip(
                     label = { Text("Add Set") },
-                    onClick = viewModel::addSet,
+                    onClick = onAddSet,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ChipDefaults.secondaryChipColors(),
                 )
@@ -269,7 +291,7 @@ private fun OptionsPage(
                     Chip(
                         label = { Text("Set Type") },
                         secondaryLabel = { Text(set.setType.replaceFirstChar { it.uppercase() }) },
-                        onClick = { viewModel.cycleSetType(set) },
+                        onClick = { onCycleSetType(set.id) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ChipDefaults.secondaryChipColors(),
                     )
@@ -277,7 +299,7 @@ private fun OptionsPage(
                 item {
                     Chip(
                         label = { Text("Delete Set") },
-                        onClick = { viewModel.removeSet(set) },
+                        onClick = { onRemoveSet(set.id) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = destructiveChipColors(),
                     )
@@ -288,7 +310,7 @@ private fun OptionsPage(
             item {
                 Chip(
                     label = { Text("Delete Exercise") },
-                    onClick = { viewModel.deleteExercise(onExerciseDeleted) },
+                    onClick = onDeleteExercise,
                     modifier = Modifier.fillMaxWidth(),
                     colors = destructiveChipColors(),
                 )

@@ -130,9 +130,35 @@ fun ForgeLogNavHost() {
                     )
                 },
             )
+            val state by vm.uiState.collectAsState()
+            val context = LocalContext.current
+            LaunchedEffect(vm) {
+                vm.prEvent.collect { Haptics.celebrate(context) }
+            }
+            val onMarkDone: (String) -> Unit = remember(vm) { { setId -> vm.markDone(setId) } }
+            val onUpdateValues: (String, Double?, Int?) -> Unit = remember(vm) { { setId, w, r -> vm.updateValues(setId, w, r) } }
+            val onUpdateDuration: (String, Int?) -> Unit = remember(vm) { { setId, dur -> vm.updateDuration(setId, dur) } }
+            val onUpdateDistance: (String, Double?) -> Unit = remember(vm) { { setId, dist -> vm.updateDistance(setId, dist) } }
+            val onCycleSetType: (String) -> Unit = remember(vm) { { setId -> vm.cycleSetType(setId) } }
+            val onRemoveSet: (String) -> Unit = remember(vm) { { setId -> vm.removeSet(setId) } }
+            val onAddSet: () -> Unit = remember(vm) { { vm.addSet() } }
+            val onNextSet: () -> Unit = remember(vm) { { vm.nextSet() } }
+            val onPrevSet: () -> Unit = remember(vm) { { vm.prevSet() } }
+            val onSkipRest: () -> Unit = remember(vm) { { vm.skipRest() } }
+            val onDeleteExercise: () -> Unit = remember(vm) { { vm.deleteExercise { navController.popBackStack() } } }
             ExerciseDetailScreen(
-                viewModel = vm,
-                onExerciseDeleted = { navController.popBackStack() },
+                state = state,
+                onMarkDone = onMarkDone,
+                onUpdateValues = onUpdateValues,
+                onUpdateDuration = onUpdateDuration,
+                onUpdateDistance = onUpdateDistance,
+                onCycleSetType = onCycleSetType,
+                onRemoveSet = onRemoveSet,
+                onAddSet = onAddSet,
+                onNextSet = onNextSet,
+                onPrevSet = onPrevSet,
+                onSkipRest = onSkipRest,
+                onDeleteExercise = onDeleteExercise,
             )
         }
     }
