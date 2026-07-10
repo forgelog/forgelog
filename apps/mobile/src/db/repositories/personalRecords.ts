@@ -23,34 +23,34 @@ export async function listAllRecords(): Promise<ExerciseRecordRow[]> {
   );
 }
 
-type SetWithTiming = SetPerformance & { completed_at: string | null };
-type ComputedRecord = { type: RecordType; value: number; achievedAt: string };
+type SetWithTiming = SetPerformance & { id: string; completed_at: string | null };
+type ComputedRecord = { type: RecordType; value: number; achievedAt: string; loggedSetId: string };
 
 function computeRecordsWithTiming(sets: SetWithTiming[], fallback: string): ComputedRecord[] {
-  const best: Partial<Record<RecordType, { value: number; achievedAt: string }>> = {};
+  const best: Partial<Record<RecordType, { value: number; achievedAt: string; setId: string }>> = {};
 
-  function update(type: RecordType, value: number, completedAt: string | null) {
+  function update(type: RecordType, value: number, setId: string, completedAt: string | null) {
     const at = completedAt ?? fallback;
     const existing = best[type];
     if (existing === undefined || value > existing.value) {
-      best[type] = { value, achievedAt: at };
+      best[type] = { value, achievedAt: at, setId };
     } else if (value === existing.value && at < existing.achievedAt) {
-      best[type] = { value, achievedAt: at };
+      best[type] = { value, achievedAt: at, setId };
     }
   }
 
   for (const s of sets) {
-    if (s.weight != null) update('max_weight', s.weight, s.completed_at);
-    if (s.reps != null) update('max_reps', s.reps, s.completed_at);
+    if (s.weight != null) update('max_weight', s.weight, s.id, s.completed_at);
+    if (s.reps != null) update('max_reps', s.reps, s.id, s.completed_at);
     if (s.weight != null && s.reps != null) {
-      update('max_volume', s.weight * s.reps, s.completed_at);
-      update('est_1rm', estimatedOneRepMax(s.weight, s.reps), s.completed_at);
+      update('max_volume', s.weight * s.reps, s.id, s.completed_at);
+      update('est_1rm', estimatedOneRepMax(s.weight, s.reps), s.id, s.completed_at);
     }
   }
 
-  return (Object.entries(best) as [RecordType, { value: number; achievedAt: string }][]).map(
-    ([type, { value, achievedAt }]) => ({ type, value, achievedAt })
-  );
+  return (
+    Object.entries(best) as [RecordType, { value: number; achievedAt: string; setId: string }][]
+  ).map(([type, { value, achievedAt, setId }]) => ({ type, value, achievedAt, loggedSetId: setId }));
 }
 
 // Recomputes records for an exercise from all completed sets, deletes absent
@@ -59,7 +59,7 @@ function computeRecordsWithTiming(sets: SetWithTiming[], fallback: string): Comp
 export async function replaceRecordsForExercise(exerciseId: string): Promise<PersonalRecord[]> {
   const db = await getDb();
   const sets = await db.getAllAsync<SetWithTiming>(
-    `SELECT ls.weight, ls.reps, ls.completed_at
+    `SELECT ls.id, ls.weight, ls.reps, ls.completed_at
        FROM logged_sets ls
        JOIN workout_exercises we ON we.id = ls.workout_exercise_id
       WHERE we.exercise_id = $id AND ls.completed = 1`,
@@ -74,13 +74,14 @@ export async function replaceRecordsForExercise(exerciseId: string): Promise<Per
   for (const rec of computed) {
     const newId = id();
     await db.runAsync(
-      `INSERT INTO personal_records (id, exercise_id, record_type, value, achieved_at)
-       VALUES ($id, $exercise_id, $record_type, $value, $achieved_at)`,
+      `INSERT INTO personal_records (id, exercise_id, record_type, value, logged_set_id, achieved_at)
+       VALUES ($id, $exercise_id, $record_type, $value, $logged_set_id, $achieved_at)`,
       {
         $id: newId,
         $exercise_id: exerciseId,
         $record_type: rec.type,
         $value: rec.value,
+        $logged_set_id: rec.loggedSetId,
         $achieved_at: rec.achievedAt,
       }
     );
@@ -89,7 +90,7 @@ export async function replaceRecordsForExercise(exerciseId: string): Promise<Per
       exercise_id: exerciseId,
       record_type: rec.type,
       value: rec.value,
-      logged_set_id: null,
+      logged_set_id: rec.loggedSetId,
       achieved_at: rec.achievedAt,
     });
   }

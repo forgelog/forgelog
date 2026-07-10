@@ -136,11 +136,10 @@ export async function ingestWatchWorkout(payload: WatchWorkoutPayload): Promise<
         );
       }
     }
-  });
 
-  const prDb = await getDb();
-  const touchedExerciseIds = new Set(payload.exercises.map((we) => we.exercise_id));
-  for (const exerciseId of touchedExerciseIds) {
-    await prDb.withTransactionAsync(() => replaceRecordsForExercise(exerciseId));
-  }
+    const touchedExerciseIds = new Set(payload.exercises.map((we) => we.exercise_id));
+    for (const exerciseId of touchedExerciseIds) {
+      await replaceRecordsForExercise(exerciseId);
+    }
+  });
 }

@@ -35,12 +35,23 @@ export function HomeScreen() {
   useFocusEffect(reload);
 
   async function handleStartEmpty() {
-    const { workout } = await startOrResumeWorkout();
-    navigation.navigate('ActiveWorkout', { workoutId: workout.id });
+    try {
+      const { workout } = await startOrResumeWorkout();
+      navigation.navigate('ActiveWorkout', { workoutId: workout.id });
+    } catch {
+      Alert.alert('Error', 'Could not start workout.');
+    }
   }
 
   async function handleStartRoutine(routine: RoutineSummary) {
-    const { workout, resumed } = await startOrResumeWorkout(routine.id);
+    let workout: Workout;
+    let resumed: boolean;
+    try {
+      ({ workout, resumed } = await startOrResumeWorkout(routine.id));
+    } catch {
+      Alert.alert('Error', 'Could not start workout.');
+      return;
+    }
     if (resumed) {
       Alert.alert(
         'Workout in progress',

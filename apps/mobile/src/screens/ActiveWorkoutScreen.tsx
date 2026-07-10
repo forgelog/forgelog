@@ -161,8 +161,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     }));
     try {
       if (completed) {
-        setRestRemaining(resolveRestSeconds(we.rest_seconds));
         const { improvedRecords } = await completeSet(setId, we.exercise.id);
+        setRestRemaining(resolveRestSeconds(we.rest_seconds));
         if (improvedRecords.length > 0) {
           setPrSetIds((prev) => new Set(prev).add(setId));
           Alert.alert(
@@ -218,8 +218,12 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         text: 'Discard',
         style: 'destructive',
         onPress: async () => {
-          await discardWorkout(workoutId);
-          navigation.popToTop();
+          try {
+            await discardWorkout(workoutId);
+            navigation.popToTop();
+          } catch {
+            Alert.alert('Save failed', 'Could not discard workout.');
+          }
         },
       },
     ]);
