@@ -10,14 +10,14 @@ jest.mock('../../db/repositories/workouts');
 jest.mock('../../db/repositories/profile');
 
 import { listAllRecords } from '../../db/repositories/personalRecords';
-import { getProfileName, getThemeMode, setProfileName } from '../../db/repositories/profile';
+import { getProfile, getThemeMode, setProfileName } from '../../db/repositories/profile';
 import { getProfileStats } from '../../db/repositories/workouts';
 
 const mockListAllRecords = listAllRecords as jest.MockedFunction<typeof listAllRecords>;
 const mockGetProfileStats = getProfileStats as jest.MockedFunction<typeof getProfileStats>;
-const mockGetProfileName = getProfileName as jest.MockedFunction<typeof getProfileName>;
 const mockSetProfileName = setProfileName as jest.MockedFunction<typeof setProfileName>;
 const mockGetThemeMode = getThemeMode as jest.MockedFunction<typeof getThemeMode>;
+const mockGetProfile = getProfile as jest.MockedFunction<typeof getProfile>;
 
 type TestParamList = { Profile: undefined };
 
@@ -38,20 +38,46 @@ async function renderProfile() {
 beforeEach(() => {
   mockListAllRecords.mockResolvedValue([]);
   mockGetProfileStats.mockResolvedValue({ workoutCount: 0, totalVolume: 0, streakDays: 0 });
-  mockGetProfileName.mockResolvedValue('Alex Rivera');
   mockGetThemeMode.mockResolvedValue('system');
   mockSetProfileName.mockResolvedValue(undefined);
+  mockGetProfile.mockResolvedValue({
+    name: 'Alex Rivera',
+    themeMode: 'system',
+    sex: null,
+    birthDate: null,
+    heightCm: null,
+    bodyweightKg: null,
+  });
 });
 
-test('clearing the name falls back to the default and persists it', async () => {
-  const { getByDisplayValue } = await renderProfile();
+test('clearing the name persists an empty string, no placeholder fallback', async () => {
+  const { getByDisplayValue, queryByText } = await renderProfile();
   await waitFor(() => expect(getByDisplayValue('Alex Rivera')).toBeTruthy());
 
   const nameInput = getByDisplayValue('Alex Rivera');
   await act(async () => fireEvent.changeText(nameInput, '   '));
   await act(async () => fireEvent(nameInput, 'blur'));
 
-  await waitFor(() => expect(mockSetProfileName).toHaveBeenCalledWith('Alex Rivera'));
+  await waitFor(() => expect(mockSetProfileName).toHaveBeenCalledWith(''));
+  expect(getByDisplayValue('')).toBeTruthy();
+  expect(queryByText('AR')).toBeNull();
+});
+
+test('renders populated Body fields with units', async () => {
+  mockGetProfile.mockResolvedValue({
+    name: 'Jamie Lee',
+    themeMode: 'system',
+    sex: 'female',
+    birthDate: '1990-06-15',
+    heightCm: 170,
+    bodyweightKg: 65,
+  });
+
+  const { getByText } = await renderProfile();
+
+  await waitFor(() => expect(getByText('Female')).toBeTruthy());
+  expect(getByText('170 cm')).toBeTruthy();
+  expect(getByText('65 kg')).toBeTruthy();
 });
 
 test('trims whitespace before saving a new name', async () => {

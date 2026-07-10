@@ -7,7 +7,7 @@ const DB_NAME = 'forgelog.db';
 
 // Bump this and add an `if (currentVersion < N)` branch below whenever the
 // schema changes, so existing installs migrate instead of losing data.
-const LATEST_SCHEMA_VERSION = 5;
+const LATEST_SCHEMA_VERSION = 6;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -48,13 +48,26 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
       // v5: theme selector on the Profile screen (system/light/dark).
       await db.execAsync("ALTER TABLE profile ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'system';");
     }
+    if (currentVersion < 6) {
+      // v6: lifter profile fields (#15); drops the 'Alex Rivera' seeded default.
+      // Transactional so a crash mid-migration can't leave columns half-added.
+      await db.withTransactionAsync(async () => {
+        await db.execAsync(
+          "ALTER TABLE profile ADD COLUMN sex TEXT CHECK (sex IN ('male', 'female', 'prefer_not_to_say'));"
+        );
+        await db.execAsync('ALTER TABLE profile ADD COLUMN birth_date TEXT;');
+        await db.execAsync('ALTER TABLE profile ADD COLUMN height_cm REAL;');
+        await db.execAsync('ALTER TABLE profile ADD COLUMN bodyweight_kg REAL;');
+        await db.execAsync("UPDATE profile SET name = '' WHERE name = 'Alex Rivera';");
+      });
+    }
   }
 
   if (currentVersion < LATEST_SCHEMA_VERSION) {
     await db.execAsync(`PRAGMA user_version = ${LATEST_SCHEMA_VERSION};`);
   }
 
-  await db.execAsync("INSERT OR IGNORE INTO profile (id, name) VALUES (0, 'Alex Rivera');");
+  await db.execAsync("INSERT OR IGNORE INTO profile (id, name) VALUES (0, '');");
   await seedExercises(db);
 
   return db;
