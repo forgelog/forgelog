@@ -1,6 +1,7 @@
 import WearSync from 'wear-sync';
 
-import { getSyncSnapshot, ingestWatchWorkout, WatchWorkoutPayload } from '../db/repositories/sync';
+import { getSyncSnapshot, ingestWatchWorkout } from '../db/repositories/sync';
+import { validateWatchWorkoutPayload } from './watchWorkoutValidator';
 
 let started = false;
 
@@ -14,8 +15,14 @@ export function initWearSync(): void {
   if (started) return;
   started = true;
   WearSync.addListener('onWorkoutReceived', async (event) => {
-    const payload = JSON.parse(event.payload) as WatchWorkoutPayload;
-    await ingestWatchWorkout(payload);
+    let raw: unknown;
+    try {
+      raw = JSON.parse(event.payload);
+    } catch {
+      return;
+    }
+    if (!validateWatchWorkoutPayload(raw)) return;
+    await ingestWatchWorkout(raw);
   });
   WearSync.addListener('onSyncRequested', () => {
     publishSyncSnapshot();
