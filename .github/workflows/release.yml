@@ -39,6 +39,17 @@ jobs:
     if: needs.check-ready.outputs.ready == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Determine release version
+        id: version
+        run: |
+          VERSION=$(jq -r '.expo.version' apps/mobile/app.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Download mobile debug APK
         uses: dawidd6/action-download-artifact@v6
         with:
@@ -109,15 +120,6 @@ jobs:
           [ -f artifacts/mobile-release-aab/app-release.aab ] && cp artifacts/mobile-release-aab/app-release.aab release-apks/forgelog-mobile-release.aab
           [ -f artifacts/wear-release-aab/app-release.aab ] && cp artifacts/wear-release-aab/app-release.aab release-apks/forgelog-wear-release.aab
           ls -la release-apks
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Determine release version
-        id: version
-        run: |
-          VERSION=$(jq -r '.expo.version' apps/mobile/app.json)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Publish release
         uses: ncipollo/release-action@v1
