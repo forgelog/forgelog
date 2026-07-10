@@ -8,14 +8,14 @@ import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import {
-  getRecordsForExercise,
-  recalcRecordsForExercise,
-} from '../db/repositories/personalRecords';
+  completeSet,
+  deleteSet,
+  discardWorkout,
+  uncompleteSet,
+} from '../application/activeWorkout';
 import {
   addExerciseToWorkout,
   addSet,
-  deleteLoggedSet,
-  deleteWorkout,
   finishWorkout,
   getPreviousSessionSets,
   getWorkoutDetail,
@@ -116,14 +116,19 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     patchExercise(we.id, (w) => ({ ...w, sets: [...w.sets, created] }));
   }
 
-  function cycleTrackingType(we: WorkoutExerciseDetail) {
+  async function cycleTrackingType(we: WorkoutExerciseDetail) {
     const current = effectiveTrackingType(we.tracking_type, we.exercise.tracking_type);
     const next = TRACKING_TYPES[(TRACKING_TYPES.indexOf(current) + 1) % TRACKING_TYPES.length];
     patchExercise(we.id, (w) => ({ ...w, tracking_type: next }));
-    updateWorkoutExercise(we.id, { tracking_type: next });
+    try {
+      await updateWorkoutExercise(we.id, { tracking_type: next });
+    } catch {
+      Alert.alert('Save failed', 'Could not save tracking type change.');
+      reload();
+    }
   }
 
-  function editSetField(weId: string, setId: string, field: SetFieldKey, raw: string) {
+  async function editSetField(weId: string, setId: string, field: SetFieldKey, raw: string) {
     const column = SET_COLUMN[field];
     const value = INTEGER_FIELDS.includes(field)
       ? parseNonNegativeInteger(raw)
@@ -133,7 +138,12 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       ...w,
       sets: w.sets.map((s) => (s.id === setId ? { ...s, [column]: value } : s)),
     }));
-    updateLoggedSet(setId, { [column]: value });
+    try {
+      await updateLoggedSet(setId, { [column]: value });
+    } catch {
+      Alert.alert('Save failed', 'Could not save field value.');
+      reload();
+    }
   }
 
   async function toggleComplete(we: WorkoutExerciseDetail, setId: string, completed: boolean) {
@@ -149,40 +159,39 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       ...w,
       sets: w.sets.map((s) => (s.id === setId ? { ...s, completed } : s)),
     }));
-    await updateLoggedSet(setId, { completed });
-    if (completed) {
-      setRestRemaining(resolveRestSeconds(we.rest_seconds));
-      await checkForPr(we.exercise.id, setId);
-    } else {
-      setPrSetIds((prev) => {
-        const next = new Set(prev);
-        next.delete(setId);
-        return next;
-      });
-    }
-  }
-
-  async function checkForPr(exerciseId: string, setId: string) {
-    const before = await getRecordsForExercise(exerciseId);
-    await recalcRecordsForExercise(exerciseId);
-    const after = await getRecordsForExercise(exerciseId);
-    const beforeMap = new Map(before.map((r) => [r.record_type, r.value]));
-    const improved = after.filter((r) => {
-      const prev = beforeMap.get(r.record_type);
-      return prev === undefined || r.value > prev;
-    });
-    if (improved.length > 0) {
-      setPrSetIds((prev) => new Set(prev).add(setId));
-      Alert.alert(
-        'New PR! 🎉',
-        improved.map((r) => `${label(r.record_type)}: ${round(r.value)}`).join('\n')
-      );
+    try {
+      if (completed) {
+        setRestRemaining(resolveRestSeconds(we.rest_seconds));
+        const { improvedRecords } = await completeSet(setId, we.exercise.id);
+        if (improvedRecords.length > 0) {
+          setPrSetIds((prev) => new Set(prev).add(setId));
+          Alert.alert(
+            'New PR! 🎉',
+            improvedRecords.map((r) => `${label(r.record_type)}: ${round(r.value)}`).join('\n')
+          );
+        }
+      } else {
+        await uncompleteSet(setId, we.exercise.id);
+        setPrSetIds((prev) => {
+          const next = new Set(prev);
+          next.delete(setId);
+          return next;
+        });
+      }
+    } catch {
+      Alert.alert('Save failed', 'Could not save set status.');
+      reload();
     }
   }
 
   async function removeSet(weId: string, setId: string) {
-    await deleteLoggedSet(setId);
     patchExercise(weId, (w) => ({ ...w, sets: w.sets.filter((s) => s.id !== setId) }));
+    try {
+      await deleteSet(setId, detail!.exercises.find((we) => we.id === weId)!.exercise.id);
+    } catch {
+      Alert.alert('Save failed', 'Could not delete set.');
+      reload();
+    }
   }
 
   function handleFinish() {
@@ -209,7 +218,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         text: 'Discard',
         style: 'destructive',
         onPress: async () => {
-          await deleteWorkout(workoutId);
+          await discardWorkout(workoutId);
           navigation.popToTop();
         },
       },
