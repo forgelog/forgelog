@@ -1,11 +1,11 @@
 package dev.bishnoi.forgelog.wear.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.bishnoi.forgelog.wear.data.AppDatabase
 import dev.bishnoi.forgelog.wear.data.LoggedSetEntity
 import dev.bishnoi.forgelog.wear.data.PersonalRecordsTracker
+import dev.bishnoi.forgelog.wear.data.ReferenceDao
+import dev.bishnoi.forgelog.wear.data.WorkoutDao
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
 import dev.bishnoi.forgelog.wear.logic.RecordType
 import dev.bishnoi.forgelog.wear.logic.SetPerformance
@@ -39,13 +39,12 @@ data class ExerciseDetailUiState(
  * transient state on this same screen (not a separate destination).
  */
 class ExerciseDetailViewModel(
-    application: Application,
+    private val workoutDao: WorkoutDao,
+    private val referenceDao: ReferenceDao,
+    private val workoutRepository: WorkoutRepository,
+    private val recordsTracker: PersonalRecordsTracker,
     private val workoutExerciseId: String,
-) : AndroidViewModel(application) {
-    private val db = AppDatabase.get(application)
-    private val workoutRepository = WorkoutRepository(db.workoutDao(), db.referenceDao())
-    private val recordsTracker = PersonalRecordsTracker(db.referenceDao())
-
+) : ViewModel() {
     private val currentIndex = MutableStateFlow(0)
     private val restRemaining = MutableStateFlow<Int?>(null)
     private var restJob: Job? = null
@@ -53,10 +52,10 @@ class ExerciseDetailViewModel(
     private val prEvents = MutableSharedFlow<List<RecordType>>(extraBufferCapacity = 1)
     val prEvent: SharedFlow<List<RecordType>> = prEvents.asSharedFlow()
 
-    private val workoutExerciseFlow = db.workoutDao().observeWorkoutExerciseById(workoutExerciseId)
-    private val setsFlow = db.workoutDao().observeLoggedSets(workoutExerciseId)
+    private val workoutExerciseFlow = workoutDao.observeWorkoutExerciseById(workoutExerciseId)
+    private val setsFlow = workoutDao.observeLoggedSets(workoutExerciseId)
     private val exerciseNameFlow = workoutExerciseFlow.map { we ->
-        we?.let { db.referenceDao().exercise(it.exerciseId)?.name } ?: ""
+        we?.let { referenceDao.exercise(it.exerciseId)?.name } ?: ""
     }
 
     val uiState: StateFlow<ExerciseDetailUiState> = combine(
@@ -99,7 +98,7 @@ class ExerciseDetailViewModel(
         viewModelScope.launch {
             workoutRepository.markSetCompleted(set, true)
 
-            val we = db.workoutDao().getWorkoutExercise(workoutExerciseId) ?: return@launch
+            val we = workoutDao.getWorkoutExercise(workoutExerciseId) ?: return@launch
             val improved = recordsTracker.checkAndUpdate(we.exerciseId, SetPerformance(set.weight, set.reps))
             if (improved.isNotEmpty()) prEvents.emit(improved)
 

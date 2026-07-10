@@ -1,9 +1,10 @@
 package dev.bishnoi.forgelog.wear.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.bishnoi.forgelog.wear.data.AppDatabase
+import dev.bishnoi.forgelog.wear.application.FinishWorkout
+import dev.bishnoi.forgelog.wear.data.ReferenceDao
+import dev.bishnoi.forgelog.wear.data.WorkoutDao
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,14 +28,12 @@ data class ExerciseProgress(
 
 /** Active Workout overview (issue #28 screen 3): per-exercise progress + finish/discard. */
 class WorkoutOverviewViewModel(
-    application: Application,
+    private val workoutDao: WorkoutDao,
+    private val referenceDao: ReferenceDao,
+    private val workoutRepository: WorkoutRepository,
+    private val finishWorkout: FinishWorkout,
     private val workoutId: String,
-) : AndroidViewModel(application) {
-    private val db = AppDatabase.get(application)
-    private val workoutDao = db.workoutDao()
-    private val referenceDao = db.referenceDao()
-    private val workoutRepository = WorkoutRepository(workoutDao, referenceDao)
-
+) : ViewModel() {
     private val nameCache = mutableMapOf<String, String>()
 
     val exercises: StateFlow<List<ExerciseProgress>> = combine(
@@ -59,9 +58,6 @@ class WorkoutOverviewViewModel(
         rows.mapIndexed { index, row -> row.copy(isCurrent = index == currentIndex) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // startedAt is immutable for a workout, so read it once then tick locally.
-    // Using flow { } + WhileSubscribed means the 1s timer only runs while the
-    // overview is actually on-screen (no battery drain from back-stack entries).
     val elapsedSeconds: StateFlow<Long> = flow {
         val start = workoutDao.getWorkout(workoutId)
             ?.let { runCatching { Instant.parse(it.startedAt) }.getOrNull() }
@@ -73,7 +69,7 @@ class WorkoutOverviewViewModel(
 
     fun finishWorkout(onDone: () -> Unit) {
         viewModelScope.launch {
-            workoutRepository.finishWorkout(workoutId)
+            finishWorkout(workoutId)
             onDone()
         }
     }

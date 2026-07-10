@@ -1,9 +1,8 @@
 package dev.bishnoi.forgelog.wear.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.bishnoi.forgelog.wear.data.AppDatabase
+import dev.bishnoi.forgelog.wear.data.ReferenceDao
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,13 +18,10 @@ data class RoutineDetailUiState(
 
 /** Routine screen (issue #28 "Routine"): preview a routine, then start its workout. */
 class RoutineDetailViewModel(
-    application: Application,
+    private val referenceDao: ReferenceDao,
+    private val workoutRepository: WorkoutRepository,
     private val routineId: String,
-) : AndroidViewModel(application) {
-    private val db = AppDatabase.get(application)
-    private val referenceDao = db.referenceDao()
-    private val workoutRepository = WorkoutRepository(db.workoutDao(), referenceDao)
-
+) : ViewModel() {
     private val _uiState = MutableStateFlow(RoutineDetailUiState())
     val uiState: StateFlow<RoutineDetailUiState> = _uiState.asStateFlow()
 

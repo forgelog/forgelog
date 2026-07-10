@@ -1,10 +1,8 @@
 package dev.bishnoi.forgelog.wear.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.bishnoi.forgelog.wear.data.AppDatabase
-import dev.bishnoi.forgelog.wear.sync.SyncRequestClient
+import dev.bishnoi.forgelog.wear.data.ReferenceDao
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,10 +16,10 @@ enum class SyncRequestState { IDLE, SENDING, SENT, FAILED }
 data class RoutineListItem(val id: String, val name: String, val exerciseCount: Int)
 
 /** Home screen (issue #28 "Home / Start"): the synced routines to choose from. */
-class RoutineListViewModel(application: Application) : AndroidViewModel(application) {
-    private val db = AppDatabase.get(application)
-    private val referenceDao = db.referenceDao()
-
+class RoutineListViewModel(
+    private val referenceDao: ReferenceDao,
+    private val syncWithPhone: suspend () -> Boolean,
+) : ViewModel() {
     val routines: StateFlow<List<RoutineListItem>> = referenceDao
         .observeRoutines()
         .map { list ->
@@ -35,7 +33,7 @@ class RoutineListViewModel(application: Application) : AndroidViewModel(applicat
     fun requestSync() {
         viewModelScope.launch {
             _syncRequestState.value = SyncRequestState.SENDING
-            val sent = SyncRequestClient.requestSync(getApplication())
+            val sent = syncWithPhone()
             _syncRequestState.value = if (sent) SyncRequestState.SENT else SyncRequestState.FAILED
         }
     }
