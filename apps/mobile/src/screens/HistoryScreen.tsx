@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../components/Card';
+import { currentWeekDays, localDateKey, monthLabel } from '../domain/dates';
 import { listWorkouts } from '../db/repositories/workouts';
 import type { Workout } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -26,11 +27,11 @@ export function HistoryScreen() {
   );
 
   const workoutDates = useMemo(
-    () => new Set(workouts.map((w) => dateKey(new Date(w.started_at)))),
+    () => new Set(workouts.map((w) => localDateKey(new Date(w.started_at)))),
     [workouts]
   );
 
-  const weekDays = useMemo(() => currentWeekDays(), []);
+  const weekDays = useMemo(() => currentWeekDays(new Date()), []);
 
   const groups = useMemo(() => groupByMonth(workouts), [workouts]);
 
@@ -41,9 +42,9 @@ export function HistoryScreen() {
 
         <View style={styles.weekStrip}>
           {weekDays.map((day, i) => {
-            const key = dateKey(day);
+            const key = localDateKey(day);
             const hasWorkout = workoutDates.has(key);
-            const isToday = key === dateKey(new Date());
+            const isToday = key === localDateKey(new Date());
             return (
               <View key={key} style={styles.dayColumn}>
                 <Text style={[styles.dayLabel, { color: c.sub }]}>{DAY_LABELS[i]}</Text>
@@ -95,35 +96,11 @@ type MonthGroup = { month: string; workouts: Workout[] };
 function groupByMonth(workouts: Workout[]): MonthGroup[] {
   const map = new Map<string, Workout[]>();
   for (const w of workouts) {
-    const month = new Date(w.started_at).toLocaleDateString(undefined, {
-      month: 'long',
-      year: 'numeric',
-    });
+    const month = monthLabel(new Date(w.started_at));
     if (!map.has(month)) map.set(month, []);
     map.get(month)!.push(w);
   }
   return [...map.entries()].map(([month, ws]) => ({ month, workouts: ws }));
-}
-
-function currentWeekDays(): Date[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dow = today.getDay();
-  const mondayOffset = dow === 0 ? -6 : 1 - dow;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + mondayOffset);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
-  });
-}
-
-function dateKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  const d = date.getDate().toString().padStart(2, '0');
-  return `${y}-${m}-${d}`;
 }
 
 function formatDate(iso: string): string {

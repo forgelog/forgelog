@@ -1,3 +1,4 @@
+import { computeStreakDays, localDateKey } from '../../domain/dates';
 import { getDb } from '../index';
 import { id } from '../id';
 import type {
@@ -383,45 +384,14 @@ export async function getProfileStats(): Promise<ProfileStats> {
   );
 
   const dateRows = await db.getAllAsync<{ day: string }>(
-    `SELECT DISTINCT date(started_at) AS day FROM workouts WHERE ended_at IS NOT NULL ORDER BY day DESC`
+    `SELECT DISTINCT date(started_at, 'localtime') AS day FROM workouts WHERE ended_at IS NOT NULL ORDER BY day DESC`
   );
 
   return {
     workoutCount: countRow?.count ?? 0,
     totalVolume: volumeRow?.volume ?? 0,
-    streakDays: computeStreakDays(dateRows.map((r) => r.day)),
+    streakDays: computeStreakDays(dateRows.map((r) => r.day), localDateKey(new Date())),
   };
-}
-
-export function computeStreakDays(sortedDescDays: string[]): number {
-  if (sortedDescDays.length === 0) return 0;
-  const days = new Set(sortedDescDays);
-  let cursor = todayUtc();
-
-  if (!days.has(toDateKey(cursor))) {
-    cursor = addUtcDays(cursor, -1);
-    if (!days.has(toDateKey(cursor))) return 0;
-  }
-
-  let streak = 0;
-  while (days.has(toDateKey(cursor))) {
-    streak += 1;
-    cursor = addUtcDays(cursor, -1);
-  }
-  return streak;
-}
-
-function todayUtc(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-}
-
-function addUtcDays(date: Date, delta: number): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + delta));
-}
-
-function toDateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
 }
 
 type RawLoggedSet = Omit<LoggedSet, 'completed'> & { completed: number };
