@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -132,8 +133,9 @@ fun ForgeLogNavHost() {
             )
             val state by vm.uiState.collectAsState()
             val context = LocalContext.current
+            val currentContext by rememberUpdatedState(context)
             LaunchedEffect(vm) {
-                vm.prEvent.collect { Haptics.celebrate(context) }
+                vm.prEvent.collect { Haptics.celebrate(currentContext) }
             }
             val onMarkDone: (String) -> Unit = remember(vm) { { setId -> vm.markDone(setId) } }
             val onUpdateValues: (String, Double?, Int?) -> Unit = remember(vm) { { setId, w, r -> vm.updateValues(setId, w, r) } }
