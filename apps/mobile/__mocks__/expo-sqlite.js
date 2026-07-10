@@ -6,7 +6,7 @@ function stripDollar(params) {
   if (!params || typeof params !== 'object' || Array.isArray(params)) return params;
   const out = {};
   for (const [k, v] of Object.entries(params)) {
-    out[k.startsWith('$') ? k.slice(1) : k] = v;
+    out[k.startsWith('$') ? k.slice(1) : k] = v === undefined ? null : v;
   }
   return out;
 }
