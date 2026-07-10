@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -47,6 +48,44 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM logged_sets WHERE workoutExerciseId = :workoutExerciseId ORDER BY position")
     fun observeLoggedSets(workoutExerciseId: String): Flow<List<LoggedSetEntity>>
+
+    @Query(
+        "SELECT * FROM logged_sets WHERE workoutExerciseId IN " +
+            "(SELECT id FROM workout_exercises WHERE workoutId = :workoutId) ORDER BY position",
+    )
+    fun observeLoggedSetsForWorkout(workoutId: String): Flow<List<LoggedSetEntity>>
+
+    @Query("DELETE FROM logged_sets WHERE workoutExerciseId = :workoutExerciseId")
+    suspend fun deleteLoggedSetsForExercise(workoutExerciseId: String)
+
+    @Query("DELETE FROM workout_exercises WHERE id = :workoutExerciseId")
+    suspend fun deleteWorkoutExercise(workoutExerciseId: String)
+
+    @Query(
+        "DELETE FROM logged_sets WHERE workoutExerciseId IN " +
+            "(SELECT id FROM workout_exercises WHERE workoutId = :workoutId)",
+    )
+    suspend fun deleteLoggedSetsForWorkout(workoutId: String)
+
+    @Query("DELETE FROM workout_exercises WHERE workoutId = :workoutId")
+    suspend fun deleteWorkoutExercisesForWorkout(workoutId: String)
+
+    @Query("DELETE FROM workouts WHERE id = :workoutId")
+    suspend fun deleteWorkout(workoutId: String)
+
+    /** No FK cascade is declared on these entities, so children are removed explicitly. */
+    @Transaction
+    suspend fun deleteWorkoutCascade(workoutId: String) {
+        deleteLoggedSetsForWorkout(workoutId)
+        deleteWorkoutExercisesForWorkout(workoutId)
+        deleteWorkout(workoutId)
+    }
+
+    @Transaction
+    suspend fun deleteExerciseCascade(workoutExerciseId: String) {
+        deleteLoggedSetsForExercise(workoutExerciseId)
+        deleteWorkoutExercise(workoutExerciseId)
+    }
 
     @Query("SELECT * FROM logged_sets WHERE workoutExerciseId = :workoutExerciseId ORDER BY position")
     suspend fun loggedSets(workoutExerciseId: String): List<LoggedSetEntity>
