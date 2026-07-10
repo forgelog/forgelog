@@ -17,7 +17,11 @@ export function ScreenHeader({ title, onLeadingPress, leading = 'close', trailin
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.row, { borderBottomColor: c.sep, paddingTop: insets.top + 14 }]}>
-      <Pressable onPress={onLeadingPress} hitSlop={8}>
+      <Pressable
+        onPress={onLeadingPress}
+        hitSlop={8}
+        accessibilityLabel={leading === 'close' ? 'Close' : 'Back'}
+      >
         <Icon name={leading === 'close' ? 'close' : 'arrow-left'} />
       </Pressable>
       <Text style={[styles.title, { color: c.fg }]} numberOfLines={1}>

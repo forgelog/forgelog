@@ -26,7 +26,8 @@
     "plugins": [
       "expo-sqlite",
       "expo-asset",
-      "./plugins/withAndroidReleaseSigning.js"
+      "./plugins/withAndroidReleaseSigning.js",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

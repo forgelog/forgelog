@@ -8,9 +8,9 @@ test('initials handles a single word', () => {
   expect(initials('Madonna')).toBe('M');
 });
 
-test('initials falls back to AR for an empty name', () => {
-  expect(initials('')).toBe('AR');
-  expect(initials('   ')).toBe('AR');
+test('initials returns empty for an empty name', () => {
+  expect(initials('')).toBe('');
+  expect(initials('   ')).toBe('');
 });
 
 test('initials ignores extra whitespace and extra words', () => {

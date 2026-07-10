@@ -8,7 +8,7 @@ import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import { ExerciseRecordRow, listAllRecords } from '../db/repositories/personalRecords';
-import { getProfileName, setProfileName } from '../db/repositories/profile';
+import { getProfile, Profile, setProfileName } from '../db/repositories/profile';
 import { getProfileStats, ProfileStats } from '../db/repositories/workouts';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme, type ThemeMode } from '../theme/ThemeContext';
@@ -27,6 +27,14 @@ const RECORD_LABELS: Record<string, string> = {
   est_1rm: 'Est. 1RM',
 };
 
+const SEX_LABELS: Record<NonNullable<Profile['sex']>, string> = {
+  male: 'Male',
+  female: 'Female',
+  prefer_not_to_say: 'Prefer not to say',
+};
+
+const NOT_SET = 'Not set';
+
 type ExerciseGroup = { exerciseId: string; name: string; records: ExerciseRecordRow[] };
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -37,18 +45,22 @@ export function ProfileScreen() {
   const [groups, setGroups] = useState<ExerciseGroup[]>([]);
   const [stats, setStats] = useState<ProfileStats>({ workoutCount: 0, totalVolume: 0, streakDays: 0 });
   const [name, setName] = useState('');
+  const [body, setBody] = useState<Profile | null>(null);
   const nameInputRef = useRef<TextInput>(null);
 
   useFocusEffect(
     useCallback(() => {
       listAllRecords().then((rows) => setGroups(groupByExercise(rows)));
       getProfileStats().then(setStats);
-      getProfileName().then(setName);
+      getProfile().then((profile) => {
+        setName(profile.name);
+        setBody(profile);
+      });
     }, [])
   );
 
   function saveName() {
-    const sanitized = sanitizeText(name) || 'Alex Rivera';
+    const sanitized = sanitizeText(name);
     setName(sanitized);
     setProfileName(sanitized);
   }
@@ -58,7 +70,11 @@ export function ProfileScreen() {
       <ScrollView>
         <View style={styles.header}>
           <View style={[styles.avatar, { backgroundColor: c.asoft }]}>
-            <Text style={[styles.avatarText, { color: c.accent }]}>{initials(name)}</Text>
+            {name.trim() ? (
+              <Text style={[styles.avatarText, { color: c.accent }]}>{initials(name)}</Text>
+            ) : (
+              <Icon name="account" variant="accent" size={28} />
+            )}
           </View>
           <View style={styles.identity}>
             <TextInput
@@ -92,6 +108,39 @@ export function ProfileScreen() {
             <Text style={[styles.statLabel, { color: c.sub }]}>Streak days</Text>
           </Card>
         </View>
+
+        <View style={styles.bodySectionHeader}>
+          <Text style={[styles.sectionTitle, { color: c.fg, margin: 0 }]}>Body</Text>
+          <Pressable onPress={() => navigation.navigate('EditProfile')} hitSlop={8}>
+            <Icon name="pencil" variant="sub" size={20} />
+          </Pressable>
+        </View>
+        <Card style={styles.bodyCard}>
+          <View style={styles.bodyRow}>
+            <Text style={[styles.bodyLabel, { color: c.sub }]}>Sex</Text>
+            <Text style={[styles.bodyValue, { color: c.fg }]}>
+              {body?.sex ? SEX_LABELS[body.sex] : NOT_SET}
+            </Text>
+          </View>
+          <View style={styles.bodyRow}>
+            <Text style={[styles.bodyLabel, { color: c.sub }]}>Age</Text>
+            <Text style={[styles.bodyValue, { color: c.fg }]}>
+              {body?.birthDate ? computeAge(body.birthDate) : NOT_SET}
+            </Text>
+          </View>
+          <View style={styles.bodyRow}>
+            <Text style={[styles.bodyLabel, { color: c.sub }]}>Height</Text>
+            <Text style={[styles.bodyValue, { color: c.fg }]}>
+              {body?.heightCm ? `${body.heightCm} cm` : NOT_SET}
+            </Text>
+          </View>
+          <View style={styles.bodyRow}>
+            <Text style={[styles.bodyLabel, { color: c.sub }]}>Weight</Text>
+            <Text style={[styles.bodyValue, { color: c.fg }]}>
+              {body?.bodyweightKg ? `${body.bodyweightKg} kg` : NOT_SET}
+            </Text>
+          </View>
+        </Card>
 
         <Text style={[styles.sectionTitle, { color: c.fg }]}>Personal Records</Text>
         {groups.length === 0 ? (
@@ -154,9 +203,19 @@ function round(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+function computeAge(birthDateIso: string): number {
+  const [year, month, day] = birthDateIso.split('-').map(Number);
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const hasHadBirthdayThisYear =
+    today.getMonth() + 1 > month || (today.getMonth() + 1 === month && today.getDate() >= day);
+  if (!hasHadBirthdayThisYear) age -= 1;
+  return age;
+}
+
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'AR';
+  if (parts.length === 0) return '';
   return parts
     .slice(0, 2)
     .map((p) => p[0].toUpperCase())
@@ -182,6 +241,18 @@ const styles = StyleSheet.create({
   recordRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
   recordLabel: { fontSize: 13 },
   recordValue: { fontSize: 13, fontWeight: '700' },
+  bodySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  bodyCard: { marginHorizontal: 16, marginBottom: 10, gap: 10 },
+  bodyRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  bodyLabel: { fontSize: 13 },
+  bodyValue: { fontSize: 13, fontWeight: '700' },
   themeRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
   libraryRow: {
     flexDirection: 'row',

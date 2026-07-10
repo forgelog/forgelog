@@ -10,14 +10,14 @@ jest.mock('../../db/repositories/workouts');
 jest.mock('../../db/repositories/profile');
 
 import { listAllRecords } from '../../db/repositories/personalRecords';
-import { getProfileName, getThemeMode, setThemeMode } from '../../db/repositories/profile';
+import { getProfile, getThemeMode, setThemeMode } from '../../db/repositories/profile';
 import { getProfileStats } from '../../db/repositories/workouts';
 
 const mockListAllRecords = listAllRecords as jest.MockedFunction<typeof listAllRecords>;
 const mockGetProfileStats = getProfileStats as jest.MockedFunction<typeof getProfileStats>;
-const mockGetProfileName = getProfileName as jest.MockedFunction<typeof getProfileName>;
 const mockGetThemeMode = getThemeMode as jest.MockedFunction<typeof getThemeMode>;
 const mockSetThemeMode = setThemeMode as jest.MockedFunction<typeof setThemeMode>;
+const mockGetProfile = getProfile as jest.MockedFunction<typeof getProfile>;
 
 type TestParamList = { Profile: undefined };
 
@@ -38,9 +38,16 @@ async function renderProfile() {
 beforeEach(() => {
   mockListAllRecords.mockResolvedValue([]);
   mockGetProfileStats.mockResolvedValue({ workoutCount: 0, totalVolume: 0, streakDays: 0 });
-  mockGetProfileName.mockResolvedValue('Alex Rivera');
   mockGetThemeMode.mockResolvedValue('system');
   mockSetThemeMode.mockResolvedValue(undefined);
+  mockGetProfile.mockResolvedValue({
+    name: 'Alex Rivera',
+    themeMode: 'system',
+    sex: null,
+    birthDate: null,
+    heightCm: null,
+    bodyweightKg: null,
+  });
 });
 
 test('renders the theme selector with system/light/dark options', async () => {
