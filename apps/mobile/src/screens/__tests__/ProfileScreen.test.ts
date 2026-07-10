@@ -21,7 +21,13 @@ test('initials ignores extra whitespace and extra words', () => {
 // regardless of what day the suite happens to run on.
 function isoDateNYearsAgo(years: number, dayOffset = 0): string {
   const d = new Date();
+  const originalMonth = d.getMonth();
   d.setFullYear(d.getFullYear() - years);
+  if (d.getMonth() !== originalMonth) {
+    // Feb 29 rolled into March because the target year isn't a leap year;
+    // clamp back to Feb 28 so the "exact birthday" case stays stable.
+    d.setDate(0);
+  }
   d.setDate(d.getDate() + dayOffset);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
