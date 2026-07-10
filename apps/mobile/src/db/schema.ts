@@ -1,5 +1,4 @@
-// Mirrors docs/schema.sql (source of truth) — Metro can't bundle a file
-// outside the app directory, so this copy has to be kept in sync by hand.
+// Generated from ../../../../internal-docs/schema.sql. Do not edit by hand.
 export const SCHEMA_SQL = `
 CREATE TABLE exercises (
   id            TEXT PRIMARY KEY,
