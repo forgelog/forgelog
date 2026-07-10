@@ -22,8 +22,8 @@ android {
         // listing. Scheme: [targetSdk:2][formFactor:1][version:6], where
         // version is major/minor/patch each zero-padded to 2 digits
         // (0.1.0 -> 000100). formFactor 1=mobile, 2=wear.
-        versionCode = 362000101
-        versionName = "0.1.1"
+        versionCode = 362000102
+        versionName = "0.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
