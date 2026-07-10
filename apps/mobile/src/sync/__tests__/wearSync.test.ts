@@ -19,6 +19,7 @@ const mockGetSyncSnapshot = getSyncSnapshot as jest.MockedFunction<typeof getSyn
 const mockIngestWatchWorkout = ingestWatchWorkout as jest.MockedFunction<typeof ingestWatchWorkout>;
 
 const watchPayloadFixture = require('../../../../../data/contracts/fixtures/watch-workout-payload.json') as WatchWorkoutPayload;
+const malformedPayloadFixture = require('../../../../../data/contracts/fixtures/malformed-watch-workout-payload.json');
 
 function getListener(event: string): (arg: unknown) => unknown {
   const call = mockAddListener.mock.calls.find(([name]) => name === event);
@@ -58,6 +59,34 @@ test('onWorkoutReceived ingests the watch payload', async () => {
   await onWorkoutReceived({ payload: JSON.stringify(watchPayloadFixture) });
 
   expect(mockIngestWatchWorkout).toHaveBeenCalledWith(watchPayloadFixture);
+});
+
+test('onWorkoutReceived drops malformed payload without calling ingestWatchWorkout', async () => {
+  await onWorkoutReceived({ payload: JSON.stringify(malformedPayloadFixture) });
+
+  expect(mockIngestWatchWorkout).not.toHaveBeenCalled();
+});
+
+test('onWorkoutReceived drops payload with malformed exercise items without calling ingestWatchWorkout', async () => {
+  const payloadWithBadExercise = {
+    id: 'w1',
+    routine_id: null,
+    name: 'test',
+    started_at: '2026-07-07T00:00:00.000Z',
+    ended_at: null,
+    notes: null,
+    exercises: [{ id: 'we1', exercise_id: 'ex1', position: 0 }],
+  };
+
+  await onWorkoutReceived({ payload: JSON.stringify(payloadWithBadExercise) });
+
+  expect(mockIngestWatchWorkout).not.toHaveBeenCalled();
+});
+
+test('onWorkoutReceived drops unparseable JSON without throwing', async () => {
+  await expect(onWorkoutReceived({ payload: 'not json{{{' })).resolves.toBeUndefined();
+
+  expect(mockIngestWatchWorkout).not.toHaveBeenCalled();
 });
 
 test('publishSyncSnapshot swallows errors when no watch is reachable', async () => {
