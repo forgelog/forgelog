@@ -1,4 +1,10 @@
 import { computeRecords, estimatedOneRepMax, isPrSet } from '../records';
+import type { SetPerformance } from '../records';
+
+const fixture = require('../../../../../data/contracts/fixtures/personal-records.json') as {
+  weighted_sets: SetPerformance[];
+  reps_only_sets: SetPerformance[];
+};
 
 test('Epley 1RM formula', () => {
   expect(estimatedOneRepMax(100, 0)).toBe(100);
@@ -6,11 +12,7 @@ test('Epley 1RM formula', () => {
 });
 
 test('computes maxes across completed sets', () => {
-  const records = computeRecords([
-    { weight: 100, reps: 5 },
-    { weight: 120, reps: 3 },
-    { weight: 80, reps: 10 },
-  ]);
+  const records = computeRecords(fixture.weighted_sets);
   expect(records.max_weight).toBe(120);
   expect(records.max_reps).toBe(10);
   expect(records.max_volume).toBe(800); // 80 * 10
@@ -18,10 +20,7 @@ test('computes maxes across completed sets', () => {
 });
 
 test('reps-only sets produce max_reps but no weight-based records', () => {
-  const records = computeRecords([
-    { weight: null, reps: 15 },
-    { weight: null, reps: 20 },
-  ]);
+  const records = computeRecords(fixture.reps_only_sets);
   expect(records.max_reps).toBe(20);
   expect(records.max_weight).toBeUndefined();
   expect(records.max_volume).toBeUndefined();

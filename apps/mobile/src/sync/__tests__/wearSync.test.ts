@@ -11,11 +11,14 @@ import WearSync from 'wear-sync';
 
 import { getSyncSnapshot, ingestWatchWorkout } from '../../db/repositories/sync';
 import { initWearSync, publishSyncSnapshot } from '../wearSync';
+import type { WatchWorkoutPayload } from '../../db/repositories/sync';
 
 const mockAddListener = WearSync.addListener as jest.Mock;
 const mockPublishSnapshot = WearSync.publishSnapshot as jest.Mock;
 const mockGetSyncSnapshot = getSyncSnapshot as jest.MockedFunction<typeof getSyncSnapshot>;
 const mockIngestWatchWorkout = ingestWatchWorkout as jest.MockedFunction<typeof ingestWatchWorkout>;
+
+const watchPayloadFixture = require('../../../../../data/contracts/fixtures/watch-workout-payload.json') as WatchWorkoutPayload;
 
 function getListener(event: string): (arg: unknown) => unknown {
   const call = mockAddListener.mock.calls.find(([name]) => name === event);
@@ -52,18 +55,9 @@ test('onSyncRequested triggers a fresh publishSyncSnapshot (not stale data)', as
 });
 
 test('onWorkoutReceived ingests the watch payload', async () => {
-  const payload = {
-    id: 'w1',
-    routine_id: null,
-    name: 'Freestyle',
-    started_at: '2026-01-01',
-    ended_at: null,
-    notes: null,
-    exercises: [],
-  };
-  await onWorkoutReceived({ payload: JSON.stringify(payload) });
+  await onWorkoutReceived({ payload: JSON.stringify(watchPayloadFixture) });
 
-  expect(mockIngestWatchWorkout).toHaveBeenCalledWith(payload);
+  expect(mockIngestWatchWorkout).toHaveBeenCalledWith(watchPayloadFixture);
 });
 
 test('publishSyncSnapshot swallows errors when no watch is reachable', async () => {
