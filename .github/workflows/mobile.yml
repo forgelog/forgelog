@@ -83,13 +83,14 @@ jobs:
         run: ./gradlew :wear-sync:testDebugUnitTest :wear-sync:phoneApi34DebugAndroidTest -PreactNativeArchitectures=x86_64 --stacktrace --continue
 
       - name: Native Wear bridge coverage
-        if: always()
+        id: native-wear-bridge-coverage
+        if: always() && steps.native-wear-bridge-tests.outcome != 'skipped'
         timeout-minutes: 10
         working-directory: apps/mobile/android
         run: ./gradlew :wear-sync:koverXmlReportDebug :wear-sync:koverHtmlReportDebug :wear-sync:koverVerifyDebug --continue
 
       - name: Upload native Wear bridge coverage reports
-        if: always()
+        if: always() && steps.native-wear-bridge-coverage.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mobile-wear-sync-kover-coverage

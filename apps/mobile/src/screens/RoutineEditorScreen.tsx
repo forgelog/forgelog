@@ -7,6 +7,7 @@ import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SetFieldInputs } from '../components/SetFieldInputs';
 import {
   addExerciseToRoutine,
   addRoutineSet,
@@ -24,7 +25,6 @@ import { useTheme } from '../theme/ThemeContext';
 import { NAME_MAX_LENGTH, NOTES_MAX_LENGTH, validateText } from '../validation/textInput';
 import {
   effectiveTrackingType,
-  FIELD_PLACEHOLDER,
   fieldsFor,
   parseNonNegativeInteger,
   parseNonNegativeNumber,
@@ -424,19 +424,16 @@ function RoutineSetEditorRow({
   return (
     <View style={styles.setRow}>
       <Text style={[styles.setIndex, { color: c.sub }]}>{setIndex + 1}</Text>
-      {fields.map((field) => (
-        <TextInput
-          key={field}
-          style={[styles.setInput, { backgroundColor: c.fill, color: c.fg }]}
-          value={(set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
-          onChangeText={(text) => onEditSetField(exercise.id, set.id, field, text)}
-          placeholder={FIELD_PLACEHOLDER[field]}
-          placeholderTextColor={c.sub}
-          keyboardType="numeric"
-          accessibilityLabel={`Routine set ${setIndex + 1} ${field} for ${exercise.exercise.name}`}
-          testID={`routine-set-${exerciseIndex}-${setIndex}-${field}`}
-        />
-      ))}
+      <SetFieldInputs
+        fields={fields}
+        inputStyle={styles.setInput}
+        valueForField={(field) => (set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
+        onChangeField={(field, text) => onEditSetField(exercise.id, set.id, field, text)}
+        accessibilityLabelForField={(field) =>
+          `Routine set ${setIndex + 1} ${field} for ${exercise.exercise.name}`
+        }
+        testIDForField={(field) => `routine-set-${exerciseIndex}-${setIndex}-${field}`}
+      />
       <Pressable
         onPress={() => onRemoveSet(exercise.id, set.id)}
         hitSlop={8}
