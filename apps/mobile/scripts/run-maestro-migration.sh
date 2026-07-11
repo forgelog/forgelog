@@ -15,17 +15,17 @@ PREVIOUS_APK="${PREVIOUS_APK:-}"
 RELEASE_TAG="${RELEASE_TAG:-}"
 OUTPUT_DIR="${MAESTRO_OUTPUT_DIR:-$ROOT_DIR/artifacts/maestro-migration}"
 
-if [ -z "$CURRENT_APK" ]; then
+if [[ -z "$CURRENT_APK" ]]; then
   echo "CURRENT_APK or first argument must point to the APK that should upgrade the previous install." >&2
   exit 2
 fi
 
-if [ ! -f "$CURRENT_APK" ]; then
+if [[ ! -f "$CURRENT_APK" ]]; then
   echo "Current APK not found: $CURRENT_APK" >&2
   exit 2
 fi
 
-if [ -n "${MAESTRO_CMD:-}" ]; then
+if [[ -n "${MAESTRO_CMD:-}" ]]; then
   # shellcheck disable=SC2206
   MAESTRO=($MAESTRO_CMD)
 elif command -v maestro >/dev/null 2>&1; then
@@ -43,14 +43,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [ -z "$PREVIOUS_APK" ]; then
+if [[ -z "$PREVIOUS_APK" ]]; then
   if ! command -v gh >/dev/null 2>&1; then
     echo "gh is required to download $PREVIOUS_APK_ASSET when PREVIOUS_APK is not set." >&2
     exit 2
   fi
 
   mkdir -p "$TMP_DIR/previous"
-  if [ -n "$RELEASE_TAG" ]; then
+  if [[ -n "$RELEASE_TAG" ]]; then
     gh release download "$RELEASE_TAG" --pattern "$PREVIOUS_APK_ASSET" --dir "$TMP_DIR/previous" --clobber
   else
     gh release download --pattern "$PREVIOUS_APK_ASSET" --dir "$TMP_DIR/previous" --clobber
@@ -58,7 +58,7 @@ if [ -z "$PREVIOUS_APK" ]; then
   PREVIOUS_APK="$TMP_DIR/previous/$PREVIOUS_APK_ASSET"
 fi
 
-if [ ! -f "$PREVIOUS_APK" ]; then
+if [[ ! -f "$PREVIOUS_APK" ]]; then
   echo "Previous APK not found: $PREVIOUS_APK" >&2
   exit 2
 fi

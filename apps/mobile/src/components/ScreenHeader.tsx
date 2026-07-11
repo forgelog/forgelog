@@ -5,12 +5,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { Icon } from './Icon';
 
-type Props = {
+type Props = Readonly<{
   title: string;
   onLeadingPress: () => void;
   leading?: 'close' | 'back';
   trailing?: ReactNode;
-};
+}>;
 
 export function ScreenHeader({ title, onLeadingPress, leading = 'close', trailing }: Props) {
   const c = useTheme();

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-const { readFileSync, writeFileSync } = require('fs');
-const { resolve } = require('path');
+const { readFileSync, writeFileSync } = require('node:fs');
+const { resolve } = require('node:path');
 
 const sqlPath = resolve(__dirname, '../../../internal-docs/schema.sql');
 const outPath = resolve(__dirname, '../src/db/schema.ts');

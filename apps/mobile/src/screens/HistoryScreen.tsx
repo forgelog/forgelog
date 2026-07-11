@@ -86,39 +86,63 @@ export function HistoryScreen() {
           })}
         </View>
 
-        {loading ? (
-          <Text style={[styles.empty, { color: c.sub }]}>Loading history...</Text>
-        ) : loadFailed ? (
-          <Text style={[styles.empty, { color: c.sub }]}>Could not load workout history.</Text>
-        ) : workouts.length === 0 ? (
-          <Text style={[styles.empty, { color: c.sub }]}>No finished workouts yet.</Text>
-        ) : (
-          groups.map((group) => (
-            <View key={group.month}>
-              <Text style={[styles.monthHeader, { color: c.sub }]}>{group.month}</Text>
-              {group.workouts.map((item) => (
-                <Card key={item.id} style={styles.workoutCard}>
-                  <Pressable
-                    onPress={() => navigation.navigate('WorkoutDetail', { workoutId: item.id })}
-                    accessibilityLabel={`Open workout ${item.name}`}
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.name, { color: c.fg }]}>{item.name}</Text>
-                    <Text style={[styles.meta, { color: c.sub }]}>
-                      {formatDate(item.started_at)} · {formatDuration(item.started_at, item.ended_at)}
-                    </Text>
-                  </Pressable>
-                </Card>
-              ))}
-            </View>
-          ))
-        )}
+        <HistoryList
+          loading={loading}
+          loadFailed={loadFailed}
+          workouts={workouts}
+          groups={groups}
+          onOpenWorkout={(workoutId) => navigation.navigate('WorkoutDetail', { workoutId })}
+        />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 type MonthGroup = { month: string; workouts: Workout[] };
+
+type HistoryListProps = Readonly<{
+  loading: boolean;
+  loadFailed: boolean;
+  workouts: Workout[];
+  groups: MonthGroup[];
+  onOpenWorkout: (workoutId: string) => void;
+}>;
+
+function HistoryList({ loading, loadFailed, workouts, groups, onOpenWorkout }: HistoryListProps) {
+  const c = useTheme();
+
+  if (loading) {
+    return <Text style={[styles.empty, { color: c.sub }]}>Loading history...</Text>;
+  }
+
+  if (loadFailed) {
+    return <Text style={[styles.empty, { color: c.sub }]}>Could not load workout history.</Text>;
+  }
+
+  if (workouts.length === 0) {
+    return <Text style={[styles.empty, { color: c.sub }]}>No finished workouts yet.</Text>;
+  }
+
+  return groups.map((group) => (
+    <View key={group.month}>
+      <Text style={[styles.monthHeader, { color: c.sub }]}>{group.month}</Text>
+      {group.workouts.map((item) => (
+        <Card key={item.id} style={styles.workoutCard}>
+          <Pressable
+            onPress={() => onOpenWorkout(item.id)}
+            accessibilityLabel={`Open workout ${item.name}`}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.name, { color: c.fg }]}>{item.name}</Text>
+            <Text style={[styles.meta, { color: c.sub }]}>
+              {formatDate(item.started_at)} · {formatDuration(item.started_at, item.ended_at)}
+            </Text>
+          </Pressable>
+        </Card>
+      ))}
+    </View>
+  ));
+}
 
 function groupByMonth(workouts: Workout[]): MonthGroup[] {
   const map = new Map<string, Workout[]>();

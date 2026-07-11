@@ -11,6 +11,7 @@
     "ajv": "^8.20.0",
     "expo": "~57.0.3",
     "expo-asset": "~57.0.3",
+    "expo-crypto": "~57.0.0",
     "expo-dev-client": "~57.0.5",
     "expo-sqlite": "~57.0.0",
     "expo-status-bar": "~57.0.0",

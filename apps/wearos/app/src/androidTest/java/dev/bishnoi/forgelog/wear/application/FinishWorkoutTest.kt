@@ -56,7 +56,7 @@ class FinishWorkoutTest {
     }
 
     @Test
-    fun invoke_finishes_publishes_and_marks_synced() = runBlocking {
+    fun invokeFinishesPublishesAndMarksSynced() = runBlocking {
         seedActiveWorkout()
         val published = mutableListOf<String>()
         val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { payload ->
@@ -72,7 +72,7 @@ class FinishWorkoutTest {
     }
 
     @Test
-    fun invoke_publish_failure_still_finishes_but_stays_unsynced() = runBlocking {
+    fun invokePublishFailureStillFinishesButStaysUnsynced() = runBlocking {
         seedActiveWorkout()
         val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { _ ->
             throw RuntimeException("network down")
@@ -86,7 +86,7 @@ class FinishWorkoutTest {
     }
 
     @Test
-    fun drainUnsynced_publishes_finished_unsynced_workouts() = runBlocking {
+    fun drainUnsyncedPublishesFinishedUnsyncedWorkouts() = runBlocking {
         seedFinishedUnsynced()
         val published = mutableListOf<String>()
         val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { payload ->
@@ -100,7 +100,7 @@ class FinishWorkoutTest {
     }
 
     @Test
-    fun drainUnsynced_skips_active_workouts() = runBlocking {
+    fun drainUnsyncedSkipsActiveWorkouts() = runBlocking {
         seedActiveWorkout()
         val published = mutableListOf<String>()
         val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { payload ->
@@ -113,7 +113,7 @@ class FinishWorkoutTest {
     }
 
     @Test
-    fun drainUnsynced_publishes_after_prior_publish_failure() = runBlocking {
+    fun drainUnsyncedPublishesAfterPriorPublishFailure() = runBlocking {
         seedFinishedUnsynced()
         var shouldFail = true
         val published = mutableListOf<String>()

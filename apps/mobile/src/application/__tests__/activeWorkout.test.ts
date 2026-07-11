@@ -96,7 +96,7 @@ test('completeSet returns improved records only when a record actually improved'
   expect(first.improvedRecords.length).toBeGreaterThan(0);
 
   const second = await completeSet(s2.id, 'ex1');
-  expect(second.improvedRecords.length).toBe(0);
+    expect(second.improvedRecords).toHaveLength(0);
 });
 
 // ── startOrResumeWorkout ──────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ class WearDataClientTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
-    fun publishWorkout_writesARetrievableDataItem() = runBlocking {
+    fun publishWorkoutWritesRetrievableDataItem() = runBlocking {
         val payload = WorkoutPayloadDto(
             id = "wal-test-1",
             routineId = null,

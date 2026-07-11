@@ -20,7 +20,7 @@ class SyncRequestClientTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
-    fun requestSync_withNoConnectedPhone_returnsFalseWithoutThrowing() {
+    fun requestSyncWithNoConnectedPhoneReturnsFalseWithoutThrowing() {
         val result = runBlocking { SyncRequestClient.requestSync(context) }
         assertFalse(result)
     }

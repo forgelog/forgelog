@@ -30,7 +30,7 @@ class SyncRepositoryTest {
     fun tearDown() = db.close()
 
     @Test
-    fun applySnapshot_populates_reference_tables_and_is_idempotent() = runBlocking {
+    fun applySnapshotPopulatesReferenceTablesAndIsIdempotent() = runBlocking {
         val snapshot = syncJson.decodeFromString(SyncSnapshot.serializer(), fixtureText("sync-snapshot.json"))
 
         repo.applySnapshot(snapshot)

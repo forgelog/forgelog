@@ -22,9 +22,9 @@ jobs:
       run:
         working-directory: apps/mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
 
       - name: Install dependencies
         run: npm ci
@@ -46,7 +46,7 @@ jobs:
 
       - name: Upload Jest coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mobile-jest-coverage
           path: apps/mobile/coverage/
@@ -55,7 +55,7 @@ jobs:
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
       - name: Generate debug keystore
         run: |
@@ -90,7 +90,7 @@ jobs:
 
       - name: Upload native Wear bridge coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mobile-wear-sync-kover-coverage
           path: apps/mobile/modules/wear-sync/android/build/reports/kover/
@@ -98,7 +98,7 @@ jobs:
 
       - name: Upload native Wear bridge failure reports
         if: failure() && steps.native-wear-bridge-tests.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mobile-wear-bridge-test-failure-reports
           path: |
@@ -114,9 +114,9 @@ jobs:
       run:
         working-directory: apps/mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
 
       - name: Install dependencies
         run: npm ci
@@ -124,14 +124,14 @@ jobs:
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
       - name: Build debug APK
         working-directory: apps/mobile/android
         run: ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a,x86_64
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: forgelog-debug-apk
           path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
@@ -143,9 +143,9 @@ jobs:
       run:
         working-directory: apps/mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
 
       - name: Install dependencies
         run: npm ci
@@ -153,7 +153,7 @@ jobs:
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
       - name: Build release APK
         working-directory: apps/mobile/android
@@ -170,7 +170,7 @@ jobs:
           ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: forgelog-release-apk
           path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
@@ -180,12 +180,12 @@ jobs:
     needs: build-release-apk
     if: github.event_name != 'schedule'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
 
       - name: Download release APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: forgelog-release-apk
           path: artifacts/mobile-release
@@ -198,7 +198,7 @@ jobs:
 
       - name: Run Maestro PR journeys
         id: maestro-pr
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 34
           target: google_apis
@@ -211,7 +211,7 @@ jobs:
 
       - name: Upload Maestro PR failure artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mobile-maestro-pr-failure
           path: artifacts/maestro-pr/
@@ -223,12 +223,12 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
 
       - name: Download release APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: forgelog-release-apk
           path: artifacts/mobile-release
@@ -241,7 +241,7 @@ jobs:
 
       - name: Run nightly Maestro journeys
         id: maestro-nightly
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         env:
           GH_TOKEN: ${{ github.token }}
           CURRENT_APK: ${{ github.workspace }}/artifacts/mobile-release/app-release.apk
@@ -259,7 +259,7 @@ jobs:
 
       - name: Upload nightly Maestro failure artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mobile-maestro-nightly-failure
           path: |
@@ -274,9 +274,9 @@ jobs:
       run:
         working-directory: apps/mobile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
 
       - name: Install dependencies
         run: npm ci
@@ -289,7 +289,7 @@ jobs:
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
       - name: Build release AAB
         working-directory: apps/mobile/android
@@ -301,7 +301,7 @@ jobs:
         run: ./gradlew bundleRelease
 
       - name: Upload AAB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: forgelog-release-aab
           path: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab

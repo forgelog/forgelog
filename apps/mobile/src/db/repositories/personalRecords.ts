@@ -32,9 +32,11 @@ function computeRecordsWithTiming(sets: SetWithTiming[], fallback: string): Comp
   function update(type: RecordType, value: number, setId: string, completedAt: string | null) {
     const at = completedAt ?? fallback;
     const existing = best[type];
-    if (existing === undefined || value > existing.value) {
-      best[type] = { value, achievedAt: at, setId };
-    } else if (value === existing.value && at < existing.achievedAt) {
+    if (
+      existing === undefined ||
+      value > existing.value ||
+      (value === existing.value && at < existing.achievedAt)
+    ) {
       best[type] = { value, achievedAt: at, setId };
     }
   }

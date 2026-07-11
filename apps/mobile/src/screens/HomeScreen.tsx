@@ -192,13 +192,19 @@ export function HomeScreen() {
   );
 }
 
-function HomeEmptyState({ loading, loadFailed }: { loading: boolean; loadFailed: boolean }) {
+type HomeEmptyStateProps = Readonly<{
+  loading: boolean;
+  loadFailed: boolean;
+}>;
+
+function HomeEmptyState({ loading, loadFailed }: HomeEmptyStateProps) {
   const c = useTheme();
-  const message = loading
-    ? 'Loading routines...'
-    : loadFailed
-      ? 'Could not load routines.'
-      : 'No routines yet. Create one above.';
+  let message = 'No routines yet. Create one above.';
+  if (loading) {
+    message = 'Loading routines...';
+  } else if (loadFailed) {
+    message = 'Could not load routines.';
+  }
   return <Text style={[styles.empty, { color: c.sub }]}>{message}</Text>;
 }
 

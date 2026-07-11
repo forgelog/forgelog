@@ -131,16 +131,20 @@ private fun ExerciseDetailUnderTest(
 ) {
     ExerciseDetailScreen(
         state = state,
-        onMarkDone = {},
-        onUpdateValues = { _, _, _ -> },
-        onUpdateDuration = { _, _ -> },
-        onUpdateDistance = { _, _ -> },
-        onCycleSetType = {},
-        onRemoveSet = {},
-        onAddSet = {},
-        onNextSet = {},
-        onPrevSet = {},
-        onSkipRest = onSkipRest,
-        onDeleteExercise = {},
+        setActions = ExerciseDetailSetActions(
+            markDone = {},
+            updateValues = { _, _, _ -> },
+            updateDuration = { _, _ -> },
+            updateDistance = { _, _ -> },
+            cycleSetType = {},
+            removeSet = {},
+        ),
+        navigationActions = ExerciseDetailNavigationActions(
+            addSet = {},
+            nextSet = {},
+            prevSet = {},
+            skipRest = onSkipRest,
+            deleteExercise = {},
+        ),
     )
 }

@@ -26,12 +26,16 @@ const defaultValue: ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue>(defaultValue);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
+type ThemeProviderProps = Readonly<{
+  children: ReactNode;
+}>;
+
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  const [themeMode, setThemeMode] = useState<ThemeMode>('system');
   const [systemScheme, setSystemScheme] = useState<SystemScheme>(Appearance.getColorScheme());
 
   useEffect(() => {
-    getThemeMode().then(setThemeModeState);
+    getThemeMode().then(setThemeMode);
   }, []);
 
   useEffect(() => {
@@ -41,8 +45,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => subscription.remove();
   }, []);
 
-  const setThemeMode = useCallback((mode: ThemeMode) => {
-    setThemeModeState(mode);
+  const updateThemeMode = useCallback((mode: ThemeMode) => {
+    setThemeMode(mode);
     persistThemeMode(mode).catch((error) => {
       console.error('Failed to persist theme mode', error);
     });
@@ -51,8 +55,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const colors = useMemo(() => resolveColors(themeMode, systemScheme), [themeMode, systemScheme]);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ ...colors, themeMode, setThemeMode }),
-    [colors, themeMode, setThemeMode]
+    () => ({ ...colors, themeMode, setThemeMode: updateThemeMode }),
+    [colors, themeMode, updateThemeMode]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
