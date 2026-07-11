@@ -2,7 +2,7 @@ import Ajv from 'ajv';
 
 import type { WatchWorkoutPayload } from '../db/repositories/sync';
 
-const syncSchema = require('../../../../data/contracts/sync.schema.json');
+const syncSchema = require('@forgelog/contracts/sync.schema.json');
 const ajv = new Ajv();
 
 export const validateWatchWorkoutPayload = ajv.compile<WatchWorkoutPayload>({
