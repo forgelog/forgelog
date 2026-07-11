@@ -1,6 +1,7 @@
 plugins {
   id 'com.android.library'
   id 'expo-module-gradle-plugin'
+  id 'org.jetbrains.kotlinx.kover' version '0.9.8'
 }
 
 group = 'com.forgelog.wearsync'
@@ -35,4 +36,22 @@ dependencies {
 
   androidTestImplementation 'androidx.test.ext:junit:1.2.1'
   androidTestImplementation 'androidx.test:runner:1.6.2'
+}
+
+kover {
+  reports {
+    filters {
+      includes {
+        classes(
+          'expo.modules.wearsync.WearSyncBridge',
+        )
+      }
+    }
+    verify {
+      rule('mobile-wear-sync-jvm-covered-surface') {
+        minBound(90, kotlinx.kover.gradle.plugin.dsl.CoverageUnit.LINE, kotlinx.kover.gradle.plugin.dsl.AggregationType.COVERED_PERCENTAGE)
+        minBound(90, kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH, kotlinx.kover.gradle.plugin.dsl.AggregationType.COVERED_PERCENTAGE)
+      }
+    }
+  }
 }
