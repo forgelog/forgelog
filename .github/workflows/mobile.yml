@@ -178,7 +178,7 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
-          profile: pixel_8
+          profile: pixel_7
           script: |
             set -euo pipefail
             adb install -r artifacts/mobile-release/app-release.apk
@@ -233,7 +233,7 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
-          profile: pixel_8
+          profile: pixel_7
           script: |
             set -euo pipefail
             adb install -r artifacts/mobile-release/app-release.apk
