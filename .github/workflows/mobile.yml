@@ -86,7 +86,7 @@ jobs:
         if: always()
         timeout-minutes: 10
         working-directory: apps/mobile/android
-        run: ./gradlew :wear-sync:koverXmlReportDebug :wear-sync:koverHtmlReportDebug :wear-sync:koverVerifyDebug
+        run: ./gradlew :wear-sync:koverXmlReportDebug :wear-sync:koverHtmlReportDebug :wear-sync:koverVerifyDebug --continue
 
       - name: Upload native Wear bridge coverage reports
         if: always()
