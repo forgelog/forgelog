@@ -1,12 +1,17 @@
 package dev.bishnoi.forgelog.wear.sync
 
 import android.content.Context
+import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import java.util.concurrent.TimeUnit
 
 private const val PAYLOAD_KEY = "payload"
 private const val TIMESTAMP_KEY = "timestamp"
+private const val PUBLISH_TIMEOUT_SECONDS = 30L
 
 val syncJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -17,11 +22,17 @@ val syncJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
  * matching the phone-side WearSyncModule.publishSnapshot counterpart.
  */
 object WearDataClient {
-    fun publishWorkout(context: Context, payload: WorkoutPayloadDto) {
+    suspend fun publishWorkout(context: Context, payload: WorkoutPayloadDto) {
         val request = PutDataMapRequest.create("/workout/${payload.id}").apply {
             dataMap.putString(PAYLOAD_KEY, syncJson.encodeToString(WorkoutPayloadDto.serializer(), payload))
             dataMap.putLong(TIMESTAMP_KEY, System.currentTimeMillis())
         }.asPutDataRequest().setUrgent()
-        Wearable.getDataClient(context).putDataItem(request)
+        withContext(Dispatchers.IO) {
+            Tasks.await(
+                Wearable.getDataClient(context).putDataItem(request),
+                PUBLISH_TIMEOUT_SECONDS,
+                TimeUnit.SECONDS,
+            )
+        }
     }
 }

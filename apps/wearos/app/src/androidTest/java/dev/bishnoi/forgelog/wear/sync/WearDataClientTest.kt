@@ -5,6 +5,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.Wearable
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,7 +16,7 @@ class WearDataClientTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
-    fun publishWorkout_writesARetrievableDataItem() {
+    fun publishWorkout_writesARetrievableDataItem() = runBlocking {
         val payload = WorkoutPayloadDto(
             id = "wal-test-1",
             routineId = null,

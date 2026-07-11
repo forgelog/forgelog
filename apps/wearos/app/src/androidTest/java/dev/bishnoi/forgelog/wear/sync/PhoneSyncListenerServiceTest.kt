@@ -7,6 +7,8 @@ import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -52,5 +54,19 @@ class PhoneSyncListenerServiceTest {
         }
 
         assertTrue("expected the synced routine to appear in Room within 10s", found)
+    }
+
+    @Test
+    fun malformedSyncSnapshotPayload_isRejectedWithoutPartialReferenceWrites() = runBlocking {
+        val db = AppDatabase.get(context)
+        val payload = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("malformed-sync-snapshot.json")
+            .bufferedReader()
+            .use { it.readText() }
+
+        val applied = applySyncSnapshotPayload(payload, db)
+
+        assertFalse(applied)
+        assertEquals(emptyList<String>(), db.referenceDao().getRoutines().map { it.name })
     }
 }

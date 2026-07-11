@@ -76,6 +76,23 @@ android {
         getByName("test") {
             resources.srcDirs("../../../data/contracts/fixtures")
         }
+        getByName("androidTest") {
+            assets.srcDirs("../../../data/contracts/fixtures")
+        }
+    }
+
+    testOptions {
+        managedDevices {
+            localDevices {
+                create("wearApi34") {
+                    device = "Pixel 2"
+                    apiLevel = 34
+                    systemImageSource = "android-wear"
+                    require64Bit = true
+                    testedAbi = "x86_64"
+                }
+            }
+        }
     }
 }
 
@@ -109,4 +126,5 @@ dependencies {
 
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }
