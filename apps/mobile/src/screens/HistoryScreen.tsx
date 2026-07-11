@@ -19,10 +19,29 @@ export function HistoryScreen() {
   const c = useTheme();
   const navigation = useNavigation<Nav>();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      listWorkouts().then(setWorkouts);
+      let current = true;
+      setLoading(true);
+      setLoadFailed(false);
+      listWorkouts()
+        .then((rows) => {
+          if (current) setWorkouts(rows);
+        })
+        .catch(() => {
+          if (!current) return;
+          setWorkouts([]);
+          setLoadFailed(true);
+        })
+        .finally(() => {
+          if (current) setLoading(false);
+        });
+      return () => {
+        current = false;
+      };
     }, [])
   );
 
@@ -67,7 +86,11 @@ export function HistoryScreen() {
           })}
         </View>
 
-        {workouts.length === 0 ? (
+        {loading ? (
+          <Text style={[styles.empty, { color: c.sub }]}>Loading history...</Text>
+        ) : loadFailed ? (
+          <Text style={[styles.empty, { color: c.sub }]}>Could not load workout history.</Text>
+        ) : workouts.length === 0 ? (
           <Text style={[styles.empty, { color: c.sub }]}>No finished workouts yet.</Text>
         ) : (
           groups.map((group) => (
@@ -75,7 +98,11 @@ export function HistoryScreen() {
               <Text style={[styles.monthHeader, { color: c.sub }]}>{group.month}</Text>
               {group.workouts.map((item) => (
                 <Card key={item.id} style={styles.workoutCard}>
-                  <Pressable onPress={() => navigation.navigate('WorkoutDetail', { workoutId: item.id })}>
+                  <Pressable
+                    onPress={() => navigation.navigate('WorkoutDetail', { workoutId: item.id })}
+                    accessibilityLabel={`Open workout ${item.name}`}
+                    accessibilityRole="button"
+                  >
                     <Text style={[styles.name, { color: c.fg }]}>{item.name}</Text>
                     <Text style={[styles.meta, { color: c.sub }]}>
                       {formatDate(item.started_at)} · {formatDuration(item.started_at, item.ended_at)}

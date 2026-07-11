@@ -59,18 +59,44 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const [prSetIds, setPrSetIds] = useState<Set<string>>(new Set());
   const [prevSets, setPrevSets] = useState<Record<string, LoggedSet[]>>({});
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
-    getWorkoutDetail(workoutId).then((d) => {
-      setDetail(d);
-      if (!d) return;
-      Promise.all(
-        d.exercises.map(async (we) => [
-          we.exercise.id,
-          await getPreviousSessionSets(we.exercise.id, workoutId),
-        ] as const)
-      ).then((entries) => setPrevSets(Object.fromEntries(entries)));
-    });
+    let current = true;
+    setLoading(true);
+    setLoadError(null);
+    getWorkoutDetail(workoutId)
+      .then(async (d) => {
+        if (!current) return;
+        if (!d) {
+          setDetail(null);
+          setPrevSets({});
+          setLoadError('Workout not found.');
+          return;
+        }
+        const entries = await Promise.all(
+          d.exercises.map(async (we) => [
+            we.exercise.id,
+            await getPreviousSessionSets(we.exercise.id, workoutId),
+          ] as const)
+        );
+        if (!current) return;
+        setDetail(d);
+        setPrevSets(Object.fromEntries(entries));
+      })
+      .catch(() => {
+        if (!current) return;
+        setDetail(null);
+        setPrevSets({});
+        setLoadError('Could not load workout.');
+      })
+      .finally(() => {
+        if (current) setLoading(false);
+      });
+    return () => {
+      current = false;
+    };
   }, [workoutId]);
 
   useFocusEffect(reload);
@@ -234,7 +260,22 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     ]);
   }
 
-  if (!detail) return null;
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: c.bg }]}>
+        <Text style={[styles.empty, { color: c.sub }]}>Loading workout...</Text>
+      </View>
+    );
+  }
+
+  if (loadError || !detail) {
+    return (
+      <View style={[styles.container, { backgroundColor: c.bg }]}>
+        <ScreenHeader title="Workout" onLeadingPress={() => navigation.goBack()} />
+        <Text style={[styles.empty, { color: c.sub }]}>{loadError ?? 'Workout not found.'}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -410,6 +451,8 @@ function round(value: number): number {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  center: { justifyContent: 'center' },
+  empty: { textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   timer: { fontSize: 28, fontWeight: '700', textAlign: 'center', paddingVertical: 8, fontVariant: ['tabular-nums'] },
   exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },

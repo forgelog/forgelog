@@ -26,10 +26,31 @@ export function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const [active, setActive] = useState<Workout | null>(null);
   const [routines, setRoutines] = useState<RoutineSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const reload = useCallback(() => {
-    getActiveWorkout().then(setActive);
-    listRoutineSummaries().then(setRoutines);
+    let current = true;
+    setLoading(true);
+    setLoadFailed(false);
+    Promise.all([getActiveWorkout(), listRoutineSummaries()])
+      .then(([activeWorkout, routineRows]) => {
+        if (!current) return;
+        setActive(activeWorkout);
+        setRoutines(routineRows);
+      })
+      .catch(() => {
+        if (!current) return;
+        setActive(null);
+        setRoutines([]);
+        setLoadFailed(true);
+      })
+      .finally(() => {
+        if (current) setLoading(false);
+      });
+    return () => {
+      current = false;
+    };
   }, []);
 
   useFocusEffect(reload);
@@ -126,9 +147,7 @@ export function HomeScreen() {
             </View>
           </View>
         }
-        ListEmptyComponent={
-          <Text style={[styles.empty, { color: c.sub }]}>No routines yet. Create one above.</Text>
-        }
+        ListEmptyComponent={<HomeEmptyState loading={loading} loadFailed={loadFailed} />}
         renderItem={({ item }) => (
           <Card style={styles.routineCard}>
             <Pressable
@@ -171,6 +190,16 @@ export function HomeScreen() {
       />
     </SafeAreaView>
   );
+}
+
+function HomeEmptyState({ loading, loadFailed }: { loading: boolean; loadFailed: boolean }) {
+  const c = useTheme();
+  const message = loading
+    ? 'Loading routines...'
+    : loadFailed
+      ? 'Could not load routines.'
+      : 'No routines yet. Create one above.';
+  return <Text style={[styles.empty, { color: c.sub }]}>{message}</Text>;
 }
 
 const styles = StyleSheet.create({

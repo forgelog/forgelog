@@ -24,6 +24,8 @@ export function Select({ label, value, options, onChange }: Props) {
       <Pressable
         style={[styles.field, { borderColor: c.chipbd }]}
         onPress={() => setOpen(true)}
+        accessibilityLabel={`${label} filter`}
+        accessibilityRole="button"
       >
         <View style={styles.fieldText}>
           <Text style={[styles.label, { color: c.sub }]}>{label}</Text>
@@ -56,6 +58,9 @@ export function Select({ label, value, options, onChange }: Props) {
                       onChange(optionValue);
                       setOpen(false);
                     }}
+                    accessibilityLabel={`Select ${label} ${item}`}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
                   >
                     <Text style={[styles.optionText, { color: c.fg }]}>{item}</Text>
                     {selected ? <Icon name="check" variant="accent" size={20} /> : null}

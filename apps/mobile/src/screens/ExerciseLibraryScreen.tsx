@@ -33,6 +33,7 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
   const [equipmentList, setEquipmentList] = useState<string[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     listMuscleGroups().then(setMuscleGroups);
@@ -41,17 +42,25 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     let active = true;
-    const handle = setTimeout(async () => {
-      setLoading(true);
-      const rows = await listExercises({
+    const handle = setTimeout(() => {
+      listExercises({
         search: search.trim() || undefined,
         muscleGroup: muscleGroup ?? undefined,
         equipment: equipment ?? undefined,
-      });
-      if (active) {
-        setExercises(rows);
-        setLoading(false);
-      }
+      })
+        .then((rows) => {
+          if (!active) return;
+          setExercises(rows);
+          setError(false);
+        })
+        .catch(() => {
+          if (!active) return;
+          setExercises([]);
+          setError(true);
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
     }, 200);
     return () => {
       active = false;
@@ -60,6 +69,29 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
   }, [search, muscleGroup, equipment]);
 
   const count = useMemo(() => exercises.length, [exercises]);
+
+  function resetForFilterChange() {
+    setLoading(true);
+    setError(false);
+  }
+
+  function handleSearchChange(value: string) {
+    if (value === search) return;
+    resetForFilterChange();
+    setSearch(value);
+  }
+
+  function handleMuscleGroupChange(value: string | null) {
+    if (value === muscleGroup) return;
+    resetForFilterChange();
+    setMuscleGroup(value);
+  }
+
+  function handleEquipmentChange(value: string | null) {
+    if (value === equipment) return;
+    resetForFilterChange();
+    setEquipment(value);
+  }
 
   function handlePress(exercise: Exercise) {
     if (mode === 'pick' && returnTo === 'ActiveWorkout') {
@@ -84,7 +116,7 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
           placeholder="Search exercises"
           placeholderTextColor={c.sub}
           value={search}
-          onChangeText={setSearch}
+          onChangeText={handleSearchChange}
           autoCorrect={false}
           clearButtonMode="while-editing"
           accessibilityLabel="Search exercises"
@@ -92,16 +124,21 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
         />
       </View>
       <View style={styles.filters}>
-        <Select label="Muscle group" value={muscleGroup} options={muscleGroups} onChange={setMuscleGroup} />
-        <Select label="Equipment" value={equipment} options={equipmentList} onChange={setEquipment} />
+        <Select label="Muscle group" value={muscleGroup} options={muscleGroups} onChange={handleMuscleGroupChange} />
+        <Select label="Equipment" value={equipment} options={equipmentList} onChange={handleEquipmentChange} />
       </View>
       {loading ? (
-        <ActivityIndicator style={styles.loader} />
+        <ActivityIndicator style={styles.loader} accessibilityLabel="Loading exercises" />
       ) : (
         <FlatList
           data={exercises}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={<Text style={[styles.count, { color: c.sub }]}>{count} exercises</Text>}
+          ListEmptyComponent={
+            <Text style={[styles.empty, { color: c.sub }]}>
+              {error ? 'Could not load exercises.' : 'No exercises match your filters.'}
+            </Text>
+          }
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
@@ -157,6 +194,7 @@ const styles = StyleSheet.create({
   filters: { flexDirection: 'row', gap: 10, paddingHorizontal: 12, paddingBottom: 12 },
   loader: { marginTop: 24 },
   count: { paddingHorizontal: 16, paddingBottom: 8, fontSize: 13 },
+  empty: { textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
