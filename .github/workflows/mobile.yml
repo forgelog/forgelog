@@ -62,8 +62,9 @@ jobs:
 
       - name: Native Wear bridge tests
         id: native-wear-bridge-tests
+        timeout-minutes: 45
         working-directory: apps/mobile/android
-        run: ./gradlew :wear-sync:testDebugUnitTest :wear-sync:phoneApi34DebugAndroidTest -PreactNativeArchitectures=x86_64 --stacktrace
+        run: ./gradlew :wear-sync:testDebugUnitTest :wear-sync:phoneApi34DebugAndroidTest -PreactNativeArchitectures=x86_64 --stacktrace --continue
 
       - name: Upload native Wear bridge failure reports
         if: failure() && steps.native-wear-bridge-tests.outcome == 'failure'

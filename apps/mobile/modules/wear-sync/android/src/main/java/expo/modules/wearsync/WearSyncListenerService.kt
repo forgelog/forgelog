@@ -44,7 +44,8 @@ class WearSyncListenerService : WearableListenerService() {
 
   internal companion object {
     fun deliverDataItem(dataItem: DataItem) {
-      if (!dataItem.uri.path.orEmpty().startsWith("/workout")) return
+      val path = dataItem.uri.path.orEmpty()
+      if (path != "/workout" && !path.startsWith("/workout/")) return
 
       val dataMap = DataMapItem.fromDataItem(dataItem).dataMap
       val payload = dataMap.getString(PAYLOAD_KEY) ?: return

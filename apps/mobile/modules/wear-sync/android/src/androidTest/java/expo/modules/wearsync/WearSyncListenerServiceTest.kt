@@ -66,6 +66,26 @@ class WearSyncListenerServiceTest {
   }
 
   @Test
+  fun workoutPrefixWithoutBoundaryIsIgnored() {
+    val payload = """{"id":"native-bridge-workout","exercises":[]}"""
+    val received = mutableListOf<String>()
+    WearSyncBridge.attach { received.add(it) }
+
+    val request = PutDataMapRequest.create("/workoutfoo").apply {
+      dataMap.putString("payload", payload)
+    }.asPutDataRequest().setUrgent()
+
+    WearSyncListenerService.deliverDataItem(
+      FakeDataItem(
+        uri = Uri.parse("wear://self/workoutfoo"),
+        data = checkNotNull(request.data),
+      ),
+    )
+
+    assertEquals(emptyList<String>(), received)
+  }
+
+  @Test
   fun publishSnapshotBuildsDataLayerRequest() {
     val payload = """{"routines":[],"personalRecords":[]}"""
     val timestamp = 1_725_000_000_000L

@@ -22,7 +22,6 @@ android {
           apiLevel = 34
           systemImageSource = "google"
           require64Bit = true
-          testedAbi = "x86_64"
         }
       }
     }
