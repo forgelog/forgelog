@@ -39,8 +39,10 @@ beforeEach(() => {
 });
 
 test('renders the Home screen with a start action', async () => {
-  const { getByText } = await renderHome();
+  const { getByLabelText, getByText } = await renderHome();
   await waitFor(() => expect(getByText('Start Empty Workout')).toBeTruthy());
+  expect(getByLabelText('Start Empty Workout')).toBeTruthy();
+  expect(getByLabelText('Create routine')).toBeTruthy();
 });
 
 test('truncates a long routine name instead of pushing the Start button off-screen', async () => {
@@ -56,8 +58,11 @@ test('truncates a long routine name instead of pushing the Start button off-scre
   };
   mockListRoutineSummaries.mockResolvedValue([longRoutine]);
 
-  const { getByText } = await renderHome();
+  const { getByLabelText, getByText } = await renderHome();
   const nameNode = await waitFor(() => getByText(LONG_ROUTINE_NAME));
   expect(nameNode.props.numberOfLines).toBe(1);
   await waitFor(() => expect(getByText('Start')).toBeTruthy());
+  expect(getByLabelText(`Edit routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
+  expect(getByLabelText(`Start routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
+  expect(getByLabelText(`Delete routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
 });

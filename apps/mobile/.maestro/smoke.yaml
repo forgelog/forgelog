@@ -1,9 +1,14 @@
 appId: dev.bishnoi.forgelog.mobile
 ---
-- launchApp
+- launchApp:
+    clearState: true
 - runFlow:
     when:
       visible: "Continue"
     commands:
       - tapOn: "Continue"
-- assertVisible: "Workout"
+- extendedWaitUntil:
+    visible: "Workout"
+    timeout: 60000
+- assertVisible: "History"
+- assertVisible: "Profile"

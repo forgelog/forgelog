@@ -117,6 +117,9 @@ export function HomeScreen() {
               <Pressable
                 style={[styles.addButton, { backgroundColor: c.accent }]}
                 onPress={handleCreateRoutine}
+                accessibilityLabel="Create routine"
+                accessibilityRole="button"
+                testID="create-routine"
               >
                 <Icon name="plus" color="#fff" size={20} />
               </Pressable>
@@ -132,6 +135,8 @@ export function HomeScreen() {
               style={styles.routineTouchable}
               onPress={() => navigation.navigate('RoutineEditor', { routineId: item.id })}
               onLongPress={() => confirmDelete(item)}
+              accessibilityLabel={`Edit routine ${item.name}`}
+              accessibilityRole="button"
             >
               <View style={styles.routineText}>
                 <Text
@@ -146,8 +151,18 @@ export function HomeScreen() {
                   {item.muscles.length ? ` · ${item.muscles.join(', ')}` : ''}
                 </Text>
               </View>
-              <PillButton label="Start" onPress={() => handleStartRoutine(item)} variant="filled" />
-              <Pressable hitSlop={8} onPress={() => confirmDelete(item)}>
+              <PillButton
+                label="Start"
+                onPress={() => handleStartRoutine(item)}
+                variant="filled"
+                accessibilityLabel={`Start routine ${item.name}`}
+              />
+              <Pressable
+                hitSlop={8}
+                onPress={() => confirmDelete(item)}
+                accessibilityLabel={`Delete routine ${item.name}`}
+                accessibilityRole="button"
+              >
                 <Icon name="dots-vertical" variant="sub" size={20} />
               </Pressable>
             </Pressable>

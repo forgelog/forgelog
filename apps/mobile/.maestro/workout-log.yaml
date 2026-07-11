@@ -1,0 +1,211 @@
+appId: dev.bishnoi.forgelog.mobile
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Workout"
+    timeout: 60000
+- tapOn:
+    id: "create-routine"
+- extendedWaitUntil:
+    visible: "Edit routine"
+    timeout: 60000
+- tapOn:
+    id: "routine-add-exercise"
+- extendedWaitUntil:
+    visible: "Search exercises"
+    timeout: 60000
+- tapOn:
+    id: "exercise-search-input"
+- inputText: "barbell bench press"
+- extendedWaitUntil:
+    visible: "Select Barbell Bench Press - Medium Grip"
+    timeout: 60000
+- tapOn: "Select Barbell Bench Press - Medium Grip"
+- extendedWaitUntil:
+    visible: "Barbell Bench Press - Medium Grip"
+    timeout: 60000
+- tapOn:
+    id: "routine-exercise-0-add-set"
+- tapOn:
+    id: "routine-set-0-0-weight"
+- inputText: "70"
+- tapOn:
+    id: "routine-set-0-0-reps"
+- inputText: "6"
+- scrollUntilVisible:
+    element:
+      id: "routine-add-exercise"
+    direction: DOWN
+- tapOn:
+    id: "routine-add-exercise"
+- runFlow:
+    when:
+      visible: "Edit routine"
+    commands:
+      - tapOn:
+          id: "routine-add-exercise"
+- extendedWaitUntil:
+    visible: "Search exercises"
+    timeout: 60000
+- tapOn:
+    id: "exercise-search-input"
+- inputText: "Push-Up Wide"
+- extendedWaitUntil:
+    visible: "Select Push-Up Wide"
+    timeout: 60000
+- tapOn: "Select Push-Up Wide"
+- extendedWaitUntil:
+    visible: "Push-Up Wide"
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      id: "routine-exercise-1-add-set"
+    direction: DOWN
+- tapOn:
+    id: "routine-exercise-1-add-set"
+- tapOn:
+    id: "routine-exercise-1-tracking-type"
+- extendedWaitUntil:
+    visible: "Reps"
+    timeout: 60000
+- tapOn:
+    id: "routine-set-1-0-reps"
+- inputText: "12"
+- scrollUntilVisible:
+    element:
+      id: "routine-add-exercise"
+    direction: DOWN
+- tapOn:
+    id: "routine-add-exercise"
+- runFlow:
+    when:
+      visible: "Edit routine"
+    commands:
+      - tapOn:
+          id: "routine-add-exercise"
+- extendedWaitUntil:
+    visible: "Search exercises"
+    timeout: 60000
+- tapOn:
+    id: "exercise-search-input"
+- inputText: "Plank"
+- extendedWaitUntil:
+    visible: "Select Plank"
+    timeout: 60000
+- tapOn: "Select Plank"
+- extendedWaitUntil:
+    visible: "Plank"
+    timeout: 60000
+- scrollUntilVisible:
+    element:
+      id: "routine-exercise-2-add-set"
+    direction: DOWN
+- tapOn:
+    id: "routine-exercise-2-add-set"
+- tapOn:
+    id: "routine-exercise-2-tracking-type"
+- extendedWaitUntil:
+    visible: "Reps"
+    timeout: 60000
+- tapOn:
+    id: "routine-exercise-2-tracking-type"
+- extendedWaitUntil:
+    visible: "Time"
+    timeout: 60000
+- tapOn:
+    id: "routine-set-2-0-duration"
+- inputText: "45"
+- tapOn: "Save"
+- runFlow:
+    when:
+      visible: "Edit routine"
+    commands:
+      - tapOn: "Save"
+- extendedWaitUntil:
+    visible: "My Routines"
+    timeout: 60000
+- tapOn: "Start routine New Routine"
+- extendedWaitUntil:
+    visible: "New Routine"
+    timeout: 60000
+- tapOn:
+    id: "workout-set-0-0-complete"
+- runFlow:
+    when:
+      visible: "Complete set 1 for Barbell Bench Press - Medium Grip"
+    commands:
+      - tapOn:
+          id: "workout-set-0-0-complete"
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn: "Skip"
+- scrollUntilVisible:
+    element:
+      id: "workout-set-1-0-reps"
+    direction: DOWN
+- tapOn:
+    id: "workout-set-1-0-complete"
+- runFlow:
+    when:
+      visible: "Complete set 1 for Push-Up Wide"
+    commands:
+      - tapOn:
+          id: "workout-set-1-0-complete"
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn: "Skip"
+- scrollUntilVisible:
+    element:
+      id: "workout-set-2-0-duration"
+    direction: DOWN
+- tapOn:
+    id: "workout-set-2-0-complete"
+- runFlow:
+    when:
+      visible: "Complete set 1 for Plank"
+    commands:
+      - tapOn:
+          id: "workout-set-2-0-complete"
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+- runFlow:
+    when:
+      visible: "Skip"
+    commands:
+      - tapOn: "Skip"
+- tapOn: "Finish"
+- extendedWaitUntil:
+    visible: "Finish workout"
+    timeout: 60000
+- tapOn: "Finish"
+- extendedWaitUntil:
+    visible: "My Routines"
+    timeout: 60000
+- tapOn: "History"
+- extendedWaitUntil:
+    visible: "New Routine"
+    timeout: 60000
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible: "Personal Records"
+    timeout: 60000
+- assertVisible: "Barbell Bench Press - Medium Grip"
+- assertVisible: "Max weight"

@@ -43,6 +43,7 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
+    "test:e2e": "mise exec maestro -- maestro test .maestro --exclude-tags migration",
     "generate:schema": "node scripts/generate-schema.js",
     "check:generated": "node scripts/generate-schema.js --check"
   },

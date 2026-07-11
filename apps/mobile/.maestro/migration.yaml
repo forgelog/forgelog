@@ -1,0 +1,20 @@
+appId: dev.bishnoi.forgelog.mobile
+tags:
+  - migration
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Workout"
+    timeout: 60000
+- tapOn:
+    point: "50%,96%"
+- extendedWaitUntil:
+    visible: "New Routine"
+    timeout: 60000
+- tapOn:
+    point: "83%,96%"
+- extendedWaitUntil:
+    visible: "Personal Records"
+    timeout: 60000
+- assertVisible: "Barbell Bench Press - Medium Grip"
+- assertVisible: "Max weight"

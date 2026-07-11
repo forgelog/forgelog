@@ -191,7 +191,7 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
     await reorderRoutineExercises(reordered.map((r) => r.id));
   }
 
-  function handleDone() {
+  async function handleDone() {
     if (!detail) return;
     const nameResult = validateText(name, {
       required: true,
@@ -203,11 +203,29 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
       Alert.alert('Name required', 'Give this routine a name before saving.');
       return;
     }
+    const notesResult = validateText(notes, {
+      maxLength: NOTES_MAX_LENGTH,
+      fieldLabel: 'Notes',
+      multiline: true,
+    });
+    setNotesError(notesResult.error);
+    if (notesResult.error) return;
     if (detail.exercises.length === 0) {
       Alert.alert('No exercises', 'Add at least one exercise before saving.');
       return;
     }
-    navigation.goBack();
+    try {
+      await updateRoutine(routineId, {
+        name: nameResult.value,
+        notes: notesResult.value || null,
+      });
+      setName(nameResult.value);
+      setNotes(notesResult.value);
+      navigation.goBack();
+    } catch {
+      Alert.alert('Save failed', 'Could not save routine.');
+      reload();
+    }
   }
 
   if (!detail) return null;
@@ -232,6 +250,8 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
               placeholder="Routine name"
               placeholderTextColor={c.sub}
               maxLength={NAME_MAX_LENGTH}
+              accessibilityLabel="Routine name"
+              testID="routine-name-input"
             />
             {nameError ? (
               <Text style={[styles.errorText, { color: c.danger }]}>{nameError}</Text>
@@ -245,6 +265,8 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
               placeholderTextColor={c.sub}
               multiline
               maxLength={NOTES_MAX_LENGTH}
+              accessibilityLabel="Routine notes"
+              testID="routine-notes-input"
             />
             {notesError ? (
               <Text style={[styles.errorText, { color: c.danger }]}>{notesError}</Text>
@@ -275,7 +297,12 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
               </View>
 
               <View style={styles.metaRow}>
-                <Chip label={TRACKING_LABELS[trackingType]} onPress={() => cycleTrackingType(item)} />
+                <Chip
+                  label={TRACKING_LABELS[trackingType]}
+                  onPress={() => cycleTrackingType(item)}
+                  accessibilityLabel={`Tracking type for ${item.exercise.name}: ${TRACKING_LABELS[trackingType]}`}
+                  testID={`routine-exercise-${index}-tracking-type`}
+                />
                 <View style={styles.restBox}>
                   <Text style={[styles.restLabel, { color: c.sub }]}>Rest</Text>
                   <TextInput
@@ -285,6 +312,8 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
                     placeholder="sec"
                     placeholderTextColor={c.sub}
                     keyboardType="numeric"
+                    accessibilityLabel={`Rest seconds for ${item.exercise.name}`}
+                    testID={`routine-exercise-${index}-rest`}
                   />
                 </View>
               </View>
@@ -301,17 +330,37 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
                       placeholder={FIELD_PLACEHOLDER[field]}
                       placeholderTextColor={c.sub}
                       keyboardType="numeric"
+                      accessibilityLabel={`Routine set ${i + 1} ${field} for ${item.exercise.name}`}
+                      testID={`routine-set-${index}-${i}-${field}`}
                     />
                   ))}
-                  <Pressable onPress={() => removeSet(item.id, set.id)} hitSlop={8}>
+                  <Pressable
+                    onPress={() => removeSet(item.id, set.id)}
+                    hitSlop={8}
+                    accessibilityLabel={`Remove set ${i + 1} from ${item.exercise.name}`}
+                    accessibilityRole="button"
+                    testID={`routine-set-${index}-${i}-remove`}
+                  >
                     <Icon name="close" variant="sub" size={18} />
                   </Pressable>
                 </View>
               ))}
-              <Pressable style={styles.addSet} onPress={() => addSet(item)}>
+              <Pressable
+                style={styles.addSet}
+                onPress={() => addSet(item)}
+                accessibilityLabel={`Add set to ${item.exercise.name}`}
+                accessibilityRole="button"
+                testID={`routine-exercise-${index}-add-set`}
+              >
                 <Text style={[styles.addSetText, { color: c.accent }]}>+ Add set</Text>
               </Pressable>
-              <Pressable style={styles.removeExercise} onPress={() => handleRemoveExercise(item)}>
+              <Pressable
+                style={styles.removeExercise}
+                onPress={() => handleRemoveExercise(item)}
+                accessibilityLabel={`Remove ${item.exercise.name}`}
+                accessibilityRole="button"
+                testID={`routine-exercise-${index}-remove`}
+              >
                 <Text style={[styles.removeExerciseText, { color: c.danger }]}>Remove exercise</Text>
               </Pressable>
             </View>
@@ -323,6 +372,8 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
             onPress={handleAddExercise}
             variant="dark"
             style={styles.addExercise}
+            accessibilityLabel="Add Exercise"
+            testID="routine-add-exercise"
           />
         }
       />

@@ -1,6 +1,8 @@
 name: Mobile
 
 on:
+  schedule:
+    - cron: '17 2 * * *'
   push:
     branches: [main]
   pull_request:
@@ -98,7 +100,7 @@ jobs:
 
       - name: Build debug APK
         working-directory: apps/mobile/android
-        run: ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a
+        run: ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a,x86_64
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -127,13 +129,134 @@ jobs:
 
       - name: Build release APK
         working-directory: apps/mobile/android
-        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+        env:
+          FORGELOG_RELEASE_KEYSTORE_BASE64: ${{ secrets.FORGELOG_RELEASE_KEYSTORE_BASE64 }}
+          FORGELOG_RELEASE_STORE_PASSWORD: ${{ secrets.FORGELOG_RELEASE_STORE_PASSWORD }}
+          FORGELOG_RELEASE_KEY_ALIAS: ${{ secrets.FORGELOG_RELEASE_KEY_ALIAS }}
+          FORGELOG_RELEASE_KEY_PASSWORD: ${{ secrets.FORGELOG_RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "${FORGELOG_RELEASE_KEYSTORE_BASE64:-}" ]; then
+            echo "$FORGELOG_RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            export FORGELOG_RELEASE_STORE_FILE="$RUNNER_TEMP/release.jks"
+          fi
+          ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,x86_64
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: forgelog-release-apk
           path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+
+  maestro-smoke:
+    runs-on: ubuntu-latest
+    needs: build-release-apk
+    if: github.event_name != 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Download release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: forgelog-release-apk
+          path: artifacts/mobile-release
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run Maestro PR journeys
+        id: maestro-pr
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_8
+          script: |
+            set -euo pipefail
+            adb install -r artifacts/mobile-release/app-release.apk
+            mkdir -p artifacts/maestro-pr
+            cd apps/mobile
+            mise exec maestro -- maestro test \
+              --format JUNIT \
+              --output ../../artifacts/maestro-pr/junit.xml \
+              --debug-output ../../artifacts/maestro-pr/debug \
+              --test-output-dir ../../artifacts/maestro-pr/test-output \
+              .maestro/smoke.yaml \
+              .maestro/workout-log.yaml
+
+      - name: Upload Maestro PR failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-maestro-pr-failure
+          path: artifacts/maestro-pr/
+
+  maestro-nightly:
+    runs-on: ubuntu-latest
+    needs: build-release-apk
+    if: github.event_name == 'schedule'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Download release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: forgelog-release-apk
+          path: artifacts/mobile-release
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run nightly Maestro journeys
+        id: maestro-nightly
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_APK: ${{ github.workspace }}/artifacts/mobile-release/app-release.apk
+          MAESTRO_OUTPUT_DIR: ${{ github.workspace }}/artifacts/maestro-migration
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_8
+          script: |
+            set -euo pipefail
+            adb install -r artifacts/mobile-release/app-release.apk
+            mkdir -p artifacts/maestro-nightly
+            cd apps/mobile
+            mise exec maestro -- maestro test \
+              --format JUNIT \
+              --output ../../artifacts/maestro-nightly/junit.xml \
+              --debug-output ../../artifacts/maestro-nightly/debug \
+              --test-output-dir ../../artifacts/maestro-nightly/test-output \
+              .maestro/smoke.yaml \
+              .maestro/first-launch-profile.yaml \
+              .maestro/routine-crud.yaml \
+              .maestro/workout-log.yaml \
+              .maestro/workout-recovery.yaml
+            cd ../..
+            apps/mobile/scripts/run-maestro-migration.sh
+
+      - name: Upload nightly Maestro failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-maestro-nightly-failure
+          path: |
+            artifacts/maestro-nightly/
+            artifacts/maestro-migration/
 
   build-release-aab:
     runs-on: ubuntu-latest

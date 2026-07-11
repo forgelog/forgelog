@@ -8,14 +8,20 @@ type Props = {
   selected?: boolean;
   onPress: () => void;
   showCheck?: boolean;
+  accessibilityLabel?: string;
+  testID?: string;
 };
 
-export function Chip({ label, selected, onPress, showCheck }: Props) {
+export function Chip({ label, selected, onPress, showCheck, accessibilityLabel, testID }: Props) {
   const c = useTheme();
 
   return (
     <Pressable
       onPress={onPress}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!selected }}
+      testID={testID}
       style={[
         styles.chip,
         {
