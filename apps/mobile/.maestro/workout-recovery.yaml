@@ -6,7 +6,7 @@ appId: dev.bishnoi.forgelog.mobile
     when:
       visible: "Pixel Launcher isn't responding"
     commands:
-      - tapOn: "Wait"
+      - tapOn: "Close app"
 - extendedWaitUntil:
     visible: "Workout"
     timeout: 60000
@@ -70,7 +70,7 @@ appId: dev.bishnoi.forgelog.mobile
     when:
       visible: "Pixel Launcher isn't responding"
     commands:
-      - tapOn: "Wait"
+      - tapOn: "Close app"
 - extendedWaitUntil:
     visible: "Resume Workout"
     timeout: 60000

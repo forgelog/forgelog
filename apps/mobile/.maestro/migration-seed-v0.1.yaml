@@ -8,7 +8,7 @@ tags:
     when:
       visible: "Pixel Launcher isn't responding"
     commands:
-      - tapOn: "Wait"
+      - tapOn: "Close app"
 - extendedWaitUntil:
     visible: "Workout"
     timeout: 60000

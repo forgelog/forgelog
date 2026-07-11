@@ -23,14 +23,64 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [sessions, setSessions] = useState<ExerciseSession[]>([]);
   const [records, setRecords] = useState<PersonalRecord[]>([]);
+  const [loadedExerciseId, setLoadedExerciseId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [historyLoadFailed, setHistoryLoadFailed] = useState(false);
 
   useEffect(() => {
-    getExercise(exerciseId).then(setExercise);
-    getSessionsForExercise(exerciseId).then(setSessions);
-    getRecordsForExercise(exerciseId).then(setRecords);
+    let current = true;
+    getExercise(exerciseId)
+      .then((exerciseRow) => {
+        if (!current) return;
+        setExercise(exerciseRow);
+        setSessions([]);
+        setRecords([]);
+        setHistoryLoadFailed(false);
+        setLoadError(exerciseRow ? null : 'Exercise not found.');
+        setLoadedExerciseId(exerciseId);
+      })
+      .catch(() => {
+        if (!current) return;
+        setExercise(null);
+        setSessions([]);
+        setRecords([]);
+        setLoadError('Could not load exercise.');
+        setLoadedExerciseId(exerciseId);
+      });
+    Promise.all([getSessionsForExercise(exerciseId), getRecordsForExercise(exerciseId)])
+      .then(([sessionRows, recordRows]) => {
+        if (!current) return;
+        setSessions(sessionRows);
+        setRecords(recordRows);
+        setHistoryLoadFailed(false);
+      })
+      .catch(() => {
+        if (!current) return;
+        setSessions([]);
+        setRecords([]);
+        setHistoryLoadFailed(true);
+      });
+    return () => {
+      current = false;
+    };
   }, [exerciseId]);
 
-  if (!exercise) return null;
+  if (loadedExerciseId !== exerciseId) {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: c.bg }]}>
+        <Text style={[styles.empty, { color: c.sub }]}>Loading exercise...</Text>
+      </View>
+    );
+  }
+
+  if (loadError || !exercise) {
+    return (
+      <View style={[styles.container, { backgroundColor: c.bg }]}>
+        <ScreenHeader title="Exercise" leading="back" onLeadingPress={() => navigation.goBack()} />
+        <Text style={[styles.empty, { color: c.sub }]}>{loadError ?? 'Exercise not found.'}</Text>
+      </View>
+    );
+  }
 
   const recordMap = Object.fromEntries(records.map((r) => [r.record_type, r.value]));
 
@@ -44,7 +94,7 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
       {tab === 'about' ? (
         <AboutTab exercise={exercise} />
       ) : (
-        <HistoryTab sessions={sessions} recordMap={recordMap} />
+        <HistoryTab sessions={sessions} recordMap={recordMap} loadFailed={historyLoadFailed} />
       )}
     </View>
   );
@@ -61,7 +111,13 @@ function TabButton({
 }) {
   const c = useTheme();
   return (
-    <Pressable style={styles.tab} onPress={onPress}>
+    <Pressable
+      style={styles.tab}
+      onPress={onPress}
+      accessibilityLabel={`${label} tab`}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+    >
       <Text style={[styles.tabLabel, { color: active ? c.accent : c.sub }]}>{label}</Text>
       {active ? <View style={[styles.tabUnderline, { backgroundColor: c.accent }]} /> : null}
     </Pressable>
@@ -120,11 +176,17 @@ function AboutTab({ exercise }: { exercise: Exercise }) {
 function HistoryTab({
   sessions,
   recordMap,
+  loadFailed,
 }: {
   sessions: ExerciseSession[];
   recordMap: Partial<Record<PersonalRecord['record_type'], number>>;
+  loadFailed: boolean;
 }) {
   const c = useTheme();
+
+  if (loadFailed) {
+    return <Text style={[styles.empty, { color: c.sub }]}>Could not load exercise history.</Text>;
+  }
 
   if (sessions.length === 0) {
     return <Text style={[styles.empty, { color: c.sub }]}>No sessions logged yet.</Text>;
@@ -168,6 +230,7 @@ function formatDate(iso: string): string {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  center: { justifyContent: 'center' },
   tabs: { flexDirection: 'row', borderBottomWidth: 1 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12 },
   tabLabel: { fontSize: 15, fontWeight: '700' },
