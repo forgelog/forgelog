@@ -1,4 +1,4 @@
-appId: com.forgelog.mobile
+appId: dev.bishnoi.forgelog.mobile
 ---
 - launchApp
 - runFlow:

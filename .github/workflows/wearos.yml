@@ -6,6 +6,8 @@ on:
   pull_request:
     paths:
       - 'apps/wearos/**'
+      - 'data/contracts/**'
+      - 'internal-docs/schema.sql'
       - '.github/workflows/wearos.yml'
 
 jobs:
@@ -28,6 +30,9 @@ jobs:
 
       - name: Unit tests
         run: ./gradlew testDebugUnitTest
+
+      - name: Android Lint
+        run: ./gradlew lintDebug
 
       - name: Build debug APK
         run: ./gradlew assembleDebug
