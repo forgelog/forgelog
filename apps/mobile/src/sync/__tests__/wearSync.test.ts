@@ -85,6 +85,39 @@ test('onWorkoutReceived drops payload with malformed exercise items without call
   expect(mockIngestWatchWorkout).not.toHaveBeenCalled();
 });
 
+test('onWorkoutReceived ingests payload missing optional nullable fields (real WearOS shape)', async () => {
+  const noNullableFields = {
+    protocol_version: 1,
+    id: 'w2',
+    name: 'Quick Workout',
+    started_at: '2026-07-11T10:00:00.000Z',
+    exercises: [],
+  };
+
+  await onWorkoutReceived({ payload: JSON.stringify(noNullableFields) });
+
+  expect(mockIngestWatchWorkout).toHaveBeenCalledTimes(1);
+});
+
+test('onWorkoutReceived drops payload with malformed set items', async () => {
+  const payloadWithBadSet = {
+    protocol_version: 1,
+    id: 'w3',
+    name: 'test',
+    started_at: '2026-07-11T10:00:00.000Z',
+    exercises: [{
+      id: 'we1',
+      exercise_id: 'ex1',
+      position: 0,
+      sets: [{}],
+    }],
+  };
+
+  await onWorkoutReceived({ payload: JSON.stringify(payloadWithBadSet) });
+
+  expect(mockIngestWatchWorkout).not.toHaveBeenCalled();
+});
+
 test('onWorkoutReceived drops version-skew payload (protocol_version != 1)', async () => {
   await onWorkoutReceived({ payload: JSON.stringify(versionSkewPayloadFixture) });
 
