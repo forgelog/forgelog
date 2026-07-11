@@ -19,7 +19,7 @@ class RoutineListScreenComposeTest {
     val compose = createComposeRule()
 
     @Test
-    fun emptyState_showsSyncChipForEachRequestState() {
+    fun emptyStateShowsSyncChipForEachRequestState() {
         var syncState by mutableStateOf(SyncRequestState.IDLE)
         var requested = false
 
@@ -47,14 +47,14 @@ class RoutineListScreenComposeTest {
     }
 
     @Test
-    fun populatedState_showsRoutineNamesAndExerciseCounts() {
+    fun populatedStateShowsRoutineNamesAndExerciseCounts() {
         var openedRoutine: String? = null
 
         compose.setContent {
             RoutineListScreen(
                 routines = listOf(
                     RoutineListItem("push", "Push Day", 3),
-                    RoutineListItem("pull", "Pull Day", 1),
+                    RoutineListItem("pull", PULL_DAY, 1),
                 ),
                 onOpenRoutine = { openedRoutine = it },
             )
@@ -63,9 +63,11 @@ class RoutineListScreenComposeTest {
         compose.onNodeWithText("Routines").assertIsDisplayed()
         compose.onNodeWithText("Push Day").assertIsDisplayed()
         compose.onNodeWithText("3 exercises").assertIsDisplayed()
-        compose.scrollToText("Pull Day")
-        compose.onNodeWithText("Pull Day").assertIsDisplayed().performClick()
+        compose.scrollToText(PULL_DAY)
+        compose.onNodeWithText(PULL_DAY).assertIsDisplayed().performClick()
         compose.runOnIdle { assertTrue(openedRoutine == "pull") }
         compose.onNodeWithText("1 exercise").assertIsDisplayed()
     }
 }
+
+private const val PULL_DAY = "Pull Day"

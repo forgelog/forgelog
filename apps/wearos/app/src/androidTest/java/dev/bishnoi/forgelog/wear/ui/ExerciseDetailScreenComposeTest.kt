@@ -31,7 +31,7 @@ class ExerciseDetailScreenComposeTest {
             ExerciseDetailUnderTest(state = state)
         }
 
-        compose.onNodeWithText("Bench Press").assertIsDisplayed()
+        compose.onNodeWithText(BENCH_PRESS).assertIsDisplayed()
         compose.onNodeWithText("Set 1 of 1").assertIsDisplayed()
         compose.assertPickerValue("kg", "80")
         compose.assertPickerValue("Reps", "8")
@@ -86,7 +86,7 @@ class ExerciseDetailScreenComposeTest {
 
         compose.onNodeWithText("Resting").assertIsDisplayed()
         compose.onNodeWithText("45 s").assertIsDisplayed()
-        compose.assertNoText("Bench Press")
+        compose.assertNoText(BENCH_PRESS)
         compose.assertNoText("Set 1 of 1")
 
         compose.runOnIdle { state = state.copy(restRemaining = 44) }
@@ -105,7 +105,7 @@ private fun exerciseState(
     trackingType: TrackingType,
     restRemaining: Int? = null,
 ) = ExerciseDetailUiState(
-    exerciseName = "Bench Press",
+    exerciseName = BENCH_PRESS,
     trackingType = trackingType,
     sets = listOf(
         SetRow(
@@ -121,6 +121,8 @@ private fun exerciseState(
     currentIndex = 0,
     restRemaining = restRemaining,
 )
+
+private const val BENCH_PRESS = "Bench Press"
 
 @Composable
 private fun ExerciseDetailUnderTest(

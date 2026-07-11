@@ -24,7 +24,7 @@ class RoutineDetailScreenComposeTest {
                 state = RoutineDetailUiState(
                     name = "Strength A",
                     exercises = listOf(
-                        RoutineExercisePreview("Bench Press", 3),
+                        RoutineExercisePreview(BENCH_PRESS, 3),
                         RoutineExercisePreview("Plank", 1),
                     ),
                 ),
@@ -36,11 +36,13 @@ class RoutineDetailScreenComposeTest {
         compose.onNodeWithText("Start Workout").assertIsDisplayed().performClick()
         compose.runOnIdle { assertTrue(started) }
         compose.onNodeWithText("2 Exercises").assertIsDisplayed()
-        compose.scrollToText("Bench Press")
-        compose.onNodeWithText("Bench Press").assertIsDisplayed()
+        compose.scrollToText(BENCH_PRESS)
+        compose.onNodeWithText(BENCH_PRESS).assertIsDisplayed()
         compose.onNodeWithText("3 Sets").assertIsDisplayed()
         compose.scrollToText("Plank")
         compose.onNodeWithText("Plank").assertIsDisplayed()
         compose.onNodeWithText("1 Set").assertIsDisplayed()
     }
 }
+
+private const val BENCH_PRESS = "Bench Press"
