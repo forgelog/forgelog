@@ -74,7 +74,7 @@ jobs:
           if [ ! -x "$SDKMANAGER" ]; then
             SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
           fi
-          "$SDKMANAGER" --install "emulator"
+          "$SDKMANAGER" --install "emulator" "system-images;android-34;google_apis;x86_64"
 
       - name: Native Wear bridge tests
         id: native-wear-bridge-tests
