@@ -82,6 +82,25 @@ test('saving persists the edited fields and navigates back', async () => {
   await waitFor(() => expect(queryByText('Home Screen Marker')).toBeTruthy());
 });
 
+test('selecting a sex option persists it when saving', async () => {
+  mockGetProfile.mockResolvedValue({
+    name: '',
+    themeMode: 'system',
+    sex: null,
+    birthDate: null,
+    heightCm: null,
+    bodyweightKg: null,
+  });
+
+  const { getByLabelText } = await renderScreen();
+  await waitFor(() => expect(getByLabelText('Select Female sex')).toBeTruthy());
+
+  await act(async () => fireEvent.press(getByLabelText('Select Female sex')));
+  await act(async () => fireEvent.press(getByLabelText('Save profile')));
+
+  await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledWith(expect.objectContaining({ sex: 'female' })));
+});
+
 test('rejects an out-of-range height and does not save', async () => {
   const { getByDisplayValue, getByLabelText, getByText } = await renderScreen();
   await waitFor(() => expect(getByDisplayValue('170')).toBeTruthy());

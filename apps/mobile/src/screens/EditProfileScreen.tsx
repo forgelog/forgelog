@@ -127,7 +127,7 @@ export function EditProfileScreen({ navigation }: Props) {
           </Pressable>
         }
       />
-      <ScrollView contentContainerStyle={styles.form}>
+      <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
         {errors.general ? <Text style={[styles.error, { color: c.danger }]}>{errors.general}</Text> : null}
 
         <Text style={[styles.label, { color: c.sub }]}>Name</Text>
