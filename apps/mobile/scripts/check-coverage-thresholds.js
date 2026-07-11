@@ -46,8 +46,8 @@ function main() {
 
   for (const threshold of thresholds) {
     const metric = aggregate(summary, threshold);
-    const pct = Number(metric.pct.toFixed(2));
-    const message = `${threshold.label}: ${pct}% (${metric.covered}/${metric.total}), required >= ${threshold.min}%`;
+    const pct = metric.pct;
+    const message = `${threshold.label}: ${pct.toFixed(2)}% (${metric.covered}/${metric.total}), required >= ${threshold.min}%`;
     console.log(message);
     if (pct < threshold.min) failures.push(message);
   }
