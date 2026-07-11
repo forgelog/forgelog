@@ -180,17 +180,9 @@ jobs:
           arch: x86_64
           profile: pixel_7
           script: |
-            set -eu
             adb install -r artifacts/mobile-release/app-release.apk
             mkdir -p artifacts/maestro-pr
-            cd apps/mobile
-            mise exec maestro -- maestro test \
-              --format JUNIT \
-              --output ../../artifacts/maestro-pr/junit.xml \
-              --debug-output ../../artifacts/maestro-pr/debug \
-              --test-output-dir ../../artifacts/maestro-pr/test-output \
-              .maestro/smoke.yaml \
-              .maestro/workout-log.yaml
+            mise exec maestro -- maestro test --format JUNIT --output artifacts/maestro-pr/junit.xml --debug-output artifacts/maestro-pr/debug --test-output-dir artifacts/maestro-pr/test-output apps/mobile/.maestro/smoke.yaml apps/mobile/.maestro/workout-log.yaml
 
       - name: Upload Maestro PR failure artifacts
         if: failure()
@@ -235,21 +227,9 @@ jobs:
           arch: x86_64
           profile: pixel_7
           script: |
-            set -eu
             adb install -r artifacts/mobile-release/app-release.apk
             mkdir -p artifacts/maestro-nightly
-            cd apps/mobile
-            mise exec maestro -- maestro test \
-              --format JUNIT \
-              --output ../../artifacts/maestro-nightly/junit.xml \
-              --debug-output ../../artifacts/maestro-nightly/debug \
-              --test-output-dir ../../artifacts/maestro-nightly/test-output \
-              .maestro/smoke.yaml \
-              .maestro/first-launch-profile.yaml \
-              .maestro/routine-crud.yaml \
-              .maestro/workout-log.yaml \
-              .maestro/workout-recovery.yaml
-            cd ../..
+            mise exec maestro -- maestro test --format JUNIT --output artifacts/maestro-nightly/junit.xml --debug-output artifacts/maestro-nightly/debug --test-output-dir artifacts/maestro-nightly/test-output apps/mobile/.maestro/smoke.yaml apps/mobile/.maestro/first-launch-profile.yaml apps/mobile/.maestro/routine-crud.yaml apps/mobile/.maestro/workout-log.yaml apps/mobile/.maestro/workout-recovery.yaml
             apps/mobile/scripts/run-maestro-migration.sh
 
       - name: Upload nightly Maestro failure artifacts
