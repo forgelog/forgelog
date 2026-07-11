@@ -1,9 +1,14 @@
+import kotlinx.kover.gradle.plugin.dsl.AggregationType
+import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
+import kotlinx.kover.gradle.plugin.dsl.GroupingEntityType
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
+    id("org.jetbrains.kotlinx.kover")
 }
 
 android {
@@ -91,6 +96,29 @@ android {
                     require64Bit = true
                     testedAbi = "x86_64"
                 }
+            }
+        }
+    }
+}
+
+kover {
+    reports {
+        filters {
+            includes {
+                classes(
+                    "dev.bishnoi.forgelog.wear.logic.*",
+                    "dev.bishnoi.forgelog.wear.sync.SyncSnapshot",
+                    "dev.bishnoi.forgelog.wear.sync.*Dto",
+                )
+            }
+        }
+        verify {
+            rule("wear-jvm-covered-surface") {
+                minBound(60, CoverageUnit.LINE, AggregationType.COVERED_PERCENTAGE)
+            }
+            rule("wear-jvm-covered-surface-packages") {
+                groupBy.set(GroupingEntityType.PACKAGE)
+                minBound(44, CoverageUnit.LINE, AggregationType.COVERED_PERCENTAGE)
             }
         }
     }
