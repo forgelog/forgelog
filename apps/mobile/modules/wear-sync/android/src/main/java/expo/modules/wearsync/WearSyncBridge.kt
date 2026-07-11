@@ -63,4 +63,12 @@ internal object WearSyncBridge {
       syncRequestPending = true
     }
   }
+
+  @Synchronized
+  internal fun resetForTests() {
+    pending.clear()
+    listener = null
+    syncRequestPending = false
+    syncRequestListener = null
+  }
 }
