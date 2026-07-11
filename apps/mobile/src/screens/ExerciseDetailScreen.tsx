@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenHeader } from '../components/ScreenHeader';
-import { isPrSet } from '../db/records';
+import { isPrSet } from '../domain/records';
 import { getExercise } from '../db/repositories/exercises';
 import { getRecordsForExercise } from '../db/repositories/personalRecords';
 import { ExerciseSession, getSessionsForExercise } from '../db/repositories/workouts';
 import type { Exercise, PersonalRecord } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
-import { formatSet } from './setFields';
+import { formatSet } from '../domain/setFields';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ExerciseDetail'>;
 

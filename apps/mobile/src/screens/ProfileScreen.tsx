@@ -10,6 +10,7 @@ import { Icon } from '../components/Icon';
 import { ExerciseRecordRow, listAllRecords } from '../db/repositories/personalRecords';
 import { getProfile, Profile, setProfileName } from '../db/repositories/profile';
 import { getProfileStats, ProfileStats } from '../db/repositories/workouts';
+import { computeAge, initials } from '../domain/profile';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme, type ThemeMode } from '../theme/ThemeContext';
 import { NAME_MAX_LENGTH, sanitizeText } from '../validation/textInput';
@@ -213,25 +214,6 @@ function groupByExercise(rows: ExerciseRecordRow[]): ExerciseGroup[] {
 
 function round(value: number): number {
   return Math.round(value * 10) / 10;
-}
-
-export function computeAge(birthDateIso: string): number {
-  const [year, month, day] = birthDateIso.split('-').map(Number);
-  const today = new Date();
-  let age = today.getFullYear() - year;
-  const hasHadBirthdayThisYear =
-    today.getMonth() + 1 > month || (today.getMonth() + 1 === month && today.getDate() >= day);
-  if (!hasHadBirthdayThisYear) age -= 1;
-  return age;
-}
-
-export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '';
-  return parts
-    .slice(0, 2)
-    .map((p) => p[0].toUpperCase())
-    .join('');
 }
 
 const styles = StyleSheet.create({

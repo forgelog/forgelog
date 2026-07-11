@@ -6,7 +6,8 @@ const summaryPath = path.join(rootDir, 'coverage', 'coverage-summary.json');
 
 const thresholds = [
   { label: 'global lines', metric: 'lines', min: 70 },
-  { label: 'src/db branches', metric: 'branches', min: 70, prefix: 'src/db/' },
+  { label: 'src/db branches', metric: 'branches', min: 68, prefix: 'src/db/' },
+  { label: 'src/domain branches', metric: 'branches', min: 86, prefix: 'src/domain/' },
   { label: 'src/application branches', metric: 'branches', min: 80, prefix: 'src/application/' },
   { label: 'src/sync branches', metric: 'branches', min: 90, prefix: 'src/sync/' },
   { label: 'src/validation branches', metric: 'branches', min: 90, prefix: 'src/validation/' },

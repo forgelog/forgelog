@@ -1,7 +1,7 @@
 import { getDb } from '../index';
 import { id } from '../id';
-import { estimatedOneRepMax, SetPerformance } from '../records';
-import type { PersonalRecord, RecordType } from '../types';
+import { estimatedOneRepMax, type RecordType, type SetPerformance } from '../../domain/records';
+import type { PersonalRecord } from '../types';
 
 export async function getRecordsForExercise(exerciseId: string): Promise<PersonalRecord[]> {
   const db = await getDb();

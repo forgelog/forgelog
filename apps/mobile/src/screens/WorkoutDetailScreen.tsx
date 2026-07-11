@@ -7,9 +7,9 @@ import { Icon } from '../components/Icon';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { deleteWorkout, getWorkoutDetail } from '../db/repositories/workouts';
 import type { WorkoutDetail } from '../db/types';
+import { formatSet } from '../domain/setFields';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
-import { formatSet } from './setFields';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'WorkoutDetail'>;
 

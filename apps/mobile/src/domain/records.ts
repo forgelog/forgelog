@@ -1,4 +1,4 @@
-import type { RecordType } from './types';
+export type RecordType = 'max_weight' | 'max_reps' | 'max_volume' | 'est_1rm';
 
 export type SetPerformance = {
   weight: number | null;

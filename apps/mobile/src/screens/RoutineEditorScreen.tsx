@@ -31,7 +31,7 @@ import {
   SetFieldKey,
   TRACKING_LABELS,
   TRACKING_TYPES,
-} from './setFields';
+} from '../domain/setFields';
 
 const INTEGER_FIELDS: SetFieldKey[] = ['reps', 'duration'];
 

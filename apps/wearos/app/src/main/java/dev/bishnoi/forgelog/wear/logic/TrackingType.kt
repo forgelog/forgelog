@@ -14,7 +14,7 @@ enum class TrackingType(val value: String) {
 /**
  * Resolve the type actually in effect: a per-context override wins over the
  * catalog default; both may be null, in which case we default to weight x
- * reps. Mirrors apps/mobile/src/screens/setFields.ts effectiveTrackingType —
+ * reps. Mirrors apps/mobile/src/domain/setFields.ts effectiveTrackingType —
  * must stay in sync with it since workout rows move between phone and watch.
  */
 fun effectiveTrackingType(override: String?, catalogDefault: String?): TrackingType =
