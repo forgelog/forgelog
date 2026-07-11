@@ -41,6 +41,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "jest",
+    "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "generate:schema": "node scripts/generate-schema.js",
     "check:generated": "node scripts/generate-schema.js --check"
