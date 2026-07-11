@@ -67,17 +67,22 @@ export async function replaceRecordsForExercise(exerciseId: string): Promise<Per
   );
 
   const computed = computeRecordsWithTiming(sets, new Date().toISOString());
+  const existingRecords = await db.getAllAsync<{ id: string; record_type: RecordType }>(
+    'SELECT id, record_type FROM personal_records WHERE exercise_id = $id',
+    { $id: exerciseId }
+  );
+  const existingIds = new Map(existingRecords.map((record) => [record.record_type, record.id]));
 
   await db.runAsync('DELETE FROM personal_records WHERE exercise_id = $id', { $id: exerciseId });
 
   const inserted: PersonalRecord[] = [];
   for (const rec of computed) {
-    const newId = id();
+    const recordId = existingIds.get(rec.type) ?? id();
     await db.runAsync(
       `INSERT INTO personal_records (id, exercise_id, record_type, value, logged_set_id, achieved_at)
        VALUES ($id, $exercise_id, $record_type, $value, $logged_set_id, $achieved_at)`,
       {
-        $id: newId,
+        $id: recordId,
         $exercise_id: exerciseId,
         $record_type: rec.type,
         $value: rec.value,
@@ -86,7 +91,7 @@ export async function replaceRecordsForExercise(exerciseId: string): Promise<Per
       }
     );
     inserted.push({
-      id: newId,
+      id: recordId,
       exercise_id: exerciseId,
       record_type: rec.type,
       value: rec.value,
