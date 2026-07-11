@@ -15,6 +15,9 @@
 - `src/db/repositories`: SQL-backed repository APIs. Keep SQL details here.
 - `src/application`: Transactional use cases that coordinate repositories.
 - `src/screens`: React Native UI and navigation-facing screen behavior.
+- `src/components`: Shared UI primitives used across screens.
+- `src/navigation`: Root navigator and tab setup.
+- `src/theme`: Theme context and color tokens.
 - `src/sync`: Transport payloads, sync orchestration, and payload validation.
 - `src/validation`: Input parsing and sanitization helpers.
 - `src/test-utils`: Shared test helpers. Do not place helpers under `__tests__`.
@@ -26,10 +29,10 @@
 - When both mocked legacy and real DB navigation-flow styles exist for the same screen, keep the mocked file as `<Screen>.test.tsx` and name the real DB file `<Screen>.flows.test.tsx`.
 - Do not mix hoisted `jest.mock()` screen tests with real DB flow tests in the same file.
 - Prefer user-visible assertions over repository mock-call assertions in new screen coverage.
-- Put pure logic tests next to domain code under `src/domain/__tests__`.
-- Repository tests live beside their repository under `src/db/repositories/__tests__`.
+- Tests live in a sibling `__tests__` directory next to the code they cover.
 - Use `src/test-utils/db.ts`, `src/test-utils/render.tsx`, and `src/test-utils/async.ts` for helpers shared by multiple tests.
 - Contract fixtures in `data/contracts/fixtures` and the `validatorDrift` guard are the interim protection until schema codegen exists.
+- Maestro E2E flows live in `.maestro`. `npm run test:e2e` runs them locally and excludes migration-tagged flows; CI runs the smoke set on PRs and the full set nightly.
 
 ## Generated Files
 
@@ -51,6 +54,7 @@
 
 - UI lives in `apps/wearos/app/src/main/java/dev/bishnoi/forgelog/wear/ui`.
 - Pure Wear logic lives in `apps/wearos/app/src/main/java/dev/bishnoi/forgelog/wear/logic`.
+- JVM unit tests for pure logic and sync models go in `src/test`; anything needing Room, ViewModels, or Compose goes in `src/androidTest` and runs on the Gradle managed device.
 - Per-screen Compose tests live in the matching `androidTest` package.
 - Shared Compose test rule extensions live in `ComposeTestHelpers.kt`.
 - Unit tests: `cd apps/wearos && ./gradlew testDebugUnitTest`.
