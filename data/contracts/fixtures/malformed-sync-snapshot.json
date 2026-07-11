@@ -1,0 +1,19 @@
+{
+  "routines": [
+    {
+      "id": "r-bad",
+      "name": "Bad Routine",
+      "position": 0,
+      "exercises": [
+        {
+          "id": "re1",
+          "routine_id": "r-bad",
+          "exercise_id": "ex1",
+          "position": 0,
+          "sets": []
+        }
+      ]
+    }
+  ],
+  "personalRecords": []
+}
