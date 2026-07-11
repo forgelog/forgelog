@@ -12,9 +12,20 @@ type Props = {
   icon?: ReactNode;
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
+  accessibilityLabel?: string;
+  testID?: string;
 };
 
-export function PillButton({ label, onPress, variant = 'filled', icon, style, disabled }: Props) {
+export function PillButton({
+  label,
+  onPress,
+  variant = 'filled',
+  icon,
+  style,
+  disabled,
+  accessibilityLabel,
+  testID,
+}: Props) {
   const c = useTheme();
 
   const backgroundColor =
@@ -26,6 +37,9 @@ export function PillButton({ label, onPress, variant = 'filled', icon, style, di
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityRole="button"
+      testID={testID}
       style={[
         styles.base,
         { backgroundColor, borderColor, opacity: disabled ? 0.5 : 1 },

@@ -55,11 +55,15 @@ beforeEach(() => {
 });
 
 test('loads existing profile values into the form', async () => {
-  const { getByDisplayValue, getByText } = await renderScreen();
+  const { getByDisplayValue, getByLabelText, getByText } = await renderScreen();
   await waitFor(() => expect(getByDisplayValue('Jamie Lee')).toBeTruthy());
   expect(getByDisplayValue('170')).toBeTruthy();
   expect(getByDisplayValue('65')).toBeTruthy();
   expect(getByText('Female')).toBeTruthy();
+  expect(getByLabelText('Profile name')).toBeTruthy();
+  expect(getByLabelText('Height in centimeters')).toBeTruthy();
+  expect(getByLabelText('Bodyweight in kilograms')).toBeTruthy();
+  expect(getByLabelText('Select Female sex')).toBeTruthy();
 });
 
 test('saving persists the edited fields and navigates back', async () => {

@@ -243,7 +243,12 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         onLeadingPress={() => navigation.goBack()}
         trailing={
           <View style={styles.headerActions}>
-            <Pressable onPress={handleDiscard} hitSlop={8}>
+            <Pressable
+              onPress={handleDiscard}
+              hitSlop={8}
+              accessibilityLabel="Discard workout"
+              accessibilityRole="button"
+            >
               <Icon name="trash-can-outline" variant="sub" size={20} />
             </Pressable>
             <PillButton label="Finish" onPress={handleFinish} variant="filled" />
@@ -274,7 +279,12 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
                   </Text>
                   <Icon name="information-outline" variant="sub" size={18} />
                 </Pressable>
-                <Chip label={TRACKING_LABELS[trackingType]} onPress={() => cycleTrackingType(item)} />
+                <Chip
+                  label={TRACKING_LABELS[trackingType]}
+                  onPress={() => cycleTrackingType(item)}
+                  accessibilityLabel={`Workout tracking type for ${item.exercise.name}: ${TRACKING_LABELS[trackingType]}`}
+                  testID={`workout-exercise-${index}-tracking-type`}
+                />
               </View>
               <View style={styles.columnHeader}>
                 <Text style={[styles.columnLabel, { color: c.sub, width: 26, textAlign: 'center' }]}>
@@ -313,6 +323,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
                       placeholder={FIELD_PLACEHOLDER[field]}
                       placeholderTextColor={c.sub}
                       keyboardType="numeric"
+                      accessibilityLabel={`Workout set ${i + 1} ${field} for ${item.exercise.name}`}
+                      testID={`workout-set-${index}-${i}-${field}`}
                     />
                   ))}
                   {prSetIds.has(set.id) ? <Text style={styles.prBadge}>🏆</Text> : null}
@@ -323,15 +335,30 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
                       set.completed && { backgroundColor: c.accent, borderColor: c.accent },
                     ]}
                     onPress={() => toggleComplete(item, set.id, !set.completed)}
+                    accessibilityLabel={`${set.completed ? 'Uncomplete' : 'Complete'} set ${i + 1} for ${item.exercise.name}`}
+                    accessibilityRole="button"
+                    testID={`workout-set-${index}-${i}-complete`}
                   >
                     <Icon name="check" size={18} color={set.completed ? '#fff' : c.sub} />
                   </Pressable>
-                  <Pressable onPress={() => removeSet(item.id, set.id)} hitSlop={8}>
+                  <Pressable
+                    onPress={() => removeSet(item.id, set.id)}
+                    hitSlop={8}
+                    accessibilityLabel={`Remove set ${i + 1} from ${item.exercise.name}`}
+                    accessibilityRole="button"
+                    testID={`workout-set-${index}-${i}-remove`}
+                  >
                     <Icon name="close" variant="sub" size={16} />
                   </Pressable>
                 </View>
               ))}
-              <Pressable style={styles.addSet} onPress={() => handleAddSet(item)}>
+              <Pressable
+                style={styles.addSet}
+                onPress={() => handleAddSet(item)}
+                accessibilityLabel={`Add set to ${item.exercise.name}`}
+                accessibilityRole="button"
+                testID={`workout-exercise-${index}-add-set`}
+              >
                 <Text style={[styles.addSetText, { color: c.accent }]}>+ Add set</Text>
               </Pressable>
             </View>

@@ -87,6 +87,8 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
           onChangeText={setSearch}
           autoCorrect={false}
           clearButtonMode="while-editing"
+          accessibilityLabel="Search exercises"
+          testID="exercise-search-input"
         />
       </View>
       <View style={styles.filters}>
@@ -102,7 +104,13 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
           ListHeaderComponent={<Text style={[styles.count, { color: c.sub }]}>{count} exercises</Text>}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => handlePress(item)}>
+            <Pressable
+              style={styles.row}
+              onPress={() => handlePress(item)}
+              accessibilityLabel={`${mode === 'pick' ? 'Select' : 'Open'} ${item.name}`}
+              accessibilityRole="button"
+              testID={`exercise-row-${item.id}`}
+            >
               {item.images[0] ? (
                 <Image source={{ uri: item.images[0] }} style={styles.thumb} />
               ) : (

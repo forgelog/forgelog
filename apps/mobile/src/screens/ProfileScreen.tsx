@@ -86,10 +86,16 @@ export function ProfileScreen() {
               placeholder="Your name"
               placeholderTextColor={c.sub}
               maxLength={NAME_MAX_LENGTH}
+              accessibilityLabel="Profile display name"
             />
             <Text style={[styles.since, { color: c.sub }]}>Member since 2026</Text>
           </View>
-          <Pressable onPress={() => nameInputRef.current?.focus()} hitSlop={8}>
+          <Pressable
+            onPress={() => nameInputRef.current?.focus()}
+            hitSlop={8}
+            accessibilityLabel="Edit profile display name"
+            accessibilityRole="button"
+          >
             <Icon name="pencil" variant="sub" size={20} />
           </Pressable>
         </View>
@@ -174,6 +180,7 @@ export function ProfileScreen() {
               label={option.label}
               selected={c.themeMode === option.mode}
               onPress={() => c.setThemeMode(option.mode)}
+              accessibilityLabel={`Use ${option.label} theme`}
             />
           ))}
         </View>

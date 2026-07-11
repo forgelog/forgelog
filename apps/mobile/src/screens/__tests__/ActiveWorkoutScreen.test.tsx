@@ -81,7 +81,7 @@ beforeEach(() => {
 });
 
 test('truncates a long exercise name instead of overlapping the info icon and tracking chip', async () => {
-  const { getByText } = await render(
+  const { getByLabelText, getByTestId, getByText } = await render(
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen
@@ -97,6 +97,10 @@ test('truncates a long exercise name instead of overlapping the info icon and tr
   expect(nameNode.props.numberOfLines).toBe(1);
   // tracking-type chip stays reachable alongside the name, not pushed off-screen
   await waitFor(() => expect(getByText('Weight × reps')).toBeTruthy());
+  expect(getByLabelText(`Workout tracking type for ${LONG_EXERCISE_NAME}: Weight × reps`)).toBeTruthy();
+  expect(getByLabelText(`Complete set 1 for ${LONG_EXERCISE_NAME}`)).toBeTruthy();
+  expect(getByTestId('workout-set-0-0-weight')).toBeTruthy();
+  expect(getByTestId('workout-set-0-0-reps')).toBeTruthy();
 });
 
 test('does not show a superset tag even when exercises share a superset_group_id', async () => {

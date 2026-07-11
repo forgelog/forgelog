@@ -1,0 +1,41 @@
+appId: dev.bishnoi.forgelog.mobile
+---
+- launchApp:
+    clearState: true
+- runFlow:
+    when:
+      visible: "Pixel Launcher isn't responding"
+    commands:
+      - tapOn: "Wait"
+- extendedWaitUntil:
+    visible: "Workout"
+    timeout: 60000
+- tapOn: "Profile"
+- extendedWaitUntil:
+    visible: "Personal Records"
+    timeout: 60000
+- tapOn: "Edit profile"
+- extendedWaitUntil:
+    visible: "Edit Profile"
+    timeout: 60000
+- tapOn:
+    id: "profile-name-input"
+- eraseText: 100
+- inputText: "Phase Five Lifter"
+- tapOn: "Select Female sex"
+- tapOn:
+    id: "profile-height-input"
+- eraseText: 20
+- inputText: "172"
+- tapOn:
+    id: "profile-bodyweight-input"
+- eraseText: 20
+- inputText: "74"
+- tapOn: "Save profile"
+- extendedWaitUntil:
+    visible: "Body"
+    timeout: 60000
+- assertVisible: "Phase Five Lifter"
+- assertVisible: "Female"
+- assertVisible: "172 cm"
+- assertVisible: "74 kg"

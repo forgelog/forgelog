@@ -138,6 +138,8 @@ export function EditProfileScreen({ navigation }: Props) {
           placeholder="Your name"
           placeholderTextColor={c.sub}
           maxLength={NAME_MAX_LENGTH}
+          accessibilityLabel="Profile name"
+          testID="profile-name-input"
         />
 
         <Text style={[styles.label, { color: c.sub }]}>Sex</Text>
@@ -148,6 +150,7 @@ export function EditProfileScreen({ navigation }: Props) {
               label={option.label}
               selected={sex === option.value}
               onPress={() => setSex(sex === option.value ? null : option.value)}
+              accessibilityLabel={`Select ${option.label} sex`}
             />
           ))}
         </View>
@@ -156,6 +159,8 @@ export function EditProfileScreen({ navigation }: Props) {
         <Pressable
           style={[styles.input, { borderColor: c.sep }]}
           onPress={() => setShowDatePicker(true)}
+          accessibilityLabel="Birth date"
+          accessibilityRole="button"
         >
           <Text style={{ color: birthDate ? c.fg : c.sub }}>
             {birthDate ? birthDate.toLocaleDateString() : 'Not set'}
@@ -187,6 +192,8 @@ export function EditProfileScreen({ navigation }: Props) {
           placeholder="Not set"
           placeholderTextColor={c.sub}
           keyboardType="decimal-pad"
+          accessibilityLabel="Height in centimeters"
+          testID="profile-height-input"
         />
         {errors.height ? <Text style={[styles.error, { color: c.danger }]}>{errors.height}</Text> : null}
 
@@ -199,6 +206,8 @@ export function EditProfileScreen({ navigation }: Props) {
           placeholder="Not set"
           placeholderTextColor={c.sub}
           keyboardType="decimal-pad"
+          accessibilityLabel="Bodyweight in kilograms"
+          testID="profile-bodyweight-input"
         />
         {errors.bodyweight ? <Text style={[styles.error, { color: c.danger }]}>{errors.bodyweight}</Text> : null}
       </ScrollView>

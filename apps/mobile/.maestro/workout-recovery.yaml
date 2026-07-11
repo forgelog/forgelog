@@ -1,0 +1,84 @@
+appId: dev.bishnoi.forgelog.mobile
+---
+- launchApp:
+    clearState: true
+- runFlow:
+    when:
+      visible: "Pixel Launcher isn't responding"
+    commands:
+      - tapOn: "Wait"
+- extendedWaitUntil:
+    visible: "Workout"
+    timeout: 60000
+- tapOn:
+    id: "create-routine"
+- extendedWaitUntil:
+    visible: "Edit routine"
+    timeout: 60000
+- tapOn:
+    id: "routine-add-exercise"
+- extendedWaitUntil:
+    visible: "Search exercises"
+    timeout: 60000
+- tapOn:
+    id: "exercise-search-input"
+- inputText: "barbell bench press"
+- extendedWaitUntil:
+    visible: "Select Barbell Bench Press - Medium Grip"
+    timeout: 60000
+- tapOn: "Select Barbell Bench Press - Medium Grip"
+- extendedWaitUntil:
+    visible: "Barbell Bench Press - Medium Grip"
+    timeout: 60000
+- tapOn:
+    id: "routine-exercise-0-add-set"
+- tapOn:
+    id: "routine-set-0-0-weight"
+- inputText: "50"
+- tapOn:
+    id: "routine-set-0-0-reps"
+- inputText: "5"
+- tapOn: "Save"
+- runFlow:
+    when:
+      visible: "Edit routine"
+    commands:
+      - tapOn: "Save"
+- extendedWaitUntil:
+    visible: "My Routines"
+    timeout: 60000
+- tapOn: "Start routine New Routine"
+- extendedWaitUntil:
+    visible: "New Routine"
+    timeout: 60000
+- tapOn:
+    id: "workout-set-0-0-complete"
+- runFlow:
+    when:
+      visible: "Complete set 1 for Barbell Bench Press - Medium Grip"
+    commands:
+      - tapOn:
+          id: "workout-set-0-0-complete"
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+- stopApp
+- launchApp
+- runFlow:
+    when:
+      visible: "Pixel Launcher isn't responding"
+    commands:
+      - tapOn: "Wait"
+- extendedWaitUntil:
+    visible: "Resume Workout"
+    timeout: 60000
+- tapOn: "Resume Workout"
+- extendedWaitUntil:
+    visible: "New Routine"
+    timeout: 60000
+- assertVisible:
+    id: "workout-set-0-0-weight"
+- assertVisible:
+    id: "workout-set-0-0-reps"
