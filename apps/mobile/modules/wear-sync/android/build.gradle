@@ -11,9 +11,28 @@ android {
   defaultConfig {
     versionCode 1
     versionName '1.0.0'
+    testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+  }
+
+  testOptions {
+    managedDevices {
+      localDevices {
+        create("phoneApi34") {
+          device = "Pixel 2"
+          apiLevel = 34
+          systemImageSource = "google"
+          require64Bit = true
+        }
+      }
+    }
   }
 }
 
 dependencies {
   implementation 'com.google.android.gms:play-services-wearable:19.0.0'
+
+  testImplementation 'junit:junit:4.13.2'
+
+  androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+  androidTestImplementation 'androidx.test:runner:1.6.2'
 }

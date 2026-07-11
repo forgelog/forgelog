@@ -36,6 +36,47 @@ jobs:
       - name: Test
         run: npm test -- --ci
 
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Generate debug keystore
+        run: |
+          mkdir -p ~/.android
+          keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install Android emulator
+        run: |
+          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          "$SDKMANAGER" --install "emulator"
+
+      - name: Native Wear bridge tests
+        id: native-wear-bridge-tests
+        timeout-minutes: 45
+        working-directory: apps/mobile/android
+        run: ./gradlew :wear-sync:testDebugUnitTest :wear-sync:phoneApi34DebugAndroidTest -PreactNativeArchitectures=x86_64 --stacktrace --continue
+
+      - name: Upload native Wear bridge failure reports
+        if: failure() && steps.native-wear-bridge-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-wear-bridge-test-failure-reports
+          path: |
+            apps/mobile/modules/wear-sync/android/build/reports/tests/
+            apps/mobile/modules/wear-sync/android/build/reports/androidTests/
+            apps/mobile/modules/wear-sync/android/build/outputs/androidTest-results/
+            apps/mobile/modules/wear-sync/android/build/outputs/managed_device_android_test_additional_output/
+
   build-debug-apk:
     runs-on: ubuntu-latest
     needs: test

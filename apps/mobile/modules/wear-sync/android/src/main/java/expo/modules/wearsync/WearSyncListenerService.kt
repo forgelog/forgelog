@@ -1,6 +1,7 @@
 package expo.modules.wearsync
 
 import android.util.Log
+import com.google.android.gms.wearable.DataItem
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
@@ -24,11 +25,7 @@ class WearSyncListenerService : WearableListenerService() {
     try {
       for (event in dataEvents) {
         if (event.type != DataEvent.TYPE_CHANGED) continue
-        if (!event.dataItem.uri.path.orEmpty().startsWith("/workout")) continue
-
-        val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
-        val payload = dataMap.getString(PAYLOAD_KEY) ?: continue
-        WearSyncBridge.deliver(payload)
+        deliverDataItem(event.dataItem)
       }
     } finally {
       dataEvents.release()
@@ -36,13 +33,28 @@ class WearSyncListenerService : WearableListenerService() {
   }
 
   override fun onMessageReceived(messageEvent: MessageEvent) {
-    if (messageEvent.path != REQUEST_SYNC_PATH) return
     try {
-      WearSyncBridge.deliverSyncRequest()
+      deliverMessage(messageEvent.path)
     } catch (e: Exception) {
       // Never let a listener-service callback crash the process — matches
       // the defensive try/finally around onDataChanged above.
       Log.w(TAG, "onMessageReceived failed to deliver /request-sync", e)
+    }
+  }
+
+  internal companion object {
+    fun deliverDataItem(dataItem: DataItem) {
+      val path = dataItem.uri.path.orEmpty()
+      if (path != "/workout" && !path.startsWith("/workout/")) return
+
+      val dataMap = DataMapItem.fromDataItem(dataItem).dataMap
+      val payload = dataMap.getString(PAYLOAD_KEY) ?: return
+      WearSyncBridge.deliver(payload)
+    }
+
+    fun deliverMessage(path: String) {
+      if (path != REQUEST_SYNC_PATH) return
+      WearSyncBridge.deliverSyncRequest()
     }
   }
 }
