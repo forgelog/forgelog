@@ -24,8 +24,6 @@ import {
   updateWorkoutExercise,
 } from '../db/repositories/workouts';
 import type { LoggedSet, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
-import type { RootStackParamList } from '../navigation/RootNavigator';
-import { useTheme } from '../theme/ThemeContext';
 import {
   effectiveTrackingType,
   FIELD_PLACEHOLDER,
@@ -38,7 +36,9 @@ import {
   SetFieldKey,
   TRACKING_LABELS,
   TRACKING_TYPES,
-} from './setFields';
+} from '../domain/setFields';
+import type { RootStackParamList } from '../navigation/RootNavigator';
+import { useTheme } from '../theme/ThemeContext';
 
 const INTEGER_FIELDS: SetFieldKey[] = ['reps', 'duration'];
 

@@ -5,6 +5,7 @@ module.exports = {
     '!src/**/__tests__/**',
     '!src/**/*.test.{ts,tsx}',
     '!src/**/*.d.ts',
+    '!src/test-utils/**',
   ],
   coverageReporters: ['text', 'lcov', 'json-summary'],
 };

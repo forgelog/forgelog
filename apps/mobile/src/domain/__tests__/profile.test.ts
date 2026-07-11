@@ -1,4 +1,4 @@
-import { computeAge, initials } from '../ProfileScreen';
+import { computeAge, initials } from '../profile';
 
 test('initials takes the first letter of the first two words', () => {
   expect(initials('Alex Rivera')).toBe('AR');

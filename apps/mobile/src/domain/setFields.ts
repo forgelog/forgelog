@@ -29,7 +29,11 @@ export function effectiveTrackingType(
   override: string | null,
   catalogDefault: string | null
 ): TrackingType {
-  return (override ?? catalogDefault ?? 'weight_reps') as TrackingType;
+  return toTrackingType(override) ?? toTrackingType(catalogDefault) ?? 'weight_reps';
+}
+
+function toTrackingType(value: string | null): TrackingType | null {
+  return TRACKING_TYPES.includes(value as TrackingType) ? (value as TrackingType) : null;
 }
 
 // tracking_type is null for seeded exercises — default to weight × reps.

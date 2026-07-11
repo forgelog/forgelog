@@ -11,12 +11,12 @@ enum class RecordType(val value: String) {
 
 /**
  * Epley estimated 1RM: weight * (1 + reps / 30). Mirrors
- * apps/mobile/src/db/records.ts estimatedOneRepMax exactly.
+ * apps/mobile/src/domain/records.ts estimatedOneRepMax exactly.
  */
 fun estimatedOneRepMax(weight: Double, reps: Int): Double = weight * (1 + reps / 30.0)
 
 /**
- * Ports apps/mobile/src/db/records.ts computeRecords: only produces record
+ * Ports apps/mobile/src/domain/records.ts computeRecords: only produces record
  * types that have data, so reps-only exercises never get a weight-based PR.
  */
 /**

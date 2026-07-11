@@ -1,4 +1,6 @@
 import {
+  effectiveTrackingType,
+  fieldsFor,
   formatCompactSet,
   formatSet,
   hasLoggedValue,
@@ -21,6 +23,31 @@ test('accepts a custom default', () => {
 
 const set = { weight: 80, reps: 8, duration_seconds: null, distance_meters: null };
 const emptySet = { weight: null, reps: null, duration_seconds: null, distance_meters: null };
+
+test('effectiveTrackingType prefers a valid override over the catalog default', () => {
+  expect(effectiveTrackingType('reps_only', 'weight_reps')).toBe('reps_only');
+});
+
+test('effectiveTrackingType falls back to a valid catalog default', () => {
+  expect(effectiveTrackingType(null, 'duration')).toBe('duration');
+});
+
+test('effectiveTrackingType falls back to a valid catalog default when override is invalid', () => {
+  expect(effectiveTrackingType('legacy_tracking', 'duration')).toBe('duration');
+});
+
+test('effectiveTrackingType falls back to weight_reps when no valid type is present', () => {
+  expect(effectiveTrackingType(null, 'legacy_tracking')).toBe('weight_reps');
+  expect(effectiveTrackingType('legacy_tracking', null)).toBe('weight_reps');
+});
+
+test('fieldsFor returns the fields for each tracking type and falls back for unknown values', () => {
+  expect(fieldsFor('weight_reps')).toEqual(['weight', 'reps']);
+  expect(fieldsFor('reps_only')).toEqual(['reps']);
+  expect(fieldsFor('duration')).toEqual(['duration']);
+  expect(fieldsFor('duration_distance')).toEqual(['duration', 'distance']);
+  expect(fieldsFor('legacy_tracking')).toEqual(['weight', 'reps']);
+});
 
 test('formatSet renders weight × reps with units', () => {
   expect(formatSet('weight_reps', set)).toBe('80 kg × 8 reps');
