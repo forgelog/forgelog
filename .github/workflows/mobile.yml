@@ -39,7 +39,18 @@ jobs:
         run: npx expo lint
 
       - name: Test
-        run: npm test -- --ci
+        run: npm test -- --ci --coverage
+
+      - name: Check coverage thresholds
+        run: npm run check:coverage
+
+      - name: Upload Jest coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-jest-coverage
+          path: apps/mobile/coverage/
+          if-no-files-found: error
 
       - name: Prebuild Android project
         run: npx expo prebuild --platform android
