@@ -4,7 +4,7 @@ import type { WatchWorkoutPayload } from '../db/repositories/sync';
 
 const ajv = new Ajv();
 
-const loggedSetSchema = {
+export const LOGGED_SET_PAYLOAD_SCHEMA = {
   type: 'object',
   required: ['id', 'workout_exercise_id', 'position', 'set_type', 'completed'],
   properties: {
@@ -22,7 +22,22 @@ const loggedSetSchema = {
   },
 };
 
-const schema = {
+export const WORKOUT_EXERCISE_PAYLOAD_SCHEMA = {
+  type: 'object',
+  required: ['id', 'exercise_id', 'position', 'sets'],
+  properties: {
+    id: { type: 'string' },
+    exercise_id: { type: 'string' },
+    position: { type: 'integer' },
+    superset_group_id: { type: ['string', 'null'] },
+    tracking_type: { type: ['string', 'null'] },
+    rest_seconds: { type: ['integer', 'null'] },
+    notes: { type: ['string', 'null'] },
+    sets: { type: 'array', items: LOGGED_SET_PAYLOAD_SCHEMA },
+  },
+};
+
+export const WATCH_WORKOUT_PAYLOAD_SCHEMA = {
   type: 'object',
   required: ['protocol_version', 'id', 'name', 'started_at', 'exercises'],
   properties: {
@@ -35,18 +50,10 @@ const schema = {
     notes: { type: ['string', 'null'] },
     exercises: {
       type: 'array',
-      items: {
-        type: 'object',
-        required: ['id', 'exercise_id', 'position', 'sets'],
-        properties: {
-          id: { type: 'string' },
-          exercise_id: { type: 'string' },
-          position: { type: 'integer' },
-          sets: { type: 'array', items: loggedSetSchema },
-        },
-      },
+      items: WORKOUT_EXERCISE_PAYLOAD_SCHEMA,
     },
   },
 };
 
-export const validateWatchWorkoutPayload = ajv.compile<WatchWorkoutPayload>(schema);
+export const validateWatchWorkoutPayload =
+  ajv.compile<WatchWorkoutPayload>(WATCH_WORKOUT_PAYLOAD_SCHEMA);
