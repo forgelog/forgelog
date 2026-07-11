@@ -4,6 +4,11 @@ tags:
 ---
 - launchApp:
     clearState: true
+- runFlow:
+    when:
+      visible: "Pixel Launcher isn't responding"
+    commands:
+      - tapOn: "Wait"
 - extendedWaitUntil:
     visible: "Workout"
     timeout: 60000

@@ -2,6 +2,11 @@ appId: dev.bishnoi.forgelog.mobile
 ---
 - launchApp:
     clearState: true
+- runFlow:
+    when:
+      visible: "Pixel Launcher isn't responding"
+    commands:
+      - tapOn: "Wait"
 - extendedWaitUntil:
     visible: "Workout"
     timeout: 60000
@@ -61,6 +66,11 @@ appId: dev.bishnoi.forgelog.mobile
       - tapOn: "OK"
 - stopApp
 - launchApp
+- runFlow:
+    when:
+      visible: "Pixel Launcher isn't responding"
+    commands:
+      - tapOn: "Wait"
 - extendedWaitUntil:
     visible: "Resume Workout"
     timeout: 60000

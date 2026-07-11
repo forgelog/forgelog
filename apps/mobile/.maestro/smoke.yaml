@@ -4,6 +4,11 @@ appId: dev.bishnoi.forgelog.mobile
     clearState: true
 - runFlow:
     when:
+      visible: "Pixel Launcher isn't responding"
+    commands:
+      - tapOn: "Wait"
+- runFlow:
+    when:
       visible: "Continue"
     commands:
       - tapOn: "Continue"
