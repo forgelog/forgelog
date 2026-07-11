@@ -22,6 +22,7 @@ import {
   startWorkout,
   updateLoggedSet,
 } from '../../db/repositories/workouts';
+import * as workoutsRepository from '../../db/repositories/workouts';
 import type { Exercise } from '../../db/types';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
@@ -68,6 +69,16 @@ async function setWorkoutTimestamps(workoutId: string, startedAt: string, endedA
     $endedAt: endedAt,
     $id: workoutId,
   });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
 }
 
 async function createRoutineWithBench(name = 'Phase Six Push') {
@@ -120,14 +131,14 @@ async function renderHomeStack() {
   );
 }
 
-async function renderActiveWorkout(workoutId: string) {
+async function renderActiveWorkout(workoutId: string, params: Partial<RootStackParamList['ActiveWorkout']> = {}) {
   return await render(
     <NavigationContainer
       initialState={{
         index: 1,
         routes: [
           { name: 'Home' },
-          { name: 'ActiveWorkout', params: { workoutId } },
+          { name: 'ActiveWorkout', params: { workoutId, ...params } },
         ],
       }}
     >
@@ -486,6 +497,29 @@ test('Active workout shows missing and load-error states', async () => {
   await act(async () => {
     error.unmount();
   });
+});
+
+test('Active workout ignores stale reload responses after a newer reload wins', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const workout = await startWorkout({ name: 'Reload Race' });
+  const stale = deferred<Awaited<ReturnType<typeof workoutsRepository.getWorkoutDetail>>>();
+  const realGetWorkoutDetail = workoutsRepository.getWorkoutDetail;
+  jest
+    .spyOn(workoutsRepository, 'getWorkoutDetail')
+    .mockReturnValueOnce(stale.promise)
+    .mockImplementation((id) => realGetWorkoutDetail(id));
+
+  const active = await renderActiveWorkout(workout.id, { pickedExerciseId: bench.id });
+
+  await waitFor(() => expect(active.getByText(bench.name)).toBeTruthy());
+  await act(async () => {
+    stale.resolve(null);
+    await stale.promise;
+  });
+
+  expect(active.queryByText('Workout not found.')).toBeNull();
+  expect(active.getByText(bench.name)).toBeTruthy();
+  active.unmount();
 });
 
 test('Active workout completes PR sets, switches tracking fields, finishes, and discards', async () => {

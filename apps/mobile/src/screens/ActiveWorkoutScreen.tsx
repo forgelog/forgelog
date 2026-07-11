@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Chip } from '../components/Chip';
@@ -61,14 +61,18 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const [prevSets, setPrevSets] = useState<Record<string, LoggedSet[]>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const reloadRequestId = useRef(0);
 
   const reload = useCallback(() => {
     let current = true;
+    const requestId = reloadRequestId.current + 1;
+    reloadRequestId.current = requestId;
+    const isCurrent = () => current && reloadRequestId.current === requestId;
     setLoading(true);
     setLoadError(null);
     getWorkoutDetail(workoutId)
       .then(async (d) => {
-        if (!current) return;
+        if (!isCurrent()) return;
         if (!d) {
           setDetail(null);
           setPrevSets({});
@@ -81,21 +85,22 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             await getPreviousSessionSets(we.exercise.id, workoutId),
           ] as const)
         );
-        if (!current) return;
+        if (!isCurrent()) return;
         setDetail(d);
         setPrevSets(Object.fromEntries(entries));
       })
       .catch(() => {
-        if (!current) return;
+        if (!isCurrent()) return;
         setDetail(null);
         setPrevSets({});
         setLoadError('Could not load workout.');
       })
       .finally(() => {
-        if (current) setLoading(false);
+        if (isCurrent()) setLoading(false);
       });
     return () => {
       current = false;
+      reloadRequestId.current += 1;
     };
   }, [workoutId]);
 
