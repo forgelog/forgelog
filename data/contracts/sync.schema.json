@@ -37,7 +37,7 @@
     },
     "WatchWorkoutPayload": {
       "type": "object",
-      "required": ["protocol_version", "id", "routine_id", "name", "started_at", "ended_at", "notes", "exercises"],
+      "required": ["protocol_version", "id", "name", "started_at", "exercises"],
       "properties": {
         "protocol_version": { "type": "integer", "const": 1 },
         "id": { "type": "string" },

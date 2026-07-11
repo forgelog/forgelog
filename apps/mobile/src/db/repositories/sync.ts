@@ -36,6 +36,7 @@ export async function getSyncSnapshot(): Promise<SyncSnapshot> {
 // IDs are already assigned (client-generated v4 UUIDs) on the watch, so
 // upserts are idempotent — re-sending the same payload changes nothing.
 export type WatchWorkoutPayload = {
+  protocol_version: number;
   id: string;
   routine_id: string | null;
   name: string;
