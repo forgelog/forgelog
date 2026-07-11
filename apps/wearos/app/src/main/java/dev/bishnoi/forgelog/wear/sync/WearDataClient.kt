@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
 private const val PAYLOAD_KEY = "payload"
 private const val TIMESTAMP_KEY = "timestamp"
 
-val syncJson = Json { ignoreUnknownKeys = true }
+val syncJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
 /**
  * Publishes a WAL entry as a DataItem keyed by workout id. DataItems persist

@@ -1,6 +1,5 @@
 package dev.bishnoi.forgelog.wear.sync
 
-import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -67,7 +66,7 @@ data class PersonalRecordDto(
 
 @Serializable
 data class WorkoutPayloadDto(
-    @EncodeDefault(EncodeDefault.Mode.ALWAYS) @SerialName("protocol_version") val protocolVersion: Int = 1,
+    @SerialName("protocol_version") val protocolVersion: Int = 1,
     val id: String,
     @SerialName("routine_id") val routineId: String? = null,
     val name: String,
