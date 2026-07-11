@@ -32,9 +32,13 @@ test('effectiveTrackingType falls back to a valid catalog default', () => {
   expect(effectiveTrackingType(null, 'duration')).toBe('duration');
 });
 
-test('effectiveTrackingType falls back to weight_reps for invalid values', () => {
-  expect(effectiveTrackingType('legacy_tracking', 'duration')).toBe('weight_reps');
+test('effectiveTrackingType falls back to a valid catalog default when override is invalid', () => {
+  expect(effectiveTrackingType('legacy_tracking', 'duration')).toBe('duration');
+});
+
+test('effectiveTrackingType falls back to weight_reps when no valid type is present', () => {
   expect(effectiveTrackingType(null, 'legacy_tracking')).toBe('weight_reps');
+  expect(effectiveTrackingType('legacy_tracking', null)).toBe('weight_reps');
 });
 
 test('fieldsFor returns the fields for each tracking type and falls back for unknown values', () => {
