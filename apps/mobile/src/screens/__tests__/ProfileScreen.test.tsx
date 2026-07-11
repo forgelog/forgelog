@@ -60,19 +60,25 @@ test('renders the theme selector with system/light/dark options', async () => {
 });
 
 test('selecting Dark persists the preference via the profile repository', async () => {
-  const { getByText } = await renderProfile();
+  const { getByLabelText, getByText } = await renderProfile();
   await waitFor(() => expect(getByText('Dark')).toBeTruthy());
 
   fireEvent.press(getByText('Dark'));
 
+  await waitFor(() =>
+    expect(getByLabelText('Use Dark theme').props.accessibilityState).toEqual({ selected: true })
+  );
   await waitFor(() => expect(mockSetThemeMode).toHaveBeenCalledWith('dark'));
 });
 
 test('loads the previously persisted preference on mount', async () => {
   mockGetThemeMode.mockResolvedValue('dark');
-  await renderProfile();
+  const { getByLabelText } = await renderProfile();
 
   await waitFor(() => expect(mockGetThemeMode).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(getByLabelText('Use Dark theme').props.accessibilityState).toEqual({ selected: true })
+  );
 });
 
 test('clearing the name persists an empty string, no placeholder fallback', async () => {

@@ -22,8 +22,8 @@
 ## Mobile Tests
 
 - Default to real in-memory DB tests for new behavior. `__mocks__/expo-sqlite.js` uses `better-sqlite3`.
-- Screen files use `<Screen>.test.tsx` for the mocked legacy style.
-- Real DB navigation flows use `<Screen>.flows.test.tsx`.
+- Screen files default to one `<Screen>.test.tsx` per screen.
+- When both mocked legacy and real DB navigation-flow styles exist for the same screen, keep the mocked file as `<Screen>.test.tsx` and name the real DB file `<Screen>.flows.test.tsx`.
 - Do not mix hoisted `jest.mock()` screen tests with real DB flow tests in the same file.
 - Prefer user-visible assertions over repository mock-call assertions in new screen coverage.
 - Put pure logic tests next to domain code under `src/domain/__tests__`.
