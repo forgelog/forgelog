@@ -17,11 +17,13 @@ jobs:
       run:
         working-directory: apps/wearos
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
       - name: Generate debug keystore
         run: |
@@ -33,7 +35,7 @@ jobs:
 
       - name: Upload Kover coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wearos-kover-coverage
           path: apps/wearos/app/build/reports/kover/
@@ -62,7 +64,7 @@ jobs:
 
       - name: Upload instrumentation failure reports
         if: steps.instrumentation-tests.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wearos-android-test-failure-reports
           path: |
@@ -74,7 +76,7 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: forgelog-wear-debug-apk
           path: apps/wearos/app/build/outputs/apk/debug/app-debug.apk
@@ -86,11 +88,13 @@ jobs:
       run:
         working-directory: apps/wearos
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
       - name: Generate debug keystore
         run: |
@@ -101,7 +105,7 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: forgelog-wear-release-apk
           path: apps/wearos/app/build/outputs/apk/release/app-release.apk
@@ -114,11 +118,13 @@ jobs:
       run:
         working-directory: apps/wearos
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
 
       - name: Decode release keystore
         env:
@@ -134,7 +140,7 @@ jobs:
         run: ./gradlew bundleRelease
 
       - name: Upload AAB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: forgelog-wear-release-aab
           path: apps/wearos/app/build/outputs/bundle/release/app-release.aab

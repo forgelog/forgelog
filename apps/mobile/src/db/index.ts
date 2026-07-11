@@ -12,9 +12,7 @@ const LATEST_SCHEMA_VERSION = 6;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = openAndMigrate();
-  }
+  dbPromise ??= openAndMigrate();
   return dbPromise;
 }
 

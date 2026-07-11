@@ -75,7 +75,7 @@ class ExerciseDetailViewModelTest {
     }
 
     @Test
-    fun uiState_maps_logged_set_entity_to_SetRow() = runBlocking {
+    fun uiStateMapsLoggedSetEntityToSetRow() = runBlocking {
         seedExercise()
         val vm = viewModel()
 
@@ -92,7 +92,7 @@ class ExerciseDetailViewModelTest {
     }
 
     @Test
-    fun markDone_completes_set_and_emits_personal_record_event() = runBlocking {
+    fun markDoneCompletesSetAndEmitsPersonalRecordEvent() = runBlocking {
         seedExercise()
         db.referenceDao().upsertPersonalRecords(
             listOf(PersonalRecordEntity("pr1", "ex1", "max_weight", 60.0, "2026-01-01T00:00:00Z")),
@@ -112,7 +112,7 @@ class ExerciseDetailViewModelTest {
     }
 
     @Test
-    fun markDone_starts_rest_timer_and_skipRest_clears_it() = runBlocking {
+    fun markDoneStartsRestTimerAndSkipRestClearsIt() = runBlocking {
         seedExercise(restSeconds = 30)
         val vm = viewModel()
         withTimeout(5000) { vm.uiState.first { it.sets.size == 2 } }
@@ -128,7 +128,7 @@ class ExerciseDetailViewModelTest {
     }
 
     @Test
-    fun set_editing_actions_persist_through_repository() = runBlocking {
+    fun setEditingActionsPersistThroughRepository() = runBlocking {
         seedExercise()
         val vm = viewModel()
         withTimeout(5000) { vm.uiState.first { it.sets.size == 2 } }
@@ -151,7 +151,7 @@ class ExerciseDetailViewModelTest {
     }
 
     @Test
-    fun add_remove_delete_and_navigation_actions_update_state() = runBlocking {
+    fun addRemoveDeleteAndNavigationActionsUpdateState() = runBlocking {
         seedExercise()
         val vm = viewModel()
         withTimeout(5000) { vm.uiState.first { it.sets.size == 2 } }

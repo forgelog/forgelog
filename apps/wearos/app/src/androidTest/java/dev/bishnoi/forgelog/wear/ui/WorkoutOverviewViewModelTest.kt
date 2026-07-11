@@ -81,7 +81,7 @@ class WorkoutOverviewViewModelTest {
         )
 
     @Test
-    fun exercises_report_progress_and_current_exercise() = runBlocking {
+    fun exercisesReportProgressAndCurrentExercise() = runBlocking {
         seedWorkout()
         val vm = viewModel()
 
@@ -92,7 +92,7 @@ class WorkoutOverviewViewModelTest {
     }
 
     @Test
-    fun finishWorkout_finishes_publishes_and_invokes_callback() {
+    fun finishWorkoutFinishesPublishesAndInvokesCallback() {
         runBlocking { seedWorkout() }
         val vm = viewModel()
         val done = CountDownLatch(1)
@@ -107,7 +107,7 @@ class WorkoutOverviewViewModelTest {
     }
 
     @Test
-    fun discardWorkout_deletes_session_and_invokes_callback() {
+    fun discardWorkoutDeletesSessionAndInvokesCallback() {
         runBlocking { seedWorkout() }
         val vm = viewModel()
         val done = CountDownLatch(1)

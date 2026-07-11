@@ -7,6 +7,10 @@ plugins {
 group = 'com.forgelog.wearsync'
 version = '1.0.0'
 
+dependencyLocking {
+  lockAllConfigurations()
+}
+
 android {
   namespace "expo.modules.wearsync"
   defaultConfig {

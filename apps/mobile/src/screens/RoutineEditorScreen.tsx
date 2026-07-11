@@ -7,6 +7,7 @@ import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SetFieldInputs } from '../components/SetFieldInputs';
 import {
   addExerciseToRoutine,
   addRoutineSet,
@@ -24,7 +25,6 @@ import { useTheme } from '../theme/ThemeContext';
 import { NAME_MAX_LENGTH, NOTES_MAX_LENGTH, validateText } from '../validation/textInput';
 import {
   effectiveTrackingType,
-  FIELD_PLACEHOLDER,
   fieldsFor,
   parseNonNegativeInteger,
   parseNonNegativeNumber,
@@ -33,7 +33,7 @@ import {
   TRACKING_TYPES,
 } from '../domain/setFields';
 
-const INTEGER_FIELDS: SetFieldKey[] = ['reps', 'duration'];
+const INTEGER_FIELDS = new Set<SetFieldKey>(['reps', 'duration']);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RoutineEditor'>;
 
@@ -123,7 +123,7 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
   }
 
   async function addSet(rex: RoutineExerciseDetail) {
-    const last = rex.sets[rex.sets.length - 1];
+    const last = rex.sets.at(-1);
     const created = await addRoutineSet(rex.id, {
       target_weight: last?.target_weight ?? null,
       target_reps: last?.target_reps ?? null,
@@ -135,7 +135,7 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
 
   function editSetField(rexId: string, setId: string, field: SetFieldKey, raw: string) {
     const column = SET_COLUMN[field];
-    const value = INTEGER_FIELDS.includes(field)
+    const value = INTEGER_FIELDS.has(field)
       ? parseNonNegativeInteger(raw)
       : parseNonNegativeNumber(raw);
     if (value === undefined) return;
@@ -273,99 +273,19 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
             ) : null}
           </View>
         }
-        renderItem={({ item, index }) => {
-          const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
-          const fields = fieldsFor(trackingType);
-          return (
-            <View style={[styles.exercise, { borderTopColor: c.sep }]}>
-              <View style={styles.exerciseHeader}>
-                <Text
-                  style={[styles.exerciseName, { color: c.fg }]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {item.exercise.name}
-                </Text>
-                <View style={styles.headerActions}>
-                  <Pressable onPress={() => move(index, -1)} hitSlop={8}>
-                    <Icon name="chevron-up" variant="sub" size={20} />
-                  </Pressable>
-                  <Pressable onPress={() => move(index, 1)} hitSlop={8}>
-                    <Icon name="chevron-down" variant="sub" size={20} />
-                  </Pressable>
-                </View>
-              </View>
-
-              <View style={styles.metaRow}>
-                <Chip
-                  label={TRACKING_LABELS[trackingType]}
-                  onPress={() => cycleTrackingType(item)}
-                  accessibilityLabel={`Tracking type for ${item.exercise.name}: ${TRACKING_LABELS[trackingType]}`}
-                  testID={`routine-exercise-${index}-tracking-type`}
-                />
-                <View style={styles.restBox}>
-                  <Text style={[styles.restLabel, { color: c.sub }]}>Rest</Text>
-                  <TextInput
-                    style={[styles.restInput, { backgroundColor: c.fill, color: c.fg }]}
-                    value={item.rest_seconds?.toString() ?? ''}
-                    onChangeText={(t) => editRest(item.id, t)}
-                    placeholder="sec"
-                    placeholderTextColor={c.sub}
-                    keyboardType="numeric"
-                    accessibilityLabel={`Rest seconds for ${item.exercise.name}`}
-                    testID={`routine-exercise-${index}-rest`}
-                  />
-                </View>
-              </View>
-
-              {item.sets.map((set, i) => (
-                <View key={set.id} style={styles.setRow}>
-                  <Text style={[styles.setIndex, { color: c.sub }]}>{i + 1}</Text>
-                  {fields.map((field) => (
-                    <TextInput
-                      key={field}
-                      style={[styles.setInput, { backgroundColor: c.fill, color: c.fg }]}
-                      value={(set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
-                      onChangeText={(t) => editSetField(item.id, set.id, field, t)}
-                      placeholder={FIELD_PLACEHOLDER[field]}
-                      placeholderTextColor={c.sub}
-                      keyboardType="numeric"
-                      accessibilityLabel={`Routine set ${i + 1} ${field} for ${item.exercise.name}`}
-                      testID={`routine-set-${index}-${i}-${field}`}
-                    />
-                  ))}
-                  <Pressable
-                    onPress={() => removeSet(item.id, set.id)}
-                    hitSlop={8}
-                    accessibilityLabel={`Remove set ${i + 1} from ${item.exercise.name}`}
-                    accessibilityRole="button"
-                    testID={`routine-set-${index}-${i}-remove`}
-                  >
-                    <Icon name="close" variant="sub" size={18} />
-                  </Pressable>
-                </View>
-              ))}
-              <Pressable
-                style={styles.addSet}
-                onPress={() => addSet(item)}
-                accessibilityLabel={`Add set to ${item.exercise.name}`}
-                accessibilityRole="button"
-                testID={`routine-exercise-${index}-add-set`}
-              >
-                <Text style={[styles.addSetText, { color: c.accent }]}>+ Add set</Text>
-              </Pressable>
-              <Pressable
-                style={styles.removeExercise}
-                onPress={() => handleRemoveExercise(item)}
-                accessibilityLabel={`Remove ${item.exercise.name}`}
-                accessibilityRole="button"
-                testID={`routine-exercise-${index}-remove`}
-              >
-                <Text style={[styles.removeExerciseText, { color: c.danger }]}>Remove exercise</Text>
-              </Pressable>
-            </View>
-          );
-        }}
+        renderItem={({ item, index }) => (
+          <RoutineExerciseEditorItem
+            item={item}
+            index={index}
+            onMove={move}
+            onCycleTrackingType={cycleTrackingType}
+            onEditRest={editRest}
+            onEditSetField={editSetField}
+            onRemoveSet={removeSet}
+            onAddSet={addSet}
+            onRemoveExercise={handleRemoveExercise}
+          />
+        )}
         ListFooterComponent={
           <PillButton
             label="+ Add Exercise"
@@ -377,6 +297,152 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
           />
         }
       />
+    </View>
+  );
+}
+
+type RoutineExerciseEditorItemProps = Readonly<{
+  item: RoutineExerciseDetail;
+  index: number;
+  onMove: (index: number, delta: number) => void;
+  onCycleTrackingType: (item: RoutineExerciseDetail) => void;
+  onEditRest: (rexId: string, raw: string) => void;
+  onEditSetField: (rexId: string, setId: string, field: SetFieldKey, raw: string) => void;
+  onRemoveSet: (rexId: string, setId: string) => void;
+  onAddSet: (item: RoutineExerciseDetail) => void;
+  onRemoveExercise: (item: RoutineExerciseDetail) => void;
+}>;
+
+function RoutineExerciseEditorItem({
+  item,
+  index,
+  onMove,
+  onCycleTrackingType,
+  onEditRest,
+  onEditSetField,
+  onRemoveSet,
+  onAddSet,
+  onRemoveExercise,
+}: RoutineExerciseEditorItemProps) {
+  const c = useTheme();
+  const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
+  const fields = fieldsFor(trackingType);
+
+  return (
+    <View style={[styles.exercise, { borderTopColor: c.sep }]}>
+      <View style={styles.exerciseHeader}>
+        <Text style={[styles.exerciseName, { color: c.fg }]} numberOfLines={1} ellipsizeMode="tail">
+          {item.exercise.name}
+        </Text>
+        <View style={styles.headerActions}>
+          <Pressable onPress={() => onMove(index, -1)} hitSlop={8}>
+            <Icon name="chevron-up" variant="sub" size={20} />
+          </Pressable>
+          <Pressable onPress={() => onMove(index, 1)} hitSlop={8}>
+            <Icon name="chevron-down" variant="sub" size={20} />
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.metaRow}>
+        <Chip
+          label={TRACKING_LABELS[trackingType]}
+          onPress={() => onCycleTrackingType(item)}
+          accessibilityLabel={`Tracking type for ${item.exercise.name}: ${TRACKING_LABELS[trackingType]}`}
+          testID={`routine-exercise-${index}-tracking-type`}
+        />
+        <View style={styles.restBox}>
+          <Text style={[styles.restLabel, { color: c.sub }]}>Rest</Text>
+          <TextInput
+            style={[styles.restInput, { backgroundColor: c.fill, color: c.fg }]}
+            value={item.rest_seconds?.toString() ?? ''}
+            onChangeText={(text) => onEditRest(item.id, text)}
+            placeholder="sec"
+            placeholderTextColor={c.sub}
+            keyboardType="numeric"
+            accessibilityLabel={`Rest seconds for ${item.exercise.name}`}
+            testID={`routine-exercise-${index}-rest`}
+          />
+        </View>
+      </View>
+
+      {item.sets.map((set, setIndex) => (
+        <RoutineSetEditorRow
+          key={set.id}
+          set={set}
+          setIndex={setIndex}
+          exerciseIndex={index}
+          exercise={item}
+          fields={fields}
+          onEditSetField={onEditSetField}
+          onRemoveSet={onRemoveSet}
+        />
+      ))}
+      <Pressable
+        style={styles.addSet}
+        onPress={() => onAddSet(item)}
+        accessibilityLabel={`Add set to ${item.exercise.name}`}
+        accessibilityRole="button"
+        testID={`routine-exercise-${index}-add-set`}
+      >
+        <Text style={[styles.addSetText, { color: c.accent }]}>+ Add set</Text>
+      </Pressable>
+      <Pressable
+        style={styles.removeExercise}
+        onPress={() => onRemoveExercise(item)}
+        accessibilityLabel={`Remove ${item.exercise.name}`}
+        accessibilityRole="button"
+        testID={`routine-exercise-${index}-remove`}
+      >
+        <Text style={[styles.removeExerciseText, { color: c.danger }]}>Remove exercise</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+type RoutineSetEditorRowProps = Readonly<{
+  set: RoutineSet;
+  setIndex: number;
+  exerciseIndex: number;
+  exercise: RoutineExerciseDetail;
+  fields: SetFieldKey[];
+  onEditSetField: (rexId: string, setId: string, field: SetFieldKey, raw: string) => void;
+  onRemoveSet: (rexId: string, setId: string) => void;
+}>;
+
+function RoutineSetEditorRow({
+  set,
+  setIndex,
+  exerciseIndex,
+  exercise,
+  fields,
+  onEditSetField,
+  onRemoveSet,
+}: RoutineSetEditorRowProps) {
+  const c = useTheme();
+
+  return (
+    <View style={styles.setRow}>
+      <Text style={[styles.setIndex, { color: c.sub }]}>{setIndex + 1}</Text>
+      <SetFieldInputs
+        fields={fields}
+        inputStyle={styles.setInput}
+        valueForField={(field) => (set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
+        onChangeField={(field, text) => onEditSetField(exercise.id, set.id, field, text)}
+        accessibilityLabelForField={(field) =>
+          `Routine set ${setIndex + 1} ${field} for ${exercise.exercise.name}`
+        }
+        testIDForField={(field) => `routine-set-${exerciseIndex}-${setIndex}-${field}`}
+      />
+      <Pressable
+        onPress={() => onRemoveSet(exercise.id, set.id)}
+        hitSlop={8}
+        accessibilityLabel={`Remove set ${setIndex + 1} from ${exercise.exercise.name}`}
+        accessibilityRole="button"
+        testID={`routine-set-${exerciseIndex}-${setIndex}-remove`}
+      >
+        <Icon name="close" variant="sub" size={18} />
+      </Pressable>
     </View>
   );
 }

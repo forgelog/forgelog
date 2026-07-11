@@ -95,12 +95,12 @@ class WearSyncBridgeTest {
 
     repeat(payloadCount) { index ->
       tasks += executor.submit {
-        start.await(5, TimeUnit.SECONDS)
+        assertTrue(start.await(5, TimeUnit.SECONDS))
         WearSyncBridge.deliver("payload-$index")
       }
     }
     tasks += executor.submit {
-      start.await(5, TimeUnit.SECONDS)
+      assertTrue(start.await(5, TimeUnit.SECONDS))
       WearSyncBridge.attach { received.add(it) }
     }
 

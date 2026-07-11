@@ -3,12 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
 
-type Props = {
+type Props = Readonly<{
   index: number;
   fields: ReactNode[];
   trailing?: ReactNode;
   completed?: boolean;
-};
+}>;
 
 export function SetRow({ index, fields, trailing, completed }: Props) {
   const c = useTheme();

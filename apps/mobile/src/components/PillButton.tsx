@@ -5,7 +5,7 @@ import { useTheme } from '../theme/ThemeContext';
 
 type Variant = 'filled' | 'outlined' | 'dark';
 
-type Props = {
+type Props = Readonly<{
   label: string;
   onPress: () => void;
   variant?: Variant;
@@ -14,7 +14,7 @@ type Props = {
   disabled?: boolean;
   accessibilityLabel?: string;
   testID?: string;
-};
+}>;
 
 export function PillButton({
   label,
@@ -28,10 +28,19 @@ export function PillButton({
 }: Props) {
   const c = useTheme();
 
-  const backgroundColor =
-    variant === 'filled' ? c.accent : variant === 'dark' ? c.fg : 'transparent';
+  let backgroundColor = 'transparent';
+  if (variant === 'filled') {
+    backgroundColor = c.accent;
+  } else if (variant === 'dark') {
+    backgroundColor = c.fg;
+  }
   const borderColor = variant === 'outlined' ? c.chipbd : backgroundColor;
-  const textColor = variant === 'outlined' ? c.fg : variant === 'dark' ? c.bg : '#fff';
+  let textColor = '#fff';
+  if (variant === 'outlined') {
+    textColor = c.fg;
+  } else if (variant === 'dark') {
+    textColor = c.bg;
+  }
 
   return (
     <Pressable

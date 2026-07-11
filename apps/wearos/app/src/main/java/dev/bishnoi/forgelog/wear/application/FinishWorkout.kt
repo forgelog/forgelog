@@ -1,9 +1,13 @@
 package dev.bishnoi.forgelog.wear.application
 
+import android.util.Log
 import dev.bishnoi.forgelog.wear.data.WorkoutDao
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
 import dev.bishnoi.forgelog.wear.sync.SyncRepository
 import dev.bishnoi.forgelog.wear.sync.WorkoutPayloadDto
+import kotlinx.coroutines.CancellationException
+
+private const val TAG = "FinishWorkout"
 
 class FinishWorkout(
     private val workoutRepository: WorkoutRepository,
@@ -18,28 +22,40 @@ class FinishWorkout(
         try {
             publish(payload)
             workoutDao.markSynced(workoutId)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            error.rethrowIfCancellation()
+            Log.w(TAG, "Could not publish finished workout $workoutId", error)
         }
     }
 
     suspend fun drainUnsynced() {
         val unsynced = try {
             workoutDao.unsyncedWorkouts()
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            error.rethrowIfCancellation()
+            Log.w(TAG, "Could not load unsynced workouts", error)
             return
         }
         for (workout in unsynced) {
             if (workout.endedAt == null) continue
             val payload = try {
                 syncRepository.buildWorkoutPayload(workout)
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                error.rethrowIfCancellation()
+                Log.w(TAG, "Could not build payload for workout ${workout.id}", error)
                 continue
             }
             try {
                 publish(payload)
                 workoutDao.markSynced(workout.id)
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                error.rethrowIfCancellation()
+                Log.w(TAG, "Could not publish unsynced workout ${workout.id}", error)
             }
         }
     }
+}
+
+private fun Exception.rethrowIfCancellation() {
+    if (this is CancellationException) throw this
 }

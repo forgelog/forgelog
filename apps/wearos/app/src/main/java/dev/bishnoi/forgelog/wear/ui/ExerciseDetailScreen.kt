@@ -18,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.drop
 import androidx.compose.ui.Alignment
@@ -52,17 +51,8 @@ import dev.bishnoi.forgelog.wear.logic.setTypeLabel
 @Composable
 fun ExerciseDetailScreen(
     state: ExerciseDetailUiState,
-    onMarkDone: (setId: String) -> Unit,
-    onUpdateValues: (setId: String, weight: Double?, reps: Int?) -> Unit,
-    onUpdateDuration: (setId: String, durationSeconds: Int?) -> Unit,
-    onUpdateDistance: (setId: String, distanceMeters: Double?) -> Unit,
-    onCycleSetType: (setId: String) -> Unit,
-    onRemoveSet: (setId: String) -> Unit,
-    onAddSet: () -> Unit,
-    onNextSet: () -> Unit,
-    onPrevSet: () -> Unit,
-    onSkipRest: () -> Unit,
-    onDeleteExercise: () -> Unit,
+    setActions: ExerciseDetailSetActions,
+    navigationActions: ExerciseDetailNavigationActions,
 ) {
     val context = LocalContext.current
 
@@ -73,18 +63,15 @@ fun ExerciseDetailScreen(
     MaterialTheme {
         val resting = state.restRemaining
         if (resting != null) {
-            RestingView(secondsRemaining = resting, onSkip = onSkipRest)
+            RestingView(secondsRemaining = resting, onSkip = navigationActions.skipRest)
         } else {
             val pagerState = rememberPagerState(pageCount = { 2 })
             Box(modifier = Modifier.fillMaxSize()) {
                 HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                     if (page == 0) {
-                        SetEditorPage(
-                            state, onMarkDone, onUpdateValues, onUpdateDuration,
-                            onUpdateDistance, onNextSet, onPrevSet, onAddSet,
-                        )
+                        SetEditorPage(state, setActions, navigationActions)
                     } else {
-                        OptionsPage(state, onCycleSetType, onRemoveSet, onAddSet, onDeleteExercise)
+                        OptionsPage(state, setActions, navigationActions)
                     }
                 }
                 PageDots(
@@ -98,6 +85,23 @@ fun ExerciseDetailScreen(
         }
     }
 }
+
+data class ExerciseDetailSetActions(
+    val markDone: (setId: String) -> Unit,
+    val updateValues: (setId: String, weight: Double?, reps: Int?) -> Unit,
+    val updateDuration: (setId: String, durationSeconds: Int?) -> Unit,
+    val updateDistance: (setId: String, distanceMeters: Double?) -> Unit,
+    val cycleSetType: (setId: String) -> Unit,
+    val removeSet: (setId: String) -> Unit,
+)
+
+data class ExerciseDetailNavigationActions(
+    val addSet: () -> Unit,
+    val nextSet: () -> Unit,
+    val prevSet: () -> Unit,
+    val skipRest: () -> Unit,
+    val deleteExercise: () -> Unit,
+)
 
 @Composable
 private fun PageDots(count: Int, selected: Int, modifier: Modifier = Modifier) {
@@ -120,13 +124,8 @@ private fun PageDots(count: Int, selected: Int, modifier: Modifier = Modifier) {
 @Composable
 private fun SetEditorPage(
     state: ExerciseDetailUiState,
-    onMarkDone: (setId: String) -> Unit,
-    onUpdateValues: (setId: String, weight: Double?, reps: Int?) -> Unit,
-    onUpdateDuration: (setId: String, durationSeconds: Int?) -> Unit,
-    onUpdateDistance: (setId: String, distanceMeters: Double?) -> Unit,
-    onNextSet: () -> Unit,
-    onPrevSet: () -> Unit,
-    onAddSet: () -> Unit,
+    setActions: ExerciseDetailSetActions,
+    navigationActions: ExerciseDetailNavigationActions,
 ) {
     val set = state.sets.getOrNull(state.currentIndex)
     Column(
@@ -143,7 +142,7 @@ private fun SetEditorPage(
             Spacer(Modifier.height(8.dp))
             Chip(
                 label = { Text("Add set") },
-                onClick = onAddSet,
+                onClick = navigationActions.addSet,
                 colors = ChipDefaults.primaryChipColors(),
             )
             return@Column
@@ -159,7 +158,7 @@ private fun SetEditorPage(
         )
         Spacer(Modifier.height(4.dp))
 
-        MetricPickers(set, state.trackingType, onUpdateValues, onUpdateDuration, onUpdateDistance)
+        MetricPickers(set, state.trackingType, setActions)
 
         Spacer(Modifier.height(8.dp))
         Row(
@@ -167,12 +166,12 @@ private fun SetEditorPage(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             CompactButton(
-                onClick = onPrevSet,
+                onClick = navigationActions.prevSet,
                 enabled = state.currentIndex > 0,
             ) { Text("‹") }
-            Button(onClick = { onMarkDone(set.id) }) { Text("✓") }
+            Button(onClick = { setActions.markDone(set.id) }) { Text("✓") }
             CompactButton(
-                onClick = onNextSet,
+                onClick = navigationActions.nextSet,
                 enabled = state.currentIndex < state.sets.size - 1,
             ) { Text("›") }
         }
@@ -183,9 +182,7 @@ private fun SetEditorPage(
 private fun MetricPickers(
     set: SetRow,
     trackingType: TrackingType,
-    onUpdateValues: (setId: String, weight: Double?, reps: Int?) -> Unit,
-    onUpdateDuration: (setId: String, durationSeconds: Int?) -> Unit,
-    onUpdateDistance: (setId: String, distanceMeters: Double?) -> Unit,
+    setActions: ExerciseDetailSetActions,
 ) {
     val weights = remember { (0..300).toList() }
     val reps = remember { (0..50).toList() }
@@ -196,28 +193,28 @@ private fun MetricPickers(
         when (trackingType) {
             TrackingType.REPS_ONLY -> {
                 ValueWheel("Reps", reps, set.reps ?: 0, set.id) {
-                    onUpdateValues(set.id, set.weight, it)
+                    setActions.updateValues(set.id, set.weight, it)
                 }
             }
             TrackingType.DURATION -> {
                 ValueWheel("Sec", durations, set.durationSeconds ?: 0, set.id) {
-                    onUpdateDuration(set.id, it)
+                    setActions.updateDuration(set.id, it)
                 }
             }
             TrackingType.DURATION_DISTANCE -> {
                 ValueWheel("Sec", durations, set.durationSeconds ?: 0, set.id) {
-                    onUpdateDuration(set.id, it)
+                    setActions.updateDuration(set.id, it)
                 }
                 ValueWheel("Meters", distances, (set.distanceMeters ?: 0.0).toInt(), set.id) {
-                    onUpdateDistance(set.id, it.toDouble())
+                    setActions.updateDistance(set.id, it.toDouble())
                 }
             }
             TrackingType.WEIGHT_REPS -> {
                 ValueWheel("kg", weights, (set.weight ?: 0.0).toInt(), set.id) {
-                    onUpdateValues(set.id, it.toDouble(), set.reps)
+                    setActions.updateValues(set.id, it.toDouble(), set.reps)
                 }
                 ValueWheel("Reps", reps, set.reps ?: 0, set.id) {
-                    onUpdateValues(set.id, set.weight, it)
+                    setActions.updateValues(set.id, set.weight, it)
                 }
             }
         }
@@ -242,12 +239,12 @@ private fun ValueWheel(
             repeatItems = false,
         )
     }
-    val currentOnChange by rememberUpdatedState(onChange)
+    val currentOnChange = rememberUpdatedState(onChange)
     LaunchedEffect(pickerState) {
         // drop(1) skips the initial value so we never auto-overwrite the stored set.
         snapshotFlow { pickerState.selectedOption }
             .drop(1)
-            .collect { index -> currentOnChange(values[index]) }
+            .collect { index -> currentOnChange.value(values[index]) }
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         val selectedValue = values[pickerState.selectedOption]
@@ -281,10 +278,8 @@ private fun ValueWheel(
 @Composable
 private fun OptionsPage(
     state: ExerciseDetailUiState,
-    onCycleSetType: (setId: String) -> Unit,
-    onRemoveSet: (setId: String) -> Unit,
-    onAddSet: () -> Unit,
-    onDeleteExercise: () -> Unit,
+    setActions: ExerciseDetailSetActions,
+    navigationActions: ExerciseDetailNavigationActions,
 ) {
     val set = state.sets.getOrNull(state.currentIndex)
     val listState = rememberScalingLazyListState()
@@ -292,9 +287,9 @@ private fun OptionsPage(
         ScalingLazyColumn(modifier = Modifier.fillMaxSize(), state = listState) {
             item { ListHeader { Text("Set Options") } }
             item {
-                Chip(
-                    label = { Text("Add Set") },
-                    onClick = onAddSet,
+                    Chip(
+                        label = { Text("Add Set") },
+                        onClick = navigationActions.addSet,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ChipDefaults.secondaryChipColors(),
                 )
@@ -304,7 +299,7 @@ private fun OptionsPage(
                     Chip(
                         label = { Text("Set Type") },
                         secondaryLabel = { Text(set.setType.replaceFirstChar { it.uppercase() }) },
-                        onClick = { onCycleSetType(set.id) },
+                        onClick = { setActions.cycleSetType(set.id) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ChipDefaults.secondaryChipColors(),
                     )
@@ -312,7 +307,7 @@ private fun OptionsPage(
                 item {
                     Chip(
                         label = { Text("Delete Set") },
-                        onClick = { onRemoveSet(set.id) },
+                        onClick = { setActions.removeSet(set.id) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = destructiveChipColors(),
                     )
@@ -321,9 +316,9 @@ private fun OptionsPage(
 
             item { ListHeader { Text("Exercise Options") } }
             item {
-                Chip(
-                    label = { Text("Delete Exercise") },
-                    onClick = onDeleteExercise,
+                    Chip(
+                        label = { Text("Delete Exercise") },
+                        onClick = navigationActions.deleteExercise,
                     modifier = Modifier.fillMaxWidth(),
                     colors = destructiveChipColors(),
                 )

@@ -137,30 +137,29 @@ fun ForgeLogNavHost() {
             LaunchedEffect(vm) {
                 vm.prEvent.collect { Haptics.celebrate(currentContext) }
             }
-            val onMarkDone: (String) -> Unit = remember(vm) { { setId -> vm.markDone(setId) } }
-            val onUpdateValues: (String, Double?, Int?) -> Unit = remember(vm) { { setId, w, r -> vm.updateValues(setId, w, r) } }
-            val onUpdateDuration: (String, Int?) -> Unit = remember(vm) { { setId, dur -> vm.updateDuration(setId, dur) } }
-            val onUpdateDistance: (String, Double?) -> Unit = remember(vm) { { setId, dist -> vm.updateDistance(setId, dist) } }
-            val onCycleSetType: (String) -> Unit = remember(vm) { { setId -> vm.cycleSetType(setId) } }
-            val onRemoveSet: (String) -> Unit = remember(vm) { { setId -> vm.removeSet(setId) } }
-            val onAddSet: () -> Unit = remember(vm) { { vm.addSet() } }
-            val onNextSet: () -> Unit = remember(vm) { { vm.nextSet() } }
-            val onPrevSet: () -> Unit = remember(vm) { { vm.prevSet() } }
-            val onSkipRest: () -> Unit = remember(vm) { { vm.skipRest() } }
-            val onDeleteExercise: () -> Unit = remember(vm) { { vm.deleteExercise { navController.popBackStack() } } }
+            val setActions = remember(vm) {
+                ExerciseDetailSetActions(
+                    markDone = { setId -> vm.markDone(setId) },
+                    updateValues = { setId, weight, reps -> vm.updateValues(setId, weight, reps) },
+                    updateDuration = { setId, duration -> vm.updateDuration(setId, duration) },
+                    updateDistance = { setId, distance -> vm.updateDistance(setId, distance) },
+                    cycleSetType = { setId -> vm.cycleSetType(setId) },
+                    removeSet = { setId -> vm.removeSet(setId) },
+                )
+            }
+            val navigationActions = remember(vm, navController) {
+                ExerciseDetailNavigationActions(
+                    addSet = { vm.addSet() },
+                    nextSet = { vm.nextSet() },
+                    prevSet = { vm.prevSet() },
+                    skipRest = { vm.skipRest() },
+                    deleteExercise = { vm.deleteExercise { navController.popBackStack() } },
+                )
+            }
             ExerciseDetailScreen(
                 state = state,
-                onMarkDone = onMarkDone,
-                onUpdateValues = onUpdateValues,
-                onUpdateDuration = onUpdateDuration,
-                onUpdateDistance = onUpdateDistance,
-                onCycleSetType = onCycleSetType,
-                onRemoveSet = onRemoveSet,
-                onAddSet = onAddSet,
-                onNextSet = onNextSet,
-                onPrevSet = onPrevSet,
-                onSkipRest = onSkipRest,
-                onDeleteExercise = onDeleteExercise,
+                setActions = setActions,
+                navigationActions = navigationActions,
             )
         }
     }

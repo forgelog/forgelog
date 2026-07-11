@@ -3,14 +3,14 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Icon } from './Icon';
 
-type Props = {
+type Props = Readonly<{
   label: string;
   selected?: boolean;
   onPress: () => void;
   showCheck?: boolean;
   accessibilityLabel?: string;
   testID?: string;
-};
+}>;
 
 export function Chip({ label, selected, onPress, showCheck, accessibilityLabel, testID }: Props) {
   const c = useTheme();

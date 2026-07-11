@@ -40,7 +40,7 @@ class RoutineListViewModelTest {
     fun tearDown() = db.close()
 
     @Test
-    fun routines_include_exercise_counts() = runTest(mainDispatcherRule.dispatcher) {
+    fun routinesIncludeExerciseCounts() = runTest(mainDispatcherRule.dispatcher) {
         db.referenceDao().upsertExercises(listOf(ExerciseEntity("ex1", "Bench Press", "weight_reps")))
         db.referenceDao().upsertRoutines(listOf(RoutineEntity("r1", "Push Day", 0)))
         db.referenceDao().upsertRoutineExercises(
@@ -57,7 +57,7 @@ class RoutineListViewModelTest {
     }
 
     @Test
-    fun requestSync_transitions_idle_sending_sent() = runTest(mainDispatcherRule.dispatcher) {
+    fun requestSyncTransitionsIdleSendingSent() = runTest(mainDispatcherRule.dispatcher) {
         val syncResult = CompletableDeferred<Boolean>()
         val vm = RoutineListViewModel(db.referenceDao()) { syncResult.await() }
 
@@ -75,7 +75,7 @@ class RoutineListViewModelTest {
     }
 
     @Test
-    fun requestSync_transitions_to_failed_when_phone_request_fails() = runTest(mainDispatcherRule.dispatcher) {
+    fun requestSyncTransitionsToFailedWhenPhoneRequestFails() = runTest(mainDispatcherRule.dispatcher) {
         val vm = RoutineListViewModel(db.referenceDao()) { false }
 
         vm.requestSync()

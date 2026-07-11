@@ -20,11 +20,11 @@ class PersonalRecordsTest {
 
     private fun loadSets(key: String): List<SetPerformance> {
         val root = Json.parseToJsonElement(fixtureText("personal-records.json")).jsonObject
-        return root[key]!!.jsonArray.map { elem ->
+        return root.getValue(key).jsonArray.map { elem ->
             val obj = elem.jsonObject
             SetPerformance(
                 weight = obj["weight"]?.takeIf { it !is JsonNull }?.jsonPrimitive?.double,
-                reps = obj["reps"]!!.jsonPrimitive.int,
+                reps = obj.getValue("reps").jsonPrimitive.int,
             )
         }
     }
@@ -41,7 +41,7 @@ class PersonalRecordsTest {
         assertEquals(120.0, records[RecordType.MAX_WEIGHT])
         assertEquals(10.0, records[RecordType.MAX_REPS])
         assertEquals(800.0, records[RecordType.MAX_VOLUME]) // 80 * 10
-        assertEquals(estimatedOneRepMax(120.0, 3), records[RecordType.EST_1RM]!!, 0.001)
+        assertEquals(estimatedOneRepMax(120.0, 3), records.getValue(RecordType.EST_1RM), 0.001)
     }
 
     @Test

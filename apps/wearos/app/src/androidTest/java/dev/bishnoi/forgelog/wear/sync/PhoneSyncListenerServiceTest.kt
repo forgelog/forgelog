@@ -31,7 +31,7 @@ class PhoneSyncListenerServiceTest {
     }
 
     @Test
-    fun publishingASyncSnapshotDataItem_populatesReferenceTables() {
+    fun publishingSyncSnapshotDataItemPopulatesReferenceTables() {
         val json = """
             {"routines":[{"id":"itr1","name":"Instrumented Routine","position":0,"exercises":[]}],"personalRecords":[]}
         """.trimIndent()
@@ -57,7 +57,7 @@ class PhoneSyncListenerServiceTest {
     }
 
     @Test
-    fun malformedSyncSnapshotPayload_isRejectedWithoutPartialReferenceWrites() = runBlocking {
+    fun malformedSyncSnapshotPayloadIsRejectedWithoutPartialReferenceWrites() = runBlocking {
         val db = AppDatabase.get(context)
         val payload = InstrumentationRegistry.getInstrumentation().context.assets
             .open("malformed-sync-snapshot.json")

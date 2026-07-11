@@ -100,15 +100,17 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
   );
 }
 
+type TabButtonProps = Readonly<{
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}>;
+
 function TabButton({
   label,
   active,
   onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
+}: TabButtonProps) {
   const c = useTheme();
   return (
     <Pressable
@@ -124,8 +126,17 @@ function TabButton({
   );
 }
 
-function AboutTab({ exercise }: { exercise: Exercise }) {
+type AboutTabProps = Readonly<{
+  exercise: Exercise;
+}>;
+
+function AboutTab({ exercise }: AboutTabProps) {
   const c = useTheme();
+  const instructionItems = exercise.instructions.map((step, index, instructions) => {
+    const occurrence = instructions.slice(0, index + 1).filter((candidate) => candidate === step).length;
+    return { step, key: `${step}-${occurrence}` };
+  });
+
   return (
     <ScrollView>
       {exercise.images.length > 0 ? (
@@ -159,8 +170,8 @@ function AboutTab({ exercise }: { exercise: Exercise }) {
       {exercise.instructions.length > 0 ? (
         <>
           <Text style={[styles.sectionTitle, { color: c.sub }]}>INSTRUCTIONS</Text>
-          {exercise.instructions.map((step, i) => (
-            <View key={i} style={styles.step}>
+          {instructionItems.map(({ step, key }, i) => (
+            <View key={key} style={styles.step}>
               <View style={[styles.stepIndex, { backgroundColor: c.asoft }]}>
                 <Text style={[styles.stepIndexText, { color: c.accent }]}>{i + 1}</Text>
               </View>
@@ -173,15 +184,17 @@ function AboutTab({ exercise }: { exercise: Exercise }) {
   );
 }
 
+type HistoryTabProps = Readonly<{
+  sessions: ExerciseSession[];
+  recordMap: Partial<Record<PersonalRecord['record_type'], number>>;
+  loadFailed: boolean;
+}>;
+
 function HistoryTab({
   sessions,
   recordMap,
   loadFailed,
-}: {
-  sessions: ExerciseSession[];
-  recordMap: Partial<Record<PersonalRecord['record_type'], number>>;
-  loadFailed: boolean;
-}) {
+}: HistoryTabProps) {
   const c = useTheme();
 
   if (loadFailed) {

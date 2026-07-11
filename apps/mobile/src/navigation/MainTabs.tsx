@@ -20,6 +20,16 @@ const ICONS: Record<keyof MainTabsParamList, React.ComponentProps<typeof Icon>['
   Profile: 'account',
 };
 
+type MainTabIconProps = Readonly<{
+  routeName: keyof MainTabsParamList;
+  color: string;
+  size: number;
+}>;
+
+function MainTabIcon({ routeName, color, size }: MainTabIconProps) {
+  return <Icon name={ICONS[routeName]} color={color} size={size} />;
+}
+
 export function MainTabs() {
   const c = useTheme();
 
@@ -31,7 +41,7 @@ export function MainTabs() {
         tabBarInactiveTintColor: c.sub,
         tabBarStyle: { backgroundColor: c.bar, borderTopColor: c.sep },
         tabBarIcon: ({ color, size }) => (
-          <Icon name={ICONS[route.name as keyof MainTabsParamList]} color={color} size={size} />
+          <MainTabIcon routeName={route.name as keyof MainTabsParamList} color={color} size={size} />
         ),
       })}
     >

@@ -11,11 +11,13 @@ import dev.bishnoi.forgelog.wear.data.LoggedSetEntity
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
 import dev.bishnoi.forgelog.wear.sync.SyncRepository
 import dev.bishnoi.forgelog.wear.sync.WorkoutPayloadDto
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,8 +57,17 @@ class FinishWorkoutTest {
         return id
     }
 
+    private suspend fun assertCancellation(block: suspend () -> Unit) {
+        try {
+            block()
+            fail("Expected CancellationException")
+        } catch (error: CancellationException) {
+            assertEquals("cancelled", error.message)
+        }
+    }
+
     @Test
-    fun invoke_finishes_publishes_and_marks_synced() = runBlocking {
+    fun invokeFinishesPublishesAndMarksSynced() = runBlocking {
         seedActiveWorkout()
         val published = mutableListOf<String>()
         val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { payload ->
@@ -72,7 +83,7 @@ class FinishWorkoutTest {
     }
 
     @Test
-    fun invoke_publish_failure_still_finishes_but_stays_unsynced() = runBlocking {
+    fun invokePublishFailureStillFinishesButStaysUnsynced() = runBlocking {
         seedActiveWorkout()
         val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { _ ->
             throw RuntimeException("network down")
@@ -86,7 +97,17 @@ class FinishWorkoutTest {
     }
 
     @Test
-    fun drainUnsynced_publishes_finished_unsynced_workouts() = runBlocking {
+    fun invokePublishCancellationPropagates() = runBlocking {
+        seedActiveWorkout()
+        val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { _ ->
+            throw CancellationException("cancelled")
+        }
+
+        assertCancellation { finishWorkout("w1") }
+    }
+
+    @Test
+    fun drainUnsyncedPublishesFinishedUnsyncedWorkouts() = runBlocking {
         seedFinishedUnsynced()
         val published = mutableListOf<String>()
         val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { payload ->
@@ -100,7 +121,7 @@ class FinishWorkoutTest {
     }
 
     @Test
-    fun drainUnsynced_skips_active_workouts() = runBlocking {
+    fun drainUnsyncedSkipsActiveWorkouts() = runBlocking {
         seedActiveWorkout()
         val published = mutableListOf<String>()
         val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { payload ->
@@ -113,7 +134,7 @@ class FinishWorkoutTest {
     }
 
     @Test
-    fun drainUnsynced_publishes_after_prior_publish_failure() = runBlocking {
+    fun drainUnsyncedPublishesAfterPriorPublishFailure() = runBlocking {
         seedFinishedUnsynced()
         var shouldFail = true
         val published = mutableListOf<String>()
@@ -130,5 +151,15 @@ class FinishWorkoutTest {
         finishWorkout.drainUnsynced()
         assertEquals(listOf("w1"), published)
         assertEquals(true, dao.getWorkout("w1")?.synced)
+    }
+
+    @Test
+    fun drainUnsyncedPublishCancellationPropagates() = runBlocking {
+        seedFinishedUnsynced()
+        val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { _ ->
+            throw CancellationException("cancelled")
+        }
+
+        assertCancellation { finishWorkout.drainUnsynced() }
     }
 }

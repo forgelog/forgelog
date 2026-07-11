@@ -5,12 +5,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { Icon } from './Icon';
 
-type Props = {
+type Props = Readonly<{
   label: string;
   value: string | null;
   options: string[];
   onChange: (value: string | null) => void;
-};
+}>;
 
 export function Select({ label, value, options, onChange }: Props) {
   const c = useTheme();

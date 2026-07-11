@@ -192,7 +192,8 @@ export async function updateRoutineExercise(
 ): Promise<void> {
   const db = await getDb();
   const sets: string[] = [];
-  const params: Record<string, string | number | null> = { $id: routineExerciseId };
+  type RoutineExerciseUpdateValue = string | number | null;
+  const params: Record<string, RoutineExerciseUpdateValue> = { $id: routineExerciseId };
   if (fields.rest_seconds !== undefined) {
     sets.push('rest_seconds = $rest');
     params.$rest = fields.rest_seconds;

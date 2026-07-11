@@ -20,7 +20,11 @@ class WorkoutRepository(
         val workoutId = newId()
 
         val routine = routineId?.let { referenceDao.routine(it) }
-        val resolvedName = name ?: routine?.name ?: "Workout"
+        val resolvedName = when {
+            name != null -> name
+            routine != null -> routine.name
+            else -> "Workout"
+        }
         val routineExercises = if (routineId != null) referenceDao.routineExercises(routineId) else emptyList()
 
         val workout = WorkoutEntity(

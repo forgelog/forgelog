@@ -3,10 +3,10 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTheme } from '../theme/ThemeContext';
 
-type Props = {
+type Props = Readonly<{
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
-};
+}>;
 
 export function Card({ children, style }: Props) {
   const c = useTheme();

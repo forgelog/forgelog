@@ -89,7 +89,7 @@ class WorkoutRepositoryTest {
     }
 
     @Test
-    fun discardWorkout_removes_workout_and_all_children() = runBlocking {
+    fun discardWorkoutRemovesWorkoutAndAllChildren() = runBlocking {
         val workoutId = seedWorkout()
         val dao = db.workoutDao()
         assertNotNull(dao.getWorkout(workoutId))
@@ -106,7 +106,7 @@ class WorkoutRepositoryTest {
     }
 
     @Test
-    fun deleteExercise_removes_exercise_and_its_sets_only() = runBlocking {
+    fun deleteExerciseRemovesExerciseAndItsSetsOnly() = runBlocking {
         val workoutId = seedWorkout()
         val dao = db.workoutDao()
 
@@ -118,7 +118,7 @@ class WorkoutRepositoryTest {
     }
 
     @Test
-    fun cycleSetType_advances_the_stored_type() = runBlocking {
+    fun cycleSetTypeAdvancesTheStoredType() = runBlocking {
         seedWorkout()
         val dao = db.workoutDao()
         val set = dao.loggedSets("we1").first()
@@ -129,7 +129,7 @@ class WorkoutRepositoryTest {
     }
 
     @Test
-    fun startWorkout_copies_routine_to_session_and_snapshots_effective_fields() = runBlocking {
+    fun startWorkoutCopiesRoutineToSessionAndSnapshotsEffectiveFields() = runBlocking {
         seedRoutine()
 
         val workout = repo.startWorkout("r1")
@@ -168,7 +168,7 @@ class WorkoutRepositoryTest {
     }
 
     @Test
-    fun finishWorkout_sets_end_time_and_keeps_workout_unsynced() = runBlocking {
+    fun finishWorkoutSetsEndTimeAndKeepsWorkoutUnsynced() = runBlocking {
         val workoutId = seedWorkout()
 
         repo.finishWorkout(workoutId)
@@ -179,7 +179,7 @@ class WorkoutRepositoryTest {
     }
 
     @Test
-    fun markSetCompleted_toggles_completion_timestamp() = runBlocking {
+    fun markSetCompletedTogglesCompletionTimestamp() = runBlocking {
         seedWorkout()
         val dao = db.workoutDao()
         val set = dao.loggedSets("we1").first()
@@ -196,7 +196,7 @@ class WorkoutRepositoryTest {
     }
 
     @Test
-    fun updateSet_fields_persist_independently() = runBlocking {
+    fun updateSetFieldsPersistIndependently() = runBlocking {
         seedWorkout()
         val dao = db.workoutDao()
         val set = dao.loggedSets("we1").first()
@@ -216,7 +216,7 @@ class WorkoutRepositoryTest {
     }
 
     @Test
-    fun addSet_appends_next_position_and_removeSet_deletes_only_that_set() = runBlocking {
+    fun addSetAppendsNextPositionAndRemoveSetDeletesOnlyThatSet() = runBlocking {
         seedWorkout()
         val dao = db.workoutDao()
 

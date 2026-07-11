@@ -1,12 +1,13 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SetFieldInputs } from '../components/SetFieldInputs';
 import {
   completeSet,
   deleteSet,
@@ -26,7 +27,6 @@ import {
 import type { LoggedSet, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
 import {
   effectiveTrackingType,
-  FIELD_PLACEHOLDER,
   fieldsFor,
   formatCompactSet,
   hasLoggedValue,
@@ -40,7 +40,7 @@ import {
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
 
-const INTEGER_FIELDS: SetFieldKey[] = ['reps', 'duration'];
+const INTEGER_FIELDS = new Set<SetFieldKey>(['reps', 'duration']);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveWorkout'>;
 
@@ -166,7 +166,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
 
   async function editSetField(weId: string, setId: string, field: SetFieldKey, raw: string) {
     const column = SET_COLUMN[field];
-    const value = INTEGER_FIELDS.includes(field)
+    const value = INTEGER_FIELDS.has(field)
       ? parseNonNegativeInteger(raw)
       : parseNonNegativeNumber(raw);
     if (value === undefined) return;
@@ -221,9 +221,11 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }
 
   async function removeSet(weId: string, setId: string) {
+    const exerciseId = detail?.exercises.find((we) => we.id === weId)?.exercise.id;
+    if (!exerciseId) return;
     patchExercise(weId, (w) => ({ ...w, sets: w.sets.filter((s) => s.id !== setId) }));
     try {
-      await deleteSet(setId, detail!.exercises.find((we) => we.id === weId)!.exercise.id);
+      await deleteSet(setId, exerciseId);
     } catch {
       Alert.alert('Save failed', 'Could not delete set.');
       reload();
@@ -305,111 +307,20 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       <FlatList
         data={detail.exercises}
         keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => {
-          const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
-          const fields = fieldsFor(trackingType);
-          return (
-            <View style={[styles.exercise, { borderTopColor: c.sep }]}>
-              <View style={styles.exerciseHeader}>
-                <Pressable
-                  style={styles.exerciseNameRow}
-                  onPress={() => navigation.navigate('ExerciseDetail', { exerciseId: item.exercise.id })}
-                  hitSlop={8}
-                >
-                  <Text
-                    style={[styles.exerciseName, { color: c.fg }]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {item.exercise.name}
-                  </Text>
-                  <Icon name="information-outline" variant="sub" size={18} />
-                </Pressable>
-                <Chip
-                  label={TRACKING_LABELS[trackingType]}
-                  onPress={() => cycleTrackingType(item)}
-                  accessibilityLabel={`Workout tracking type for ${item.exercise.name}: ${TRACKING_LABELS[trackingType]}`}
-                  testID={`workout-exercise-${index}-tracking-type`}
-                />
-              </View>
-              <View style={styles.columnHeader}>
-                <Text style={[styles.columnLabel, { color: c.sub, width: 26, textAlign: 'center' }]}>
-                  SET
-                </Text>
-                <Text style={[styles.columnLabel, { color: c.sub, width: 52, textAlign: 'center' }]}>
-                  PREV
-                </Text>
-                {fields.map((field) => (
-                  <Text key={field} style={[styles.columnLabel, { color: c.sub, flex: 1, textAlign: 'center' }]}>
-                    {field.toUpperCase()}
-                  </Text>
-                ))}
-              </View>
-              {item.sets.map((set, i) => (
-                <View
-                  key={set.id}
-                  style={[
-                    styles.setRow,
-                    set.completed ? { backgroundColor: c.asoft, borderRadius: 10 } : null,
-                  ]}
-                >
-                  <Text style={[styles.setIndex, { color: c.sub }]}>{i + 1}</Text>
-                  <Text style={[styles.prevValue, { color: c.sub }]} numberOfLines={1}>
-                    {(() => {
-                      const prev = prevSets[item.exercise.id]?.[i];
-                      return (prev ? formatCompactSet(trackingType, prev) : null) ?? '–';
-                    })()}
-                  </Text>
-                  {fields.map((field) => (
-                    <TextInput
-                      key={field}
-                      style={[styles.setInput, { backgroundColor: c.fill, color: c.fg }]}
-                      value={(set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
-                      onChangeText={(t) => editSetField(item.id, set.id, field, t)}
-                      placeholder={FIELD_PLACEHOLDER[field]}
-                      placeholderTextColor={c.sub}
-                      keyboardType="numeric"
-                      accessibilityLabel={`Workout set ${i + 1} ${field} for ${item.exercise.name}`}
-                      testID={`workout-set-${index}-${i}-${field}`}
-                    />
-                  ))}
-                  {prSetIds.has(set.id) ? <Text style={styles.prBadge}>🏆</Text> : null}
-                  <Pressable
-                    style={[
-                      styles.check,
-                      { borderColor: c.chipbd },
-                      set.completed && { backgroundColor: c.accent, borderColor: c.accent },
-                    ]}
-                    onPress={() => toggleComplete(item, set.id, !set.completed)}
-                    accessibilityLabel={`${set.completed ? 'Uncomplete' : 'Complete'} set ${i + 1} for ${item.exercise.name}`}
-                    accessibilityRole="button"
-                    testID={`workout-set-${index}-${i}-complete`}
-                  >
-                    <Icon name="check" size={18} color={set.completed ? '#fff' : c.sub} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => removeSet(item.id, set.id)}
-                    hitSlop={8}
-                    accessibilityLabel={`Remove set ${i + 1} from ${item.exercise.name}`}
-                    accessibilityRole="button"
-                    testID={`workout-set-${index}-${i}-remove`}
-                  >
-                    <Icon name="close" variant="sub" size={16} />
-                  </Pressable>
-                </View>
-              ))}
-              <Pressable
-                style={styles.addSet}
-                onPress={() => handleAddSet(item)}
-                accessibilityLabel={`Add set to ${item.exercise.name}`}
-                accessibilityRole="button"
-                testID={`workout-exercise-${index}-add-set`}
-              >
-                <Text style={[styles.addSetText, { color: c.accent }]}>+ Add set</Text>
-              </Pressable>
-            </View>
-          );
-        }}
+        renderItem={({ item, index }) => (
+          <ActiveWorkoutExerciseItem
+            item={item}
+            index={index}
+            prevSets={prevSets}
+            prSetIds={prSetIds}
+            onOpenExercise={(exerciseId) => navigation.navigate('ExerciseDetail', { exerciseId })}
+            onCycleTrackingType={cycleTrackingType}
+            onEditSetField={editSetField}
+            onToggleComplete={toggleComplete}
+            onRemoveSet={removeSet}
+            onAddSet={handleAddSet}
+          />
+        )}
         ListFooterComponent={
           <PillButton
             label="Add Exercise"
@@ -432,6 +343,172 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           </View>
         </View>
       ) : null}
+    </View>
+  );
+}
+
+type ActiveWorkoutExerciseItemProps = Readonly<{
+  item: WorkoutExerciseDetail;
+  index: number;
+  prevSets: Record<string, LoggedSet[]>;
+  prSetIds: Set<string>;
+  onOpenExercise: (exerciseId: string) => void;
+  onCycleTrackingType: (item: WorkoutExerciseDetail) => void;
+  onEditSetField: (weId: string, setId: string, field: SetFieldKey, raw: string) => void;
+  onToggleComplete: (item: WorkoutExerciseDetail, setId: string, completed: boolean) => void;
+  onRemoveSet: (weId: string, setId: string) => void;
+  onAddSet: (item: WorkoutExerciseDetail) => void;
+}>;
+
+function ActiveWorkoutExerciseItem({
+  item,
+  index,
+  prevSets,
+  prSetIds,
+  onOpenExercise,
+  onCycleTrackingType,
+  onEditSetField,
+  onToggleComplete,
+  onRemoveSet,
+  onAddSet,
+}: ActiveWorkoutExerciseItemProps) {
+  const c = useTheme();
+  const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
+  const fields = fieldsFor(trackingType);
+
+  return (
+    <View style={[styles.exercise, { borderTopColor: c.sep }]}>
+      <View style={styles.exerciseHeader}>
+        <Pressable
+          style={styles.exerciseNameRow}
+          onPress={() => onOpenExercise(item.exercise.id)}
+          hitSlop={8}
+        >
+          <Text style={[styles.exerciseName, { color: c.fg }]} numberOfLines={1} ellipsizeMode="tail">
+            {item.exercise.name}
+          </Text>
+          <Icon name="information-outline" variant="sub" size={18} />
+        </Pressable>
+        <Chip
+          label={TRACKING_LABELS[trackingType]}
+          onPress={() => onCycleTrackingType(item)}
+          accessibilityLabel={`Workout tracking type for ${item.exercise.name}: ${TRACKING_LABELS[trackingType]}`}
+          testID={`workout-exercise-${index}-tracking-type`}
+        />
+      </View>
+      <View style={styles.columnHeader}>
+        <Text style={[styles.columnLabel, { color: c.sub, width: 26, textAlign: 'center' }]}>SET</Text>
+        <Text style={[styles.columnLabel, { color: c.sub, width: 52, textAlign: 'center' }]}>PREV</Text>
+        {fields.map((field) => (
+          <Text key={field} style={[styles.columnLabel, { color: c.sub, flex: 1, textAlign: 'center' }]}>
+            {field.toUpperCase()}
+          </Text>
+        ))}
+      </View>
+      {item.sets.map((set, setIndex) => (
+        <ActiveWorkoutSetRow
+          key={set.id}
+          set={set}
+          setIndex={setIndex}
+          exerciseIndex={index}
+          exercise={item}
+          fields={fields}
+          previousSet={prevSets[item.exercise.id]?.[setIndex]}
+          trackingType={trackingType}
+          isPersonalRecord={prSetIds.has(set.id)}
+          onEditSetField={onEditSetField}
+          onToggleComplete={onToggleComplete}
+          onRemoveSet={onRemoveSet}
+        />
+      ))}
+      <Pressable
+        style={styles.addSet}
+        onPress={() => onAddSet(item)}
+        accessibilityLabel={`Add set to ${item.exercise.name}`}
+        accessibilityRole="button"
+        testID={`workout-exercise-${index}-add-set`}
+      >
+        <Text style={[styles.addSetText, { color: c.accent }]}>+ Add set</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+type ActiveWorkoutSetRowProps = Readonly<{
+  set: LoggedSet;
+  setIndex: number;
+  exerciseIndex: number;
+  exercise: WorkoutExerciseDetail;
+  fields: SetFieldKey[];
+  previousSet?: LoggedSet;
+  trackingType: ReturnType<typeof effectiveTrackingType>;
+  isPersonalRecord: boolean;
+  onEditSetField: (weId: string, setId: string, field: SetFieldKey, raw: string) => void;
+  onToggleComplete: (item: WorkoutExerciseDetail, setId: string, completed: boolean) => void;
+  onRemoveSet: (weId: string, setId: string) => void;
+}>;
+
+function ActiveWorkoutSetRow({
+  set,
+  setIndex,
+  exerciseIndex,
+  exercise,
+  fields,
+  previousSet,
+  trackingType,
+  isPersonalRecord,
+  onEditSetField,
+  onToggleComplete,
+  onRemoveSet,
+}: ActiveWorkoutSetRowProps) {
+  const c = useTheme();
+  const previousValue = previousSet ? formatCompactSet(trackingType, previousSet) : '–';
+  const completedIconColor = set.completed ? '#fff' : c.sub;
+
+  return (
+    <View
+      style={[
+        styles.setRow,
+        set.completed ? { backgroundColor: c.asoft, borderRadius: 10 } : null,
+      ]}
+    >
+      <Text style={[styles.setIndex, { color: c.sub }]}>{setIndex + 1}</Text>
+      <Text style={[styles.prevValue, { color: c.sub }]} numberOfLines={1}>
+        {previousValue}
+      </Text>
+      <SetFieldInputs
+        fields={fields}
+        inputStyle={styles.setInput}
+        valueForField={(field) => (set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
+        onChangeField={(field, text) => onEditSetField(exercise.id, set.id, field, text)}
+        accessibilityLabelForField={(field) =>
+          `Workout set ${setIndex + 1} ${field} for ${exercise.exercise.name}`
+        }
+        testIDForField={(field) => `workout-set-${exerciseIndex}-${setIndex}-${field}`}
+      />
+      {isPersonalRecord ? <Text style={styles.prBadge}>🏆</Text> : null}
+      <Pressable
+        style={[
+          styles.check,
+          { borderColor: c.chipbd },
+          set.completed && { backgroundColor: c.accent, borderColor: c.accent },
+        ]}
+        onPress={() => onToggleComplete(exercise, set.id, !set.completed)}
+        accessibilityLabel={`${set.completed ? 'Uncomplete' : 'Complete'} set ${setIndex + 1} for ${exercise.exercise.name}`}
+        accessibilityRole="button"
+        testID={`workout-set-${exerciseIndex}-${setIndex}-complete`}
+      >
+        <Icon name="check" size={18} color={completedIconColor} />
+      </Pressable>
+      <Pressable
+        onPress={() => onRemoveSet(exercise.id, set.id)}
+        hitSlop={8}
+        accessibilityLabel={`Remove set ${setIndex + 1} from ${exercise.exercise.name}`}
+        accessibilityRole="button"
+        testID={`workout-set-${exerciseIndex}-${setIndex}-remove`}
+      >
+        <Icon name="close" variant="sub" size={16} />
+      </Pressable>
     </View>
   );
 }
