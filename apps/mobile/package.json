@@ -46,10 +46,7 @@
     "check:generated": "node scripts/generate-schema.js --check"
   },
   "jest": {
-    "preset": "jest-expo",
-    "moduleNameMapper": {
-      "^@forgelog/contracts/(.*)$": "<rootDir>/../../data/contracts/$1"
-    }
+    "preset": "jest-expo"
   },
   "private": true,
   "expo": {
