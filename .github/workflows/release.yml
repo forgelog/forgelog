@@ -7,29 +7,41 @@ on:
     types: [completed]
 
 permissions:
-  contents: write
+  actions: read
 
 jobs:
   # workflow_run fires once per listed workflow, independently. Only proceed
-  # once *both* Mobile and Wear OS have reached a terminal state (success,
-  # failure, or cancelled) for this commit — otherwise the first one to
-  # finish would race ahead of the other's artifacts.
+  # once *both* Mobile and Wear OS have succeeded for this commit — otherwise
+  # the first one to finish would race ahead of the other's artifacts.
   check-ready:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.head_branch == 'main'
     outputs:
       ready: ${{ steps.check.outputs.ready }}
+      mobile_run_id: ${{ steps.check.outputs.mobile_run_id }}
+      wear_run_id: ${{ steps.check.outputs.wear_run_id }}
     steps:
-      - name: Check both workflows are done for this commit
+      - name: Check both workflows succeeded for this commit
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          mobile_status=$(gh api "repos/${{ github.repository }}/actions/workflows/mobile.yml/runs?head_sha=$HEAD_SHA&per_page=1" --jq '.workflow_runs[0].status // "missing"')
-          wear_status=$(gh api "repos/${{ github.repository }}/actions/workflows/wearos.yml/runs?head_sha=$HEAD_SHA&per_page=1" --jq '.workflow_runs[0].status // "missing"')
-          echo "mobile=$mobile_status wear=$wear_status"
-          if [ "$mobile_status" = "completed" ] && [ "$wear_status" = "completed" ]; then
+          set -euo pipefail
+
+          mobile_run=$(gh api "repos/${{ github.repository }}/actions/workflows/mobile.yml/runs?head_sha=$HEAD_SHA&per_page=1")
+          wear_run=$(gh api "repos/${{ github.repository }}/actions/workflows/wearos.yml/runs?head_sha=$HEAD_SHA&per_page=1")
+
+          mobile_conclusion=$(echo "$mobile_run" | jq -r '.workflow_runs[0].conclusion // "missing"')
+          wear_conclusion=$(echo "$wear_run" | jq -r '.workflow_runs[0].conclusion // "missing"')
+          mobile_run_id=$(echo "$mobile_run" | jq -r '.workflow_runs[0].id // ""')
+          wear_run_id=$(echo "$wear_run" | jq -r '.workflow_runs[0].id // ""')
+
+          echo "mobile=$mobile_conclusion wear=$wear_conclusion"
+          echo "mobile_run_id=$mobile_run_id" >> "$GITHUB_OUTPUT"
+          echo "wear_run_id=$wear_run_id" >> "$GITHUB_OUTPUT"
+
+          if [ "$mobile_conclusion" = "success" ] && [ "$wear_conclusion" = "success" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -39,6 +51,9 @@ jobs:
     needs: check-ready
     if: needs.check-ready.outputs.ready == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,61 +70,49 @@ jobs:
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow: mobile.yml
-          branch: main
-          workflow_conclusion: success
+          run_id: ${{ needs.check-ready.outputs.mobile_run_id }}
           name: forgelog-debug-apk
           path: artifacts/mobile-debug
-          if_no_artifact_found: ignore
 
       - name: Download mobile release APK
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow: mobile.yml
-          branch: main
-          workflow_conclusion: success
+          run_id: ${{ needs.check-ready.outputs.mobile_run_id }}
           name: forgelog-release-apk
           path: artifacts/mobile-release
-          if_no_artifact_found: ignore
 
       - name: Download wear OS debug APK
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow: wearos.yml
-          branch: main
-          workflow_conclusion: success
+          run_id: ${{ needs.check-ready.outputs.wear_run_id }}
           name: forgelog-wear-debug-apk
           path: artifacts/wear-debug
-          if_no_artifact_found: ignore
 
       - name: Download wear OS release APK
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow: wearos.yml
-          branch: main
-          workflow_conclusion: success
+          run_id: ${{ needs.check-ready.outputs.wear_run_id }}
           name: forgelog-wear-release-apk
           path: artifacts/wear-release
-          if_no_artifact_found: ignore
 
       - name: Download mobile release AAB
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow: mobile.yml
-          branch: main
-          workflow_conclusion: success
+          run_id: ${{ needs.check-ready.outputs.mobile_run_id }}
           name: forgelog-release-aab
           path: artifacts/mobile-release-aab
-          if_no_artifact_found: ignore
 
       - name: Download wear OS release AAB
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow: wearos.yml
-          branch: main
-          workflow_conclusion: success
+          run_id: ${{ needs.check-ready.outputs.wear_run_id }}
           name: forgelog-wear-release-aab
           path: artifacts/wear-release-aab
-          if_no_artifact_found: ignore
 
       - name: Flatten and rename APKs/AABs
         run: |
