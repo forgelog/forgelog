@@ -34,6 +34,34 @@ jobs:
       - name: Android Lint
         run: ./gradlew lintDebug
 
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install Android emulator
+        run: |
+          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          "$SDKMANAGER" --install "emulator"
+
+      - name: Instrumentation tests
+        id: instrumentation-tests
+        run: ./gradlew wearApi34DebugAndroidTest --stacktrace
+
+      - name: Upload instrumentation failure reports
+        if: steps.instrumentation-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wearos-android-test-failure-reports
+          path: |
+            apps/wearos/app/build/reports/androidTests/
+            apps/wearos/app/build/outputs/androidTest-results/
+            apps/wearos/app/build/outputs/managed_device_android_test_additional_output/
+
       - name: Build debug APK
         run: ./gradlew assembleDebug
 

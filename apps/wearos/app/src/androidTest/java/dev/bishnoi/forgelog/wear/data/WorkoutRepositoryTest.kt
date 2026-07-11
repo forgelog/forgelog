@@ -3,6 +3,7 @@ package dev.bishnoi.forgelog.wear.data
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.bishnoi.forgelog.wear.data.ExerciseEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -47,6 +48,46 @@ class WorkoutRepositoryTest {
         "w1"
     }
 
+    private suspend fun seedRoutine() {
+        val referenceDao = db.referenceDao()
+        referenceDao.upsertExercises(
+            listOf(
+                ExerciseEntity("ex1", "Bench Press", "weight_reps"),
+                ExerciseEntity("ex2", "Plank", "duration"),
+            ),
+        )
+        referenceDao.upsertRoutines(listOf(RoutineEntity("r1", "Push Day", 0)))
+        referenceDao.upsertRoutineExercises(
+            listOf(
+                RoutineExerciseEntity(
+                    id = "re1",
+                    routineId = "r1",
+                    exerciseId = "ex1",
+                    position = 0,
+                    supersetGroupId = "sg1",
+                    restSeconds = 75,
+                    trackingType = "reps_only",
+                ),
+                RoutineExerciseEntity(
+                    id = "re2",
+                    routineId = "r1",
+                    exerciseId = "ex2",
+                    position = 1,
+                    supersetGroupId = null,
+                    restSeconds = 30,
+                    trackingType = null,
+                ),
+            ),
+        )
+        referenceDao.upsertRoutineSets(
+            listOf(
+                RoutineSetEntity("rs1", "re1", 0, "warmup", 40.0, 10, null, null),
+                RoutineSetEntity("rs2", "re1", 1, "normal", 60.0, 8, null, null),
+                RoutineSetEntity("rs3", "re2", 0, "normal", null, null, 45, null),
+            ),
+        )
+    }
+
     @Test
     fun discardWorkout_removes_workout_and_all_children() = runBlocking {
         val workoutId = seedWorkout()
@@ -85,5 +126,108 @@ class WorkoutRepositoryTest {
         repo.cycleSetType(set)
 
         assertEquals("warmup", dao.loggedSets("we1").first { it.id == set.id }.setType)
+    }
+
+    @Test
+    fun startWorkout_copies_routine_to_session_and_snapshots_effective_fields() = runBlocking {
+        seedRoutine()
+
+        val workout = repo.startWorkout("r1")
+
+        assertEquals("Push Day", workout.name)
+        assertEquals("r1", workout.routineId)
+
+        val workoutExercises = db.workoutDao().workoutExercises(workout.id)
+        assertEquals(2, workoutExercises.size)
+
+        val bench = workoutExercises[0]
+        assertEquals("ex1", bench.exerciseId)
+        assertEquals("sg1", bench.supersetGroupId)
+        assertEquals("reps_only", bench.trackingType)
+        assertEquals(75, bench.restSeconds)
+
+        val plank = workoutExercises[1]
+        assertEquals("duration", plank.trackingType)
+        assertEquals(30, plank.restSeconds)
+
+        val benchSets = db.workoutDao().loggedSets(bench.id)
+        assertEquals(2, benchSets.size)
+        assertEquals("warmup", benchSets[0].setType)
+        assertEquals(40.0, benchSets[0].weight)
+        assertEquals(10, benchSets[0].reps)
+        assertEquals(false, benchSets[0].completed)
+
+        db.referenceDao().upsertRoutineExercises(
+            listOf(
+                RoutineExerciseEntity("re1", "r1", "ex1", 0, null, 10, "duration"),
+            ),
+        )
+
+        assertEquals("reps_only", db.workoutDao().getWorkoutExercise(bench.id)?.trackingType)
+        assertEquals(75, db.workoutDao().getWorkoutExercise(bench.id)?.restSeconds)
+    }
+
+    @Test
+    fun finishWorkout_sets_end_time_and_keeps_workout_unsynced() = runBlocking {
+        val workoutId = seedWorkout()
+
+        repo.finishWorkout(workoutId)
+
+        val workout = db.workoutDao().getWorkout(workoutId)
+        assertNotNull(workout?.endedAt)
+        assertEquals(false, workout?.synced)
+    }
+
+    @Test
+    fun markSetCompleted_toggles_completion_timestamp() = runBlocking {
+        seedWorkout()
+        val dao = db.workoutDao()
+        val set = dao.loggedSets("we1").first()
+
+        repo.markSetCompleted(set, true)
+        val completed = dao.loggedSets("we1").first { it.id == set.id }
+        assertEquals(true, completed.completed)
+        assertNotNull(completed.completedAt)
+
+        repo.markSetCompleted(completed, false)
+        val incomplete = dao.loggedSets("we1").first { it.id == set.id }
+        assertEquals(false, incomplete.completed)
+        assertNull(incomplete.completedAt)
+    }
+
+    @Test
+    fun updateSet_fields_persist_independently() = runBlocking {
+        seedWorkout()
+        val dao = db.workoutDao()
+        val set = dao.loggedSets("we1").first()
+
+        repo.updateSetValues(set, weight = 72.5, reps = 6)
+        val valuesUpdated = dao.loggedSets("we1").first { it.id == set.id }
+        assertEquals(72.5, valuesUpdated.weight)
+        assertEquals(6, valuesUpdated.reps)
+
+        repo.updateSetDuration(valuesUpdated, 45)
+        val durationUpdated = dao.loggedSets("we1").first { it.id == set.id }
+        assertEquals(45, durationUpdated.durationSeconds)
+
+        repo.updateSetDistance(durationUpdated, 1200.0)
+        val distanceUpdated = dao.loggedSets("we1").first { it.id == set.id }
+        assertEquals(1200.0, distanceUpdated.distanceMeters)
+    }
+
+    @Test
+    fun addSet_appends_next_position_and_removeSet_deletes_only_that_set() = runBlocking {
+        seedWorkout()
+        val dao = db.workoutDao()
+
+        val added = repo.addSet("we1")
+
+        assertEquals(2, added.position)
+        assertEquals(false, added.completed)
+        assertEquals(3, dao.loggedSets("we1").size)
+
+        repo.removeSet(added.id)
+
+        assertEquals(listOf("s1", "s2"), dao.loggedSets("we1").map { it.id })
     }
 }

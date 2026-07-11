@@ -2,7 +2,9 @@ package dev.bishnoi.forgelog.wear.sync
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
+import kotlinx.serialization.SerializationException
 
 class SyncModelsTest {
 
@@ -67,5 +69,23 @@ class SyncModelsTest {
         val payload = syncJson.decodeFromString(WorkoutPayloadDto.serializer(), json)
 
         assertEquals(99, payload.protocolVersion)
+    }
+
+    @Test
+    fun `malformed sync snapshot fixture is rejected`() {
+        val json = fixtureText("malformed-sync-snapshot.json")
+
+        assertThrows(SerializationException::class.java) {
+            syncJson.decodeFromString(SyncSnapshot.serializer(), json)
+        }
+    }
+
+    @Test
+    fun `malformed watch workout fixture is rejected`() {
+        val json = fixtureText("malformed-watch-workout-payload.json")
+
+        assertThrows(SerializationException::class.java) {
+            syncJson.decodeFromString(WorkoutPayloadDto.serializer(), json)
+        }
     }
 }
