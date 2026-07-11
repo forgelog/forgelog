@@ -20,6 +20,7 @@ const mockIngestWatchWorkout = ingestWatchWorkout as jest.MockedFunction<typeof 
 
 const watchPayloadFixture = require('../../../../../data/contracts/fixtures/watch-workout-payload.json') as WatchWorkoutPayload;
 const malformedPayloadFixture = require('../../../../../data/contracts/fixtures/malformed-watch-workout-payload.json');
+const versionSkewPayloadFixture = require('../../../../../data/contracts/fixtures/version-skew-watch-workout-payload.json');
 
 function getListener(event: string): (arg: unknown) => unknown {
   const call = mockAddListener.mock.calls.find(([name]) => name === event);
@@ -69,6 +70,7 @@ test('onWorkoutReceived drops malformed payload without calling ingestWatchWorko
 
 test('onWorkoutReceived drops payload with malformed exercise items without calling ingestWatchWorkout', async () => {
   const payloadWithBadExercise = {
+    protocol_version: 1,
     id: 'w1',
     routine_id: null,
     name: 'test',
@@ -79,6 +81,21 @@ test('onWorkoutReceived drops payload with malformed exercise items without call
   };
 
   await onWorkoutReceived({ payload: JSON.stringify(payloadWithBadExercise) });
+
+  expect(mockIngestWatchWorkout).not.toHaveBeenCalled();
+});
+
+test('onWorkoutReceived drops version-skew payload (protocol_version != 1)', async () => {
+  await onWorkoutReceived({ payload: JSON.stringify(versionSkewPayloadFixture) });
+
+  expect(mockIngestWatchWorkout).not.toHaveBeenCalled();
+});
+
+test('onWorkoutReceived drops payload missing protocol_version', async () => {
+  const noVersionPayload = { ...watchPayloadFixture };
+  delete (noVersionPayload as Record<string, unknown>).protocol_version;
+
+  await onWorkoutReceived({ payload: JSON.stringify(noVersionPayload) });
 
   expect(mockIngestWatchWorkout).not.toHaveBeenCalled();
 });
