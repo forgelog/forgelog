@@ -6,12 +6,17 @@ appId: dev.bishnoi.forgelog.mobile
     when:
       visible: "Pixel Launcher isn't responding"
     commands:
-      - tapOn: "Wait"
+      - tapOn: "Close app"
 - extendedWaitUntil:
     visible: "Workout"
     timeout: 60000
 - tapOn:
     id: "create-routine"
+- runFlow:
+    when:
+      visible: "Pixel Launcher isn't responding"
+    commands:
+      - tapOn: "Close app"
 - extendedWaitUntil:
     visible: "Edit routine"
     timeout: 60000
