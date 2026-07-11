@@ -180,7 +180,7 @@ jobs:
           arch: x86_64
           profile: pixel_7
           script: |
-            set -euo pipefail
+            set -eu
             adb install -r artifacts/mobile-release/app-release.apk
             mkdir -p artifacts/maestro-pr
             cd apps/mobile
@@ -235,7 +235,7 @@ jobs:
           arch: x86_64
           profile: pixel_7
           script: |
-            set -euo pipefail
+            set -eu
             adb install -r artifacts/mobile-release/app-release.apk
             mkdir -p artifacts/maestro-nightly
             cd apps/mobile
