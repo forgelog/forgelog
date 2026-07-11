@@ -11,11 +11,13 @@ import dev.bishnoi.forgelog.wear.data.LoggedSetEntity
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
 import dev.bishnoi.forgelog.wear.sync.SyncRepository
 import dev.bishnoi.forgelog.wear.sync.WorkoutPayloadDto
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,6 +57,15 @@ class FinishWorkoutTest {
         return id
     }
 
+    private suspend fun assertCancellation(block: suspend () -> Unit) {
+        try {
+            block()
+            fail("Expected CancellationException")
+        } catch (error: CancellationException) {
+            assertEquals("cancelled", error.message)
+        }
+    }
+
     @Test
     fun invokeFinishesPublishesAndMarksSynced() = runBlocking {
         seedActiveWorkout()
@@ -83,6 +94,16 @@ class FinishWorkoutTest {
         val workout = dao.getWorkout("w1")
         assertNotNull(workout?.endedAt)
         assertFalse(workout?.synced ?: true)
+    }
+
+    @Test
+    fun invokePublishCancellationPropagates() = runBlocking {
+        seedActiveWorkout()
+        val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { _ ->
+            throw CancellationException("cancelled")
+        }
+
+        assertCancellation { finishWorkout("w1") }
     }
 
     @Test
@@ -130,5 +151,15 @@ class FinishWorkoutTest {
         finishWorkout.drainUnsynced()
         assertEquals(listOf("w1"), published)
         assertEquals(true, dao.getWorkout("w1")?.synced)
+    }
+
+    @Test
+    fun drainUnsyncedPublishCancellationPropagates() = runBlocking {
+        seedFinishedUnsynced()
+        val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { _ ->
+            throw CancellationException("cancelled")
+        }
+
+        assertCancellation { finishWorkout.drainUnsynced() }
     }
 }
