@@ -1,4 +1,5 @@
 {
+  "protocol_version": 1,
   "id": "w-bad",
   "name": "Missing required fields"
 }

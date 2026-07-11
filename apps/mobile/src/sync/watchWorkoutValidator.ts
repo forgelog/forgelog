@@ -6,8 +6,9 @@ const ajv = new Ajv();
 
 const schema = {
   type: 'object',
-  required: ['id', 'routine_id', 'name', 'started_at', 'ended_at', 'notes', 'exercises'],
+  required: ['protocol_version', 'id', 'routine_id', 'name', 'started_at', 'ended_at', 'notes', 'exercises'],
   properties: {
+    protocol_version: { type: 'number', const: 1 },
     id: { type: 'string' },
     routine_id: { type: ['string', 'null'] },
     name: { type: 'string' },

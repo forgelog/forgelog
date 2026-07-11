@@ -54,8 +54,18 @@ class SyncModelsTest {
         assertEquals(true, reEncoded.contains("\"exercise_id\":\"ex1\""))
         assertEquals(true, reEncoded.contains("\"rest_seconds\":90"))
         assertEquals(true, reEncoded.contains("\"completed_at\""))
+        assertEquals(true, reEncoded.contains("\"protocol_version\":1"))
 
         val decoded = syncJson.decodeFromString(WorkoutPayloadDto.serializer(), reEncoded)
         assertEquals(payload, decoded)
+    }
+
+    @Test
+    fun `version-skew fixture decodes protocol_version correctly`() {
+        val json = fixtureText("version-skew-watch-workout-payload.json")
+
+        val payload = syncJson.decodeFromString(WorkoutPayloadDto.serializer(), json)
+
+        assertEquals(99, payload.protocolVersion)
     }
 }
