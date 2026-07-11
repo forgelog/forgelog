@@ -12,6 +12,9 @@ on:
       - 'internal-docs/schema.sql'
       - '.github/workflows/mobile.yml'
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
