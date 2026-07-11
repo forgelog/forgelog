@@ -219,7 +219,7 @@ jobs:
   maestro-nightly:
     runs-on: ubuntu-latest
     needs: build-release-apk
-    if: github.event_name == 'schedule'
+    if: github.event_name == 'schedule' || github.event_name == 'push'
     permissions:
       contents: read
     steps:
