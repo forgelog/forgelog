@@ -25,6 +25,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
@@ -232,7 +235,7 @@ private fun ValueWheel(
     // Snap the wheel to the closest option for display; off-grid synced targets
     // (e.g. a 63s duration on a 5s grid) stay untouched until the user scrolls.
     val initialIndex = values.indices.minByOrNull { kotlin.math.abs(values[it] - current) } ?: 0
-    val pickerState = remember(resetKey) {
+    val pickerState = remember(resetKey, label, values) {
         PickerState(
             initialNumberOfOptions = values.size,
             initiallySelectedOption = initialIndex,
@@ -247,20 +250,30 @@ private fun ValueWheel(
             .collect { index -> currentOnChange(values[index]) }
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        val selectedValue = values[pickerState.selectedOption]
         Text(
             label,
             style = MaterialTheme.typography.caption3,
             color = MaterialTheme.colors.onSurfaceVariant,
         )
-        Picker(
-            state = pickerState,
-            contentDescription = label,
+        Box(
             modifier = Modifier.size(width = 56.dp, height = 72.dp),
-        ) { optionIndex ->
-            Text(
-                values[optionIndex].toString(),
-                style = MaterialTheme.typography.title2,
-            )
+        ) {
+            Picker(
+                state = pickerState,
+                contentDescription = null,
+                modifier = Modifier
+                    .matchParentSize()
+                    .semantics {
+                        contentDescription = label
+                        stateDescription = "$label $selectedValue"
+                    },
+            ) { optionIndex ->
+                Text(
+                    values[optionIndex].toString(),
+                    style = MaterialTheme.typography.title2,
+                )
+            }
         }
     }
 }
