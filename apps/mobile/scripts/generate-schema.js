@@ -19,7 +19,7 @@ const content = [
 if (check) {
   const current = readFileSync(outPath, 'utf8');
   if (current !== content) {
-    console.error('schema.ts is stale. Run: npm run generate:schema');
+    console.error('schema.ts is stale. Run: pnpm run generate:schema');
     process.exit(1);
   }
   console.log('schema.ts is up to date');

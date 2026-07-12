@@ -1,5 +1,6 @@
 [tools]
 node = "22.20.0"
+pnpm = "11.2.2"
 java = "21.0.2"
 "npm:eas-cli" = "latest"
 maestro = "latest"

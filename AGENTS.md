@@ -32,23 +32,23 @@
 - Tests live in a sibling `__tests__` directory next to the code they cover.
 - Use `src/test-utils/db.ts`, `src/test-utils/render.tsx`, and `src/test-utils/async.ts` for helpers shared by multiple tests.
 - Contract fixtures in `data/contracts/fixtures` and the `validatorDrift` guard are the interim protection until schema codegen exists.
-- Maestro E2E flows live in `.maestro`. `npm run test:e2e` runs them locally and excludes migration-tagged flows; CI runs the smoke set on PRs and the full set nightly.
+- Maestro E2E flows live in `.maestro`. `pnpm run test:e2e` runs them locally and excludes migration-tagged flows; CI runs the smoke set on PRs and the full set nightly.
 
 ## Generated Files
 
 - `apps/mobile/src/db/schema.ts` is generated from `internal-docs/schema.sql`.
 - Never hand-edit generated schema output.
-- Run `cd apps/mobile && npm run generate:schema` after schema SQL changes.
-- Run `cd apps/mobile && npm run check:generated` to verify generated output is current.
+- Run `cd apps/mobile && pnpm run generate:schema` after schema SQL changes.
+- Run `cd apps/mobile && pnpm run check:generated` to verify generated output is current.
 
 ## Mobile Commands
 
-- `cd apps/mobile && npm test`
-- `cd apps/mobile && npm run typecheck`
-- `cd apps/mobile && npm run lint`
-- `cd apps/mobile && npm run test:e2e`
-- `cd apps/mobile && npm test -- --ci --coverage`
-- `cd apps/mobile && npm run check:coverage`
+- `cd apps/mobile && pnpm test`
+- `cd apps/mobile && pnpm run typecheck`
+- `cd apps/mobile && pnpm run lint`
+- `cd apps/mobile && pnpm run test:e2e`
+- `cd apps/mobile && pnpm test --ci --coverage`
+- `cd apps/mobile && pnpm run check:coverage`
 
 ## Wear OS Tests
 
