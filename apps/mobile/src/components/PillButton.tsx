@@ -48,6 +48,7 @@ export function PillButton({
       disabled={disabled}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityRole="button"
+      accessibilityState={disabled ? { disabled: true } : undefined}
       testID={testID}
       style={[
         styles.base,

@@ -8,12 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
-import {
-  createRoutine,
-  deleteRoutine,
-  listRoutineSummaries,
-  RoutineSummary,
-} from '../db/repositories/routines';
+import { deleteRoutine, listRoutineSummaries, RoutineSummary } from '../db/repositories/routines';
 import { getActiveWorkout } from '../db/repositories/workouts';
 import { discardWorkout, startOrResumeWorkout } from '../application/activeWorkout';
 import type { Workout } from '../db/types';
@@ -108,9 +103,8 @@ export function HomeScreen() {
     navigation.navigate('ActiveWorkout', { workoutId: workout.id });
   }
 
-  async function handleCreateRoutine() {
-    const routine = await createRoutine('New Routine');
-    navigation.navigate('RoutineEditor', { routineId: routine.id, isNew: true });
+  function handleCreateRoutine() {
+    navigation.navigate('RoutineEditor', {});
   }
 
   function showRoutineActions(routine: RoutineSummary) {

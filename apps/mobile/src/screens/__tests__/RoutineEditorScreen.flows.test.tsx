@@ -1,15 +1,18 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import type { ComponentProps } from 'react';
+import { Alert, Text } from 'react-native';
 
 import { getDb, resetDbForTests } from '../../db/index';
 import {
   addExerciseToRoutine,
   addRoutineSet,
   createRoutine,
+  getRoutineDetail,
 } from '../../db/repositories/routines';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
+import { latestAlertButtons } from '../../test-utils/async';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 
 type TestParamList = RootStackParamList & {
@@ -22,85 +25,184 @@ function HomeStub() {
   return <Text>Home screen</Text>;
 }
 
-async function insertExercise(exerciseId = 'ex1') {
+function RoutineEditorWithPickedParam(props: ComponentProps<typeof RoutineEditorScreen>) {
+  return (
+    <>
+      <RoutineEditorScreen {...props} />
+      <Text onPress={() => props.navigation.setParams({ pickedExerciseId: 'ex2' })}>
+        Inject picked exercise
+      </Text>
+    </>
+  );
+}
+
+async function insertExercise(exerciseId = 'ex1', name = 'Bench Press') {
   const db = await getDb();
   await db.runAsync(
     `INSERT OR IGNORE INTO exercises (id, name, muscle_group, equipment, tracking_type, is_custom)
-     VALUES ($id, 'Bench Press', 'chest', 'barbell', 'weight_reps', 1)`,
-    { $id: exerciseId }
+     VALUES ($id, $name, 'chest', 'barbell', 'weight_reps', 1)`,
+    { $id: exerciseId, $name: name }
+  );
+}
+
+async function countRows(table: string) {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}`);
+  return row?.n ?? 0;
+}
+
+function renderEditor(
+  params: RootStackParamList['RoutineEditor'],
+  editor: typeof RoutineEditorScreen = RoutineEditorScreen
+) {
+  return render(
+    <NavigationContainer
+      initialState={{ routes: [{ name: 'Home' }, { name: 'RoutineEditor', params }], index: 1 }}
+    >
+      <Stack.Navigator>
+        <Stack.Screen name="Home" component={HomeStub} />
+        <Stack.Screen name="RoutineEditor" component={editor} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 beforeEach(async () => {
   resetDbForTests();
-  await insertExercise();
+  jest.restoreAllMocks();
+  await insertExercise('ex1', 'Bench Press');
+  await insertExercise('ex2', 'Squat');
 });
 
-test('closing a new routine removes its persisted exercise and set', async () => {
-  const routine = await createRoutine('New Routine');
-  const routineExercise = await addExerciseToRoutine(routine.id, 'ex1');
-  await addRoutineSet(routineExercise.id, { target_weight: 80, target_reps: 8 });
-
-  const editor = await render(
-    <NavigationContainer
-      initialState={{
-        routes: [
-          { name: 'Home' },
-          { name: 'RoutineEditor', params: { routineId: routine.id, isNew: true } },
-        ],
-        index: 1,
-      }}
-    >
-      <Stack.Navigator>
-        <Stack.Screen name="Home" component={HomeStub} />
-        <Stack.Screen name="RoutineEditor" component={RoutineEditorScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
+test('new routine close without Save creates no DB rows', async () => {
+  const editor = await renderEditor({});
 
   await waitFor(() => expect(editor.getByLabelText('Close')).toBeTruthy());
   await act(async () => fireEvent.press(editor.getByLabelText('Close')));
-  await waitFor(() => expect(editor.getByText('Home screen')).toBeTruthy());
 
-  const db = await getDb();
-  const routineCount = await db.getFirstAsync<{ n: number }>(
-    'SELECT COUNT(*) AS n FROM routines WHERE id = $id',
-    { $id: routine.id }
-  );
-  const exerciseCount = await db.getFirstAsync<{ n: number }>(
-    'SELECT COUNT(*) AS n FROM routine_exercises WHERE id = $id',
-    { $id: routineExercise.id }
-  );
-  const setCount = await db.getFirstAsync<{ n: number }>(
-    'SELECT COUNT(*) AS n FROM routine_sets WHERE routine_exercise_id = $id',
-    { $id: routineExercise.id }
-  );
-  expect(routineCount?.n).toBe(0);
-  expect(exerciseCount?.n).toBe(0);
-  expect(setCount?.n).toBe(0);
+  await waitFor(() => expect(editor.getByText('Home screen')).toBeTruthy());
+  await expect(countRows('routines')).resolves.toBe(0);
+  await expect(countRows('routine_exercises')).resolves.toBe(0);
 });
 
-test('pickedExerciseId in params adds the exercise to the routine', async () => {
-  const routine = await createRoutine('Push Day');
+test('new routine with a picked exercise can be discarded without DB writes', async () => {
+  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const editor = await renderEditor({ pickedExerciseId: 'ex1' });
 
-  await render(
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen
-          name="RoutineEditor"
-          component={RoutineEditorScreen}
-          initialParams={{ routineId: routine.id, pickedExerciseId: 'ex1' }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
+  await waitFor(() => expect(editor.getByText('Bench Press')).toBeTruthy());
+  await act(async () => fireEvent.press(editor.getByLabelText('Close')));
+  const discard = latestAlertButtons(alertSpy).find((button) => button.text === 'Discard');
+  await act(async () => discard?.onPress?.());
 
+  await waitFor(() => expect(editor.getByText('Home screen')).toBeTruthy());
+  await expect(countRows('routines')).resolves.toBe(0);
+  await expect(countRows('routine_exercises')).resolves.toBe(0);
+});
+
+test('new routine with a picked exercise saves the routine and children', async () => {
+  const editor = await renderEditor({ pickedExerciseId: 'ex1' });
+
+  await waitFor(() => expect(editor.getByText('Bench Press')).toBeTruthy());
+  await act(async () => fireEvent.changeText(editor.getByLabelText('Routine name'), '  Push Day  '));
+  await act(async () => fireEvent.press(editor.getByLabelText('Add set to Bench Press')));
+  await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-weight'), '80'));
+  await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-reps'), '8'));
+  await act(async () => fireEvent.press(editor.getByText('Save')));
+
+  await waitFor(() => expect(editor.getByText('Home screen')).toBeTruthy());
   const db = await getDb();
-  await waitFor(async () => {
-    const row = await db.getFirstAsync<{ n: number }>(
-      'SELECT COUNT(*) AS n FROM routine_exercises WHERE routine_id = $rid AND exercise_id = $eid',
-      { $rid: routine.id, $eid: 'ex1' }
-    );
-    expect(row?.n).toBe(1);
+  const row = await db.getFirstAsync<{ id: string }>('SELECT id FROM routines');
+  expect(row?.id).toBeTruthy();
+  const saved = await getRoutineDetail(row?.id as string);
+  expect(saved).toMatchObject({
+    name: 'Push Day',
+    exercises: [
+      expect.objectContaining({
+        exercise_id: 'ex1',
+        sets: [expect.objectContaining({ target_weight: 80, target_reps: 8 })],
+      }),
+    ],
   });
+});
+
+test('existing routine edits can be discarded without changing the DB', async () => {
+  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const routine = await createRoutine('Original');
+  const bench = await addExerciseToRoutine(routine.id, 'ex1');
+  const squat = await addExerciseToRoutine(routine.id, 'ex2');
+  await addRoutineSet(bench.id, { target_weight: 80, target_reps: 8 });
+  const before = await getRoutineDetail(routine.id);
+  const editor = await renderEditor({ routineId: routine.id });
+
+  await waitFor(() => expect(editor.getByDisplayValue('Original')).toBeTruthy());
+  await act(async () => fireEvent.changeText(editor.getByDisplayValue('Original'), 'Edited'));
+  await act(async () => fireEvent.press(editor.getByLabelText('Remove Bench Press')));
+  await act(async () => fireEvent.press(editor.getByLabelText('Move Squat up')));
+  await act(async () => fireEvent.press(editor.getByLabelText('Close')));
+  const discard = latestAlertButtons(alertSpy).find((button) => button.text === 'Discard');
+  await act(async () => discard?.onPress?.());
+
+  await waitFor(() => expect(editor.getByText('Home screen')).toBeTruthy());
+  await expect(getRoutineDetail(routine.id)).resolves.toEqual(before);
+  expect(squat.id).toBeTruthy();
+});
+
+test('existing routine Save persists the full draft', async () => {
+  const routine = await createRoutine('Original');
+  const bench = await addExerciseToRoutine(routine.id, 'ex1');
+  await addExerciseToRoutine(routine.id, 'ex2');
+  await addRoutineSet(bench.id, { target_weight: 80, target_reps: 8 });
+  const editor = await renderEditor({ routineId: routine.id });
+
+  await waitFor(() => expect(editor.getByDisplayValue('Original')).toBeTruthy());
+  await act(async () => fireEvent.changeText(editor.getByDisplayValue('Original'), '  Edited  '));
+  await act(async () => fireEvent.changeText(editor.getByLabelText('Routine notes'), '  Keep this  '));
+  await act(async () => fireEvent.press(editor.getByLabelText('Remove Bench Press')));
+  await act(async () => fireEvent.changeText(editor.getByLabelText('Rest seconds for Squat'), '120'));
+  await act(async () => fireEvent.press(editor.getByLabelText('Add set to Squat')));
+  await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-weight'), '140'));
+  await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-reps'), '5'));
+  await act(async () => fireEvent.press(editor.getByText('Save')));
+
+  await waitFor(() => expect(editor.getByText('Home screen')).toBeTruthy());
+  await expect(getRoutineDetail(routine.id)).resolves.toMatchObject({
+    id: routine.id,
+    name: 'Edited',
+    notes: 'Keep this',
+    exercises: [
+      expect.objectContaining({
+        exercise_id: 'ex2',
+        rest_seconds: 120,
+        position: 0,
+        sets: [expect.objectContaining({ target_weight: 140, target_reps: 5 })],
+      }),
+    ],
+  });
+});
+
+test('picked exercise appends to a dirty draft without wiping unsaved edits', async () => {
+  const routine = await createRoutine('Original');
+  await addExerciseToRoutine(routine.id, 'ex1');
+  const editor = await renderEditor({ routineId: routine.id }, RoutineEditorWithPickedParam);
+
+  await waitFor(() => expect(editor.getByDisplayValue('Original')).toBeTruthy());
+  await act(async () => fireEvent.changeText(editor.getByDisplayValue('Original'), 'Unsaved Name'));
+  await act(async () => fireEvent.press(editor.getByText('Inject picked exercise')));
+
+  await waitFor(() => expect(editor.getByText('Squat')).toBeTruthy());
+  expect(editor.getByDisplayValue('Unsaved Name')).toBeTruthy();
+  await expect(getRoutineDetail(routine.id)).resolves.toMatchObject({
+    name: 'Original',
+    exercises: [expect.objectContaining({ exercise_id: 'ex1' })],
+  });
+});
+
+test('picked exercise present during initial load is queued and appears after initialization', async () => {
+  const routine = await createRoutine('Original');
+  await addExerciseToRoutine(routine.id, 'ex1');
+  const editor = await renderEditor({ routineId: routine.id, pickedExerciseId: 'ex2' });
+
+  await waitFor(() => expect(editor.getByText('Bench Press')).toBeTruthy());
+  await waitFor(() => expect(editor.getByText('Squat')).toBeTruthy());
+  expect(editor.getByDisplayValue('Original')).toBeTruthy();
 });
