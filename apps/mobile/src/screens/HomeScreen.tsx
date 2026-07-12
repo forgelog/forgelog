@@ -1,7 +1,7 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../components/Card';
@@ -25,6 +25,7 @@ type RoutineSheetState = {
   mode: 'actions' | 'delete';
   deleting?: boolean;
   error?: string;
+  closing?: boolean;
 };
 
 export function HomeScreen() {
@@ -115,10 +116,16 @@ export function HomeScreen() {
     setRoutineSheet({ routine, mode: 'actions' });
   }
 
-  function closeRoutineSheet() {
-    if (routineSheet?.deleting) return;
+  const closeRoutineSheet = useCallback(() => {
+    setRoutineSheet((current) => {
+      if (!current || current.deleting || current.closing) return current;
+      return { ...current, closing: true };
+    });
+  }, []);
+
+  const handleRoutineSheetClosed = useCallback(() => {
     setRoutineSheet(null);
-  }
+  }, []);
 
   function handleEditRoutine(routine: RoutineSummary) {
     setRoutineSheet(null);
@@ -133,7 +140,7 @@ export function HomeScreen() {
     setRoutineSheet({ routine, mode: 'delete', deleting: true });
     try {
       await deleteRoutine(routine.id);
-      setRoutineSheet(null);
+      setRoutineSheet((current) => (current ? { ...current, deleting: false, closing: true } : null));
       reload();
     } catch {
       setRoutineSheet({
@@ -220,6 +227,7 @@ export function HomeScreen() {
         onEdit={handleEditRoutine}
         onPrepareDelete={prepareDeleteRoutine}
         onDelete={handleDeleteRoutine}
+        onClosed={handleRoutineSheetClosed}
       />
     </SafeAreaView>
   );
@@ -247,6 +255,7 @@ type RoutineActionsSheetProps = Readonly<{
   onEdit: (routine: RoutineSummary) => void;
   onPrepareDelete: (routine: RoutineSummary) => void;
   onDelete: (routine: RoutineSummary) => void;
+  onClosed: () => void;
 }>;
 
 function RoutineActionsSheet({
@@ -255,90 +264,116 @@ function RoutineActionsSheet({
   onEdit,
   onPrepareDelete,
   onDelete,
+  onClosed,
 }: RoutineActionsSheetProps) {
   const c = useTheme();
+  const [progress] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    if (!state) return;
+    progress.stopAnimation();
+    Animated.timing(progress, {
+      toValue: state.closing ? 0 : 1,
+      duration: state.closing ? 180 : 220,
+      easing: state.closing ? Easing.in(Easing.cubic) : Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished && state.closing) {
+        onClosed();
+      }
+    });
+  }, [onClosed, progress, state]);
+
   if (!state) return null;
 
   const { routine, mode, deleting, error } = state;
+  const sheetTranslateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [280, 0],
+  });
 
   return (
     <Modal
       visible
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
       testID="routine-actions-sheet"
     >
       <View style={styles.sheetRoot}>
-        <Pressable
-          style={styles.sheetScrim}
-          onPress={onClose}
-          accessibilityLabel="Dismiss routine options"
-          accessibilityRole="button"
-        />
-        <SafeAreaView edges={['bottom']} style={[styles.sheet, { backgroundColor: c.card }]}>
-          <View style={[styles.sheetHandle, { backgroundColor: c.sep }]} />
-          <Text style={[styles.sheetTitle, { color: c.fg }]} numberOfLines={1}>
-            {routine.name}
-          </Text>
-          {mode === 'actions' ? (
-            <>
-              <RoutineSheetAction
-                label="Edit Routine"
-                icon="pencil-outline"
-                onPress={() => onEdit(routine)}
-                testID="routine-action-edit"
-              />
-              <RoutineSheetAction
-                label="Delete Routine"
-                icon="trash-can-outline"
-                onPress={() => onPrepareDelete(routine)}
-                destructive
-                testID="routine-action-delete"
-              />
-              <Pressable
-                style={[styles.sheetCancel, { backgroundColor: c.fill }]}
-                onPress={onClose}
-                accessibilityLabel="Cancel routine options"
-                accessibilityRole="button"
-              >
-                <Text style={[styles.sheetCancelText, { color: c.fg }]}>Cancel</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={[styles.deleteTitle, { color: c.fg }]}>Delete this routine?</Text>
-              <Text style={[styles.deleteMessage, { color: c.sub }]}>This cannot be undone.</Text>
-              {error ? <Text style={[styles.sheetError, { color: c.danger }]}>{error}</Text> : null}
-              <View style={styles.deleteActions}>
+        <Animated.View style={[styles.sheetScrim, { opacity: progress }]}>
+          <Pressable
+            style={styles.sheetScrimPressable}
+            onPress={onClose}
+            accessibilityLabel="Dismiss routine options"
+            accessibilityRole="button"
+          />
+        </Animated.View>
+        <Animated.View style={{ transform: [{ translateY: sheetTranslateY }] }}>
+          <SafeAreaView edges={['bottom']} style={[styles.sheet, { backgroundColor: c.card }]}>
+            <View style={[styles.sheetHandle, { backgroundColor: c.sep }]} />
+            <Text style={[styles.sheetTitle, { color: c.fg }]} numberOfLines={1}>
+              {routine.name}
+            </Text>
+            {mode === 'actions' ? (
+              <>
+                <RoutineSheetAction
+                  label="Edit Routine"
+                  icon="pencil-outline"
+                  onPress={() => onEdit(routine)}
+                  testID="routine-action-edit"
+                />
+                <RoutineSheetAction
+                  label="Delete Routine"
+                  icon="trash-can-outline"
+                  onPress={() => onPrepareDelete(routine)}
+                  destructive
+                  testID="routine-action-delete"
+                />
                 <Pressable
-                  style={[styles.deleteButton, { backgroundColor: c.fill }]}
+                  style={[styles.sheetCancel, { backgroundColor: c.fill }]}
                   onPress={onClose}
-                  disabled={deleting}
-                  accessibilityLabel="Cancel delete routine"
+                  accessibilityLabel="Cancel routine options"
                   accessibilityRole="button"
                 >
-                  <Text style={[styles.deleteButtonText, { color: c.fg }]}>Cancel</Text>
+                  <Text style={[styles.sheetCancelText, { color: c.fg }]}>Cancel</Text>
                 </Pressable>
-                <Pressable
-                  style={[
-                    styles.deleteButton,
-                    { backgroundColor: c.danger, opacity: deleting ? 0.6 : 1 },
-                  ]}
-                  onPress={() => onDelete(routine)}
-                  disabled={deleting}
-                  accessibilityLabel="Confirm delete routine"
-                  accessibilityRole="button"
-                  testID="routine-delete-confirm"
-                >
-                  <Text style={[styles.deleteButtonText, { color: '#fff' }]}>
-                    {deleting ? 'Deleting...' : 'Delete'}
-                  </Text>
-                </Pressable>
-              </View>
-            </>
-          )}
-        </SafeAreaView>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.deleteTitle, { color: c.fg }]}>Delete this routine?</Text>
+                <Text style={[styles.deleteMessage, { color: c.sub }]}>This cannot be undone.</Text>
+                {error ? <Text style={[styles.sheetError, { color: c.danger }]}>{error}</Text> : null}
+                <View style={styles.deleteActions}>
+                  <Pressable
+                    style={[styles.deleteButton, { backgroundColor: c.fill }]}
+                    onPress={onClose}
+                    disabled={deleting}
+                    accessibilityLabel="Cancel delete routine"
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.deleteButtonText, { color: c.fg }]}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.deleteButton,
+                      { backgroundColor: c.danger, opacity: deleting ? 0.6 : 1 },
+                    ]}
+                    onPress={() => onDelete(routine)}
+                    disabled={deleting}
+                    accessibilityLabel="Confirm delete routine"
+                    accessibilityRole="button"
+                    testID="routine-delete-confirm"
+                  >
+                    <Text style={[styles.deleteButtonText, { color: '#fff' }]}>
+                      {deleting ? 'Deleting...' : 'Delete'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </SafeAreaView>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -406,6 +441,7 @@ const styles = StyleSheet.create({
     left: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.32)',
   },
+  sheetScrimPressable: { flex: 1 },
   sheet: {
     paddingHorizontal: 16,
     paddingTop: 10,
