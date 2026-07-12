@@ -18,8 +18,11 @@ appId: dev.bishnoi.forgelog.mobile
     commands:
       - tapOn: "Close app"
 - extendedWaitUntil:
-    visible: "Edit routine"
+    visible: "Create Routine"
     timeout: 60000
+- tapOn:
+    id: "routine-name-input"
+- inputText: "New Routine"
 - tapOn:
     id: "routine-add-exercise"
 - extendedWaitUntil:
@@ -51,7 +54,7 @@ appId: dev.bishnoi.forgelog.mobile
     id: "routine-add-exercise"
 - runFlow:
     when:
-      visible: "Edit routine"
+      visible: "Create Routine"
     commands:
       - tapOn:
           id: "routine-add-exercise"
@@ -90,7 +93,7 @@ appId: dev.bishnoi.forgelog.mobile
     id: "routine-add-exercise"
 - runFlow:
     when:
-      visible: "Edit routine"
+      visible: "Create Routine"
     commands:
       - tapOn:
           id: "routine-add-exercise"
@@ -127,11 +130,6 @@ appId: dev.bishnoi.forgelog.mobile
     id: "routine-set-2-0-duration"
 - inputText: "45"
 - tapOn: "Save"
-- runFlow:
-    when:
-      visible: "Edit routine"
-    commands:
-      - tapOn: "Save"
 - extendedWaitUntil:
     visible: "My Routines"
     timeout: 60000
