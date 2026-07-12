@@ -1,5 +1,6 @@
 import { getDb } from '../index';
 import { id } from '../id';
+import { requireExerciseType } from '../../domain/setFields';
 import type { Exercise } from '../types';
 
 type ExerciseRow = {
@@ -7,7 +8,7 @@ type ExerciseRow = {
   name: string;
   muscle_group: string;
   equipment: string;
-  tracking_type: string | null;
+  exercise_type: string;
   is_custom: number;
   instructions: string | null;
   images: string | null;
@@ -21,7 +22,7 @@ function mapExercise(row: ExerciseRow): Exercise {
     name: row.name,
     muscle_group: row.muscle_group,
     equipment: row.equipment,
-    tracking_type: row.tracking_type,
+    exercise_type: requireExerciseType(row.exercise_type),
     is_custom: row.is_custom === 1,
     instructions: row.instructions ? (JSON.parse(row.instructions) as string[]) : [],
     images: row.images ? (JSON.parse(row.images) as string[]) : [],
@@ -74,7 +75,7 @@ export type NewCustomExercise = {
   name: string;
   muscle_group: string;
   equipment: string;
-  tracking_type?: string | null;
+  exercise_type: string;
   instructions?: string[];
 };
 
@@ -83,14 +84,14 @@ export async function createCustomExercise(input: NewCustomExercise): Promise<Ex
   const newId = id();
   await db.runAsync(
     `INSERT INTO exercises
-       (id, name, muscle_group, equipment, tracking_type, is_custom, instructions, images)
-     VALUES ($id, $name, $muscle_group, $equipment, $tracking_type, 1, $instructions, $images)`,
+       (id, name, muscle_group, equipment, exercise_type, is_custom, instructions, images)
+     VALUES ($id, $name, $muscle_group, $equipment, $exercise_type, 1, $instructions, $images)`,
     {
       $id: newId,
       $name: input.name,
       $muscle_group: input.muscle_group,
       $equipment: input.equipment,
-      $tracking_type: input.tracking_type ?? null,
+      $exercise_type: requireExerciseType(input.exercise_type),
       $instructions: JSON.stringify(input.instructions ?? []),
       $images: JSON.stringify([]),
     }
@@ -100,13 +101,13 @@ export async function createCustomExercise(input: NewCustomExercise): Promise<Ex
   return created;
 }
 
-export async function setExerciseTrackingType(
+export async function setExerciseType(
   exerciseId: string,
-  trackingType: string | null
+  exerciseType: string
 ): Promise<void> {
   const db = await getDb();
-  await db.runAsync('UPDATE exercises SET tracking_type = $t WHERE id = $id', {
-    $t: trackingType,
+  await db.runAsync('UPDATE exercises SET exercise_type = $t WHERE id = $id', {
+    $t: requireExerciseType(exerciseType),
     $id: exerciseId,
   });
 }

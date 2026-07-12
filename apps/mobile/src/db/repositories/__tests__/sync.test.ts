@@ -51,7 +51,7 @@ test('snapshots validate and duplicate watch deliveries keep row counts stable',
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const routine = await createRoutine('Watch Push');
   const routineExercise = await addExerciseToRoutine(routine.id, bench.id);
-  await updateRoutineExercise(routineExercise.id, { rest_seconds: 90, tracking_type: 'weight_reps' });
+  await updateRoutineExercise(routineExercise.id, { rest_seconds: 90 });
   await addRoutineSet(routineExercise.id, { target_weight: 60, target_reps: 8 });
 
   const db = await getDb();
@@ -66,7 +66,7 @@ test('snapshots validate and duplicate watch deliveries keep row counts stable',
   expect(validateSyncSnapshot.errors).toBeNull();
 
   const payload: WatchWorkoutPayload = {
-    protocol_version: 1,
+    protocol_version: 2,
     id: 'watch-workout-1',
     routine_id: null,
     name: 'Watch Push',
@@ -79,7 +79,7 @@ test('snapshots validate and duplicate watch deliveries keep row counts stable',
         exercise_id: bench.id,
         position: 0,
         superset_group_id: null,
-        tracking_type: 'weight_reps',
+        exercise_type: 'weight_reps',
         rest_seconds: 90,
         notes: null,
         sets: [

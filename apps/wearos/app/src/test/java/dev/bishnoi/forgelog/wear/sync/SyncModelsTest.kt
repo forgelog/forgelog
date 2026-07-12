@@ -23,8 +23,10 @@ class SyncModelsTest {
         assertEquals("Push Day", routine.name)
         val exercise = routine.exercises.single()
         assertEquals("ex1", exercise.exerciseId)
+        assertEquals("weight_reps", exercise.exerciseType)
         assertEquals(90, exercise.restSeconds)
         assertEquals("Bench Press", exercise.exercise.name)
+        assertEquals("weight_reps", exercise.exercise.exerciseType)
         assertEquals(60.0, exercise.sets.single().targetWeight)
         assertEquals(62.5, snapshot.personalRecords.single().value, 0.0)
     }
@@ -42,6 +44,7 @@ class SyncModelsTest {
 
         val exercise = payload.exercises.single()
         assertEquals("ex1", exercise.exerciseId)
+        assertEquals("weight_reps", exercise.exerciseType)
         assertEquals(90, exercise.restSeconds)
 
         val set = exercise.sets.single()
@@ -54,9 +57,10 @@ class SyncModelsTest {
         // Field names on the wire must match the phone's WatchWorkoutPayload
         // (apps/mobile/src/db/repositories/sync.ts) exactly, snake_case included.
         assertEquals(true, reEncoded.contains("\"exercise_id\":\"ex1\""))
+        assertEquals(true, reEncoded.contains("\"exercise_type\":\"weight_reps\""))
         assertEquals(true, reEncoded.contains("\"rest_seconds\":90"))
         assertEquals(true, reEncoded.contains("\"completed_at\""))
-        assertEquals(true, reEncoded.contains("\"protocol_version\":1"))
+        assertEquals(true, reEncoded.contains("\"protocol_version\":2"))
 
         val decoded = syncJson.decodeFromString(WorkoutPayloadDto.serializer(), reEncoded)
         assertEquals(payload, decoded)

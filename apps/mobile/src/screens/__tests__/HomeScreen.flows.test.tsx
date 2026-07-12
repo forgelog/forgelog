@@ -34,7 +34,7 @@ async function createRoutineWithBench(name = 'Phase Six Push') {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const routine = await createRoutine(name);
   const routineExercise = await addExerciseToRoutine(routine.id, bench.id);
-  await updateRoutineExercise(routineExercise.id, { tracking_type: 'weight_reps', rest_seconds: 90 });
+  await updateRoutineExercise(routineExercise.id, { rest_seconds: 90 });
   await addRoutineSet(routineExercise.id, { target_weight: 100, target_reps: 5 });
   return { bench, routine };
 }

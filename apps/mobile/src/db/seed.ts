@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { requireExerciseType } from '../domain/setFields';
 import seedData from './exercises.seed.json';
 
 export type RawSeedExercise = {
@@ -10,6 +11,7 @@ export type RawSeedExercise = {
   secondaryMuscles: string[];
   instructions: string[];
   images: string[];
+  exercise_type: string;
 };
 
 export type ExerciseRow = {
@@ -17,7 +19,7 @@ export type ExerciseRow = {
   name: string;
   muscle_group: string;
   equipment: string;
-  tracking_type: string | null;
+  exercise_type: string;
   is_custom: number;
   instructions: string | null;
   images: string | null;
@@ -30,7 +32,7 @@ export function toExerciseRow(raw: RawSeedExercise): ExerciseRow {
     name: raw.name,
     muscle_group: raw.primaryMuscles[0],
     equipment: raw.equipment ?? 'other',
-    tracking_type: null,
+    exercise_type: requireExerciseType(raw.exercise_type),
     is_custom: 0,
     instructions: JSON.stringify(raw.instructions ?? []),
     images: JSON.stringify(raw.images ?? []),
@@ -72,8 +74,8 @@ export async function seedExercises(db: SQLiteDatabase): Promise<void> {
   await db.withTransactionAsync(async () => {
     const stmt = await db.prepareAsync(
       `INSERT OR IGNORE INTO exercises
-         (id, name, muscle_group, equipment, tracking_type, is_custom, instructions, images, secondary_muscles)
-       VALUES ($id, $name, $muscle_group, $equipment, $tracking_type, $is_custom, $instructions, $images, $secondary_muscles)`
+         (id, name, muscle_group, equipment, exercise_type, is_custom, instructions, images, secondary_muscles)
+       VALUES ($id, $name, $muscle_group, $equipment, $exercise_type, $is_custom, $instructions, $images, $secondary_muscles)`
     );
     try {
       for (const row of rows) {
@@ -82,7 +84,7 @@ export async function seedExercises(db: SQLiteDatabase): Promise<void> {
           $name: row.name,
           $muscle_group: row.muscle_group,
           $equipment: row.equipment,
-          $tracking_type: row.tracking_type,
+          $exercise_type: row.exercise_type,
           $is_custom: row.is_custom,
           $instructions: row.instructions,
           $images: row.images,

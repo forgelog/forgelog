@@ -9,9 +9,16 @@ import {
   updateDraftName,
   updateDraftRest,
   updateDraftSetField,
-  updateDraftTrackingType,
   validateRoutineDraft,
 } from '../routineDraft';
+import { fieldsForExerciseType } from '../setFields';
+import type { SetFieldKey } from '../setFields';
+
+function fieldDescriptor(key: SetFieldKey) {
+  const descriptor = fieldsForExerciseType('weight_reps').find((field) => field.key === key);
+  if (!descriptor) throw new Error(`Missing descriptor for ${key}`);
+  return descriptor;
+}
 
 function makeLocalId() {
   let next = 0;
@@ -24,7 +31,7 @@ function makeExercise(id: string, name = id) {
     name,
     muscle_group: 'chest',
     equipment: 'barbell',
-    tracking_type: 'weight_reps',
+    exercise_type: 'weight_reps',
     is_custom: false,
     instructions: [],
     images: [],
@@ -48,7 +55,7 @@ const detail = {
       position: 0,
       superset_group_id: 'group-a',
       rest_seconds: 90,
-      tracking_type: 'weight_reps',
+      exercise_type: 'weight_reps',
       notes: 'Pause',
       exercise: makeExercise('bench', 'Bench Press'),
       sets: [
@@ -104,7 +111,7 @@ test('adds an exercise with the current empty-set strategy', () => {
       exercise_id: 'bench',
       superset_group_id: null,
       rest_seconds: null,
-      tracking_type: null,
+      exercise_type: 'weight_reps',
       notes: null,
       sets: [],
     }),
@@ -117,7 +124,11 @@ test('add, remove, and move operations preserve order and local ids', () => {
   draft = addExerciseToDraft(draft, makeExercise('bench'), ids);
   draft = addExerciseToDraft(draft, makeExercise('squat'), ids);
   draft = addSetToDraft(draft, 'local-0', ids);
-  draft = addSetToDraft(updateDraftSetField(draft, 'local-0', 'local-2', 'weight', '100'), 'local-0', ids);
+  draft = addSetToDraft(
+    updateDraftSetField(draft, 'local-0', 'local-2', fieldDescriptor('weight'), '100'),
+    'local-0',
+    ids
+  );
   draft = moveExerciseInDraft(draft, 0, 1);
   draft = removeSetFromDraft(draft, 'local-0', 'local-2');
   draft = removeExerciseFromDraft(draft, 'local-1');
@@ -134,7 +145,7 @@ test('set field updates affect only the intended set and field', () => {
   draft = addSetToDraft(draft, 'local-0', ids);
   draft = addSetToDraft(draft, 'local-0', ids);
 
-  const updated = updateDraftSetField(draft, 'local-0', 'local-2', 'reps', '5');
+  const updated = updateDraftSetField(draft, 'local-0', 'local-2', fieldDescriptor('reps'), '5');
 
   expect(updated.exercises[0].sets).toEqual([
     expect.objectContaining({ localId: 'local-1', target_reps: null }),
@@ -142,14 +153,13 @@ test('set field updates affect only the intended set and field', () => {
   ]);
 });
 
-test('rest and tracking edits stay local and ignore invalid raw input', () => {
+test('rest edits stay local and ignore invalid raw input', () => {
   const ids = makeLocalId();
   let draft = addExerciseToDraft(createEmptyRoutineDraft(), makeExercise('bench'), ids);
   draft = updateDraftRest(draft, 'local-0', '120');
   draft = updateDraftRest(draft, 'local-0', '-5');
-  draft = updateDraftTrackingType(draft, 'local-0', 'duration');
 
-  expect(draft.exercises[0]).toMatchObject({ rest_seconds: 120, tracking_type: 'duration' });
+  expect(draft.exercises[0]).toMatchObject({ rest_seconds: 120, exercise_type: 'weight_reps' });
 });
 
 test('validation trims name and notes and rejects missing name or empty exercises', () => {

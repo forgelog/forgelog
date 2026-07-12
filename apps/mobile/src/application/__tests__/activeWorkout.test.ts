@@ -1,7 +1,7 @@
 import { getDb, resetDbForTests } from '../../db/index';
 import { id } from '../../db/id';
 import { getRecordsForExercise } from '../../db/repositories/personalRecords';
-import { addSet, getActiveWorkout, startWorkout, updateLoggedSet } from '../../db/repositories/workouts';
+import { addSet, startWorkout, updateLoggedSet } from '../../db/repositories/workouts';
 import {
   completeSet,
   deleteSet,
@@ -13,7 +13,7 @@ import {
 async function insertExercise(exerciseId = 'ex1') {
   const db = await getDb();
   await db.runAsync(
-    `INSERT INTO exercises (id, name, muscle_group, equipment, tracking_type, is_custom)
+    `INSERT INTO exercises (id, name, muscle_group, equipment, exercise_type, is_custom)
      VALUES ($id, 'Squat', 'legs', 'barbell', 'weight_reps', 1)`,
     { $id: exerciseId }
   );
@@ -25,8 +25,8 @@ async function insertWeightedWorkout(exerciseId = 'ex1') {
   const workout = await startWorkout({ name: 'Test' });
   const weId = id();
   await db.runAsync(
-    `INSERT INTO workout_exercises (id, workout_id, exercise_id, position)
-     VALUES ($id, $workout_id, $exercise_id, 0)`,
+    `INSERT INTO workout_exercises (id, workout_id, exercise_id, position, exercise_type)
+     VALUES ($id, $workout_id, $exercise_id, 0, 'weight_reps')`,
     { $id: weId, $workout_id: workout.id, $exercise_id: exerciseId }
   );
   return { workout, weId };
@@ -40,7 +40,7 @@ beforeEach(async () => {
 // ── replaceRecordsForExercise correctness ────────────────────────────────────
 
 test('complete a weighted set → record exists; uncomplete it → record gone', async () => {
-  const { workout, weId } = await insertWeightedWorkout();
+  const { weId } = await insertWeightedWorkout();
   const set = await addSet(weId);
   await updateLoggedSet(set.id, { weight: 100, reps: 5 });
 

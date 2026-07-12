@@ -218,7 +218,7 @@ function HistoryTab({
             <View key={set.id} style={styles.setRow}>
               <Text style={[styles.setIndex, { color: c.sub }]}>{setIndex + 1}</Text>
               <Text style={[styles.setText, { color: c.fg }]}>
-                {formatSet(session.trackingType, set)}
+                {formatSet(session.exerciseType, set)}
               </Text>
               {isPrSet(set, recordMap) ? (
                 <View style={[styles.prBadge, { backgroundColor: c.asoft }]}>

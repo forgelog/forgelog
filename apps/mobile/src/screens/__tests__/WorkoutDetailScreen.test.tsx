@@ -22,7 +22,7 @@ function makeExercise(id: string, name: string, superset_group_id: string | null
     exercise_id: `${id}-ex`,
     position: 0,
     superset_group_id,
-    tracking_type: null,
+    exercise_type: 'weight_reps',
     rest_seconds: null,
     notes: null,
     exercise: {
@@ -30,7 +30,7 @@ function makeExercise(id: string, name: string, superset_group_id: string | null
       name,
       muscle_group: 'chest',
       equipment: 'barbell',
-      tracking_type: 'weight_reps',
+      exercise_type: 'weight_reps',
       is_custom: false,
       instructions: [],
       images: [],

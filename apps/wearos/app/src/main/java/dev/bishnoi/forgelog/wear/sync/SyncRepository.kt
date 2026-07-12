@@ -36,7 +36,7 @@ class SyncRepository(
                     position = re.position,
                     supersetGroupId = re.supersetGroupId,
                     restSeconds = re.restSeconds,
-                    trackingType = re.trackingType,
+                    exerciseType = re.exerciseType,
                 )
                 for (s in re.sets) {
                     routineSets += RoutineSetEntity(
@@ -53,7 +53,7 @@ class SyncRepository(
             }
         }
 
-        referenceDao.upsertExercises(exercises.values.map { ExerciseEntity(it.id, it.name, it.trackingType) })
+        referenceDao.upsertExercises(exercises.values.map { ExerciseEntity(it.id, it.name, it.exerciseType) })
         referenceDao.upsertRoutines(routines)
         referenceDao.upsertRoutineExercises(routineExercises)
         referenceDao.upsertRoutineSets(routineSets)
@@ -71,7 +71,7 @@ class SyncRepository(
                 exerciseId = we.exerciseId,
                 position = we.position,
                 supersetGroupId = we.supersetGroupId,
-                trackingType = we.trackingType,
+                exerciseType = we.exerciseType,
                 restSeconds = we.restSeconds,
                 sets = workoutDao.loggedSets(we.id).map { s ->
                     LoggedSetPayloadDto(

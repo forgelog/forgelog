@@ -1,3 +1,9 @@
+import WearSync from 'wear-sync';
+
+import { getSyncSnapshot, ingestWatchWorkout } from '../../db/repositories/sync';
+import { initWearSync, publishSyncSnapshot } from '../wearSync';
+import type { WatchWorkoutPayload } from '../../db/repositories/sync';
+
 jest.mock('wear-sync', () => ({
   __esModule: true,
   default: {
@@ -6,12 +12,6 @@ jest.mock('wear-sync', () => ({
   },
 }));
 jest.mock('../../db/repositories/sync');
-
-import WearSync from 'wear-sync';
-
-import { getSyncSnapshot, ingestWatchWorkout } from '../../db/repositories/sync';
-import { initWearSync, publishSyncSnapshot } from '../wearSync';
-import type { WatchWorkoutPayload } from '../../db/repositories/sync';
 
 const mockAddListener = WearSync.addListener as jest.Mock;
 const mockPublishSnapshot = WearSync.publishSnapshot as jest.Mock;
@@ -70,7 +70,7 @@ test('onWorkoutReceived drops malformed payload without calling ingestWatchWorko
 
 test('onWorkoutReceived drops payload with malformed exercise items without calling ingestWatchWorkout', async () => {
   const payloadWithBadExercise = {
-    protocol_version: 1,
+    protocol_version: 2,
     id: 'w1',
     routine_id: null,
     name: 'test',
@@ -87,7 +87,7 @@ test('onWorkoutReceived drops payload with malformed exercise items without call
 
 test('onWorkoutReceived ingests payload missing optional nullable fields (real WearOS shape)', async () => {
   const noNullableFields = {
-    protocol_version: 1,
+    protocol_version: 2,
     id: 'w2',
     name: 'Quick Workout',
     started_at: '2026-07-11T10:00:00.000Z',
@@ -101,7 +101,7 @@ test('onWorkoutReceived ingests payload missing optional nullable fields (real W
 
 test('onWorkoutReceived drops payload with malformed set items', async () => {
   const payloadWithBadSet = {
-    protocol_version: 1,
+    protocol_version: 2,
     id: 'w3',
     name: 'test',
     started_at: '2026-07-11T10:00:00.000Z',
@@ -118,7 +118,7 @@ test('onWorkoutReceived drops payload with malformed set items', async () => {
   expect(mockIngestWatchWorkout).not.toHaveBeenCalled();
 });
 
-test('onWorkoutReceived drops version-skew payload (protocol_version != 1)', async () => {
+test('onWorkoutReceived drops version-skew payload (protocol_version != 2)', async () => {
   await onWorkoutReceived({ payload: JSON.stringify(versionSkewPayloadFixture) });
 
   expect(mockIngestWatchWorkout).not.toHaveBeenCalled();

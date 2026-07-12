@@ -1,14 +1,14 @@
 package dev.bishnoi.forgelog.wear.data
 
-import dev.bishnoi.forgelog.wear.logic.effectiveTrackingType
+import dev.bishnoi.forgelog.wear.logic.requireExerciseType
 import dev.bishnoi.forgelog.wear.logic.newId
 import dev.bishnoi.forgelog.wear.logic.nextSetType
 import java.time.Instant
 
 /**
  * Ports apps/mobile/src/db/repositories/workouts.ts startWorkout: copies a
- * routine's exercises/sets into a new session, snapshotting the effective
- * tracking_type and rest_seconds so later routine edits never rewrite a
+ * routine's exercises/sets into a new session, snapshotting the routine
+ * exercise_type and rest_seconds so later routine edits never rewrite a
  * logged workout. Writes to Room instead of SQLite — the watch's local WAL.
  */
 class WorkoutRepository(
@@ -26,6 +26,34 @@ class WorkoutRepository(
             else -> "Workout"
         }
         val routineExercises = if (routineId != null) referenceDao.routineExercises(routineId) else emptyList()
+        val sessionExercises = routineExercises.map { re ->
+            val exerciseType = requireExerciseType(re.exerciseType)
+            val weId = newId()
+            val loggedSets = referenceDao.routineSets(re.id).map { set ->
+                LoggedSetEntity(
+                    id = newId(),
+                    workoutExerciseId = weId,
+                    position = set.position,
+                    setType = set.setType,
+                    weight = set.targetWeight,
+                    reps = set.targetReps,
+                    durationSeconds = set.targetDurationSeconds,
+                    distanceMeters = set.targetDistanceMeters,
+                    rpe = null,
+                    completed = false,
+                    completedAt = null,
+                )
+            }
+            WorkoutExerciseEntity(
+                id = weId,
+                workoutId = workoutId,
+                exerciseId = re.exerciseId,
+                position = re.position,
+                supersetGroupId = re.supersetGroupId,
+                exerciseType = exerciseType.value,
+                restSeconds = re.restSeconds,
+            ) to loggedSets
+        }
 
         val workout = WorkoutEntity(
             id = workoutId,
@@ -35,40 +63,11 @@ class WorkoutRepository(
             endedAt = null,
             synced = false,
         )
-        workoutDao.insertWorkout(workout)
-
-        for (re in routineExercises) {
-            val exercise = referenceDao.exercise(re.exerciseId)
-            val weId = newId()
-            workoutDao.insertWorkoutExercise(
-                WorkoutExerciseEntity(
-                    id = weId,
-                    workoutId = workoutId,
-                    exerciseId = re.exerciseId,
-                    position = re.position,
-                    supersetGroupId = re.supersetGroupId,
-                    trackingType = effectiveTrackingType(re.trackingType, exercise?.trackingType).value,
-                    restSeconds = re.restSeconds,
-                )
-            )
-            for (set in referenceDao.routineSets(re.id)) {
-                workoutDao.insertLoggedSet(
-                    LoggedSetEntity(
-                        id = newId(),
-                        workoutExerciseId = weId,
-                        position = set.position,
-                        setType = set.setType,
-                        weight = set.targetWeight,
-                        reps = set.targetReps,
-                        durationSeconds = set.targetDurationSeconds,
-                        distanceMeters = set.targetDistanceMeters,
-                        rpe = null,
-                        completed = false,
-                        completedAt = null,
-                    )
-                )
-            }
-        }
+        workoutDao.insertWorkoutSession(
+            workout = workout,
+            workoutExercises = sessionExercises.map { it.first },
+            loggedSets = sessionExercises.flatMap { it.second },
+        )
 
         return workout
     }

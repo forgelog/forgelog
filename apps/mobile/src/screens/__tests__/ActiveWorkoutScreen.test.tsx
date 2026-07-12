@@ -40,7 +40,7 @@ const workoutDetail: WorkoutDetail = {
       exercise_id: 'e1',
       position: 0,
       superset_group_id: null,
-      tracking_type: null,
+      exercise_type: 'weight_reps',
       rest_seconds: null,
       notes: null,
       exercise: {
@@ -48,7 +48,7 @@ const workoutDetail: WorkoutDetail = {
         name: LONG_EXERCISE_NAME,
         muscle_group: 'chest',
         equipment: 'barbell',
-        tracking_type: 'weight_reps',
+        exercise_type: 'weight_reps',
         is_custom: false,
         instructions: [],
         images: [],
@@ -80,8 +80,8 @@ beforeEach(() => {
   mockGetRecordsForExercise.mockResolvedValue([]);
 });
 
-test('truncates a long exercise name instead of overlapping the info icon and tracking chip', async () => {
-  const { getByLabelText, getByTestId, getByText } = await render(
+test('truncates a long exercise name and renders descriptor-driven set fields', async () => {
+  const { getByLabelText, getByTestId, getByText, queryByText } = await render(
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen
@@ -95,10 +95,10 @@ test('truncates a long exercise name instead of overlapping the info icon and tr
 
   const nameNode = await waitFor(() => getByText(LONG_EXERCISE_NAME));
   expect(nameNode.props.numberOfLines).toBe(1);
-  // tracking-type chip stays reachable alongside the name, not pushed off-screen
-  await waitFor(() => expect(getByText('Weight × reps')).toBeTruthy());
-  expect(getByLabelText(`Workout tracking type for ${LONG_EXERCISE_NAME}: Weight × reps`)).toBeTruthy();
+  expect(queryByText('Weight × reps')).toBeNull();
   expect(getByLabelText(`Complete set 1 for ${LONG_EXERCISE_NAME}`)).toBeTruthy();
+  expect(getByLabelText(`Workout set 1 weight for ${LONG_EXERCISE_NAME}`)).toBeTruthy();
+  expect(getByLabelText(`Workout set 1 reps for ${LONG_EXERCISE_NAME}`)).toBeTruthy();
   expect(getByTestId('workout-set-0-0-weight')).toBeTruthy();
   expect(getByTestId('workout-set-0-0-reps')).toBeTruthy();
 });

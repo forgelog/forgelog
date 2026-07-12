@@ -5,12 +5,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { getRoutineDetail } from '../db/repositories/routines';
 import type { RoutineDetail, RoutineSet } from '../db/types';
-import {
-  effectiveTrackingType,
-  formatSet,
-  resolveRestSeconds,
-  TRACKING_LABELS,
-} from '../domain/setFields';
+import { formatSet, requireExerciseType, resolveRestSeconds } from '../domain/setFields';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -63,10 +58,7 @@ export function RoutineDetailScreen({ route, navigation }: Props) {
           <Text style={[styles.empty, { color: c.sub }]}>No exercises in this routine.</Text>
         ) : (
           detail.exercises.map((routineExercise) => {
-            const trackingType = effectiveTrackingType(
-              routineExercise.tracking_type,
-              routineExercise.exercise.tracking_type
-            );
+            const exerciseType = requireExerciseType(routineExercise.exercise_type);
             return (
               <View
                 key={routineExercise.id}
@@ -84,9 +76,6 @@ export function RoutineDetailScreen({ route, navigation }: Props) {
                     {resolveRestSeconds(routineExercise.rest_seconds)}s rest
                   </Text>
                 </View>
-                <Text style={[styles.trackingText, { color: c.sub }]}>
-                  {TRACKING_LABELS[trackingType]}
-                </Text>
                 {routineExercise.sets.length === 0 ? (
                   <Text style={[styles.emptySet, { color: c.sub }]}>No target sets</Text>
                 ) : (
@@ -94,7 +83,7 @@ export function RoutineDetailScreen({ route, navigation }: Props) {
                     <View key={set.id} style={styles.setRow}>
                       <Text style={[styles.setIndex, { color: c.sub }]}>{index + 1}</Text>
                       <Text style={[styles.setText, { color: c.fg }]}>
-                        {formatRoutineSet(trackingType, set)}
+                        {formatRoutineSet(exerciseType, set)}
                       </Text>
                     </View>
                   ))
@@ -108,8 +97,8 @@ export function RoutineDetailScreen({ route, navigation }: Props) {
   );
 }
 
-function formatRoutineSet(trackingType: string | null, set: RoutineSet): string {
-  return formatSet(trackingType, {
+function formatRoutineSet(exerciseType: string | null, set: RoutineSet): string {
+  return formatSet(exerciseType, {
     weight: set.target_weight,
     reps: set.target_reps,
     duration_seconds: set.target_duration_seconds,

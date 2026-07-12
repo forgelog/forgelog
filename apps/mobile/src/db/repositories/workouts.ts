@@ -1,4 +1,5 @@
 import { computeStreakDays, localDateKey } from '../../domain/dates';
+import { requireExerciseType } from '../../domain/setFields';
 import { getDb } from '../index';
 import { id } from '../id';
 import type {
@@ -16,7 +17,7 @@ type ExerciseRow = {
   name: string;
   muscle_group: string;
   equipment: string;
-  tracking_type: string | null;
+  exercise_type: string;
   is_custom: number;
   instructions: string | null;
   images: string | null;
@@ -52,17 +53,17 @@ export async function startWorkout(options: {
           const weId = id();
           await db.runAsync(
             `INSERT INTO workout_exercises
-               (id, workout_id, exercise_id, position, superset_group_id, tracking_type, rest_seconds, notes)
-             VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $tracking_type, $rest_seconds, $notes)`,
+               (id, workout_id, exercise_id, position, superset_group_id, exercise_type, rest_seconds, notes)
+             VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $exercise_type, $rest_seconds, $notes)`,
             {
               $id: weId,
               $workout_id: workoutId,
               $exercise_id: re.exercise_id,
               $position: re.position,
               $superset_group_id: re.superset_group_id,
-              // snapshot the effective type so editing the routine/catalog later
+              // Snapshot the routine exercise type so later routine/catalog edits
               // never rewrites this logged workout.
-              $tracking_type: re.tracking_type ?? re.exercise.tracking_type,
+              $exercise_type: requireExerciseType(re.exercise_type),
               $rest_seconds: re.rest_seconds,
               $notes: re.notes,
             }
@@ -133,7 +134,7 @@ export async function getWorkoutDetail(workoutId: string): Promise<WorkoutDetail
         name: exRow.name,
         muscle_group: exRow.muscle_group,
         equipment: exRow.equipment,
-        tracking_type: exRow.tracking_type,
+        exercise_type: requireExerciseType(exRow.exercise_type),
         is_custom: exRow.is_custom === 1,
         instructions: exRow.instructions ? (JSON.parse(exRow.instructions) as string[]) : [],
         images: exRow.images ? (JSON.parse(exRow.images) as string[]) : [],
@@ -177,7 +178,7 @@ export type ExerciseSession = {
   workoutId: string;
   workoutName: string;
   startedAt: string;
-  trackingType: string | null;
+  exerciseType: string;
   sets: LoggedSet[];
 };
 
@@ -195,9 +196,9 @@ export async function getSessionsForExercise(
     workout_id: string;
     workout_name: string;
     started_at: string;
-    tracking_type: string | null;
+    exercise_type: string;
   }>(
-    `SELECT we.id AS we_id, w.id AS workout_id, w.name AS workout_name, w.started_at, we.tracking_type
+    `SELECT we.id AS we_id, w.id AS workout_id, w.name AS workout_name, w.started_at, we.exercise_type
        FROM workout_exercises we
        JOIN workouts w ON w.id = we.workout_id
       WHERE we.exercise_id = $id AND w.ended_at IS NOT NULL
@@ -219,7 +220,7 @@ export async function getSessionsForExercise(
         workoutId: we.workout_id,
         workoutName: we.workout_name,
         startedAt: we.started_at,
-        trackingType: we.tracking_type,
+        exerciseType: requireExerciseType(we.exercise_type),
         sets: sets.map(mapLoggedSet),
       });
     }
@@ -237,10 +238,21 @@ export async function addExerciseToWorkout(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM workout_exercises WHERE workout_id = $id',
     { $id: workoutId }
   );
+  const exercise = await db.getFirstAsync<{ exercise_type: string }>(
+    'SELECT exercise_type FROM exercises WHERE id = $id',
+    { $id: exerciseId }
+  );
+  if (!exercise) throw new Error('Exercise not found');
   await db.runAsync(
-    `INSERT INTO workout_exercises (id, workout_id, exercise_id, position)
-     VALUES ($id, $workout_id, $exercise_id, $position)`,
-    { $id: newId, $workout_id: workoutId, $exercise_id: exerciseId, $position: row?.next ?? 0 }
+    `INSERT INTO workout_exercises (id, workout_id, exercise_id, position, exercise_type)
+     VALUES ($id, $workout_id, $exercise_id, $position, $exercise_type)`,
+    {
+      $id: newId,
+      $workout_id: workoutId,
+      $exercise_id: exerciseId,
+      $position: row?.next ?? 0,
+      $exercise_type: requireExerciseType(exercise.exercise_type),
+    }
   );
   const created = await db.getFirstAsync<WorkoutExercise>(
     'SELECT * FROM workout_exercises WHERE id = $id',
@@ -252,7 +264,7 @@ export async function addExerciseToWorkout(
 
 export async function updateWorkoutExercise(
   workoutExerciseId: string,
-  fields: { superset_group_id?: string | null; tracking_type?: string | null; notes?: string | null }
+  fields: { superset_group_id?: string | null; notes?: string | null }
 ): Promise<void> {
   const db = await getDb();
   const sets: string[] = [];
@@ -260,10 +272,6 @@ export async function updateWorkoutExercise(
   if (fields.superset_group_id !== undefined) {
     sets.push('superset_group_id = $superset');
     params.$superset = fields.superset_group_id;
-  }
-  if (fields.tracking_type !== undefined) {
-    sets.push('tracking_type = $tracking');
-    params.$tracking = fields.tracking_type;
   }
   if (fields.notes !== undefined) {
     sets.push('notes = $notes');

@@ -1,10 +1,11 @@
 import { getDb } from '../index';
+import { requireExerciseType } from '../../domain/setFields';
 import type { LoggedSet, PersonalRecord, RoutineDetail, SetType } from '../types';
 import { listRoutines, getRoutineDetail } from './routines';
 import { getRecordsForExercise, replaceRecordsForExercise } from './personalRecords';
 
 // Everything the watch needs to log a workout offline: routine templates
-// (with rest_seconds/tracking_type/superset info and their sets), the
+// (with rest_seconds/exercise_type/superset info and their sets), the
 // exercises they reference, and the current PR baseline for those exercises
 // so the watch can detect a new PR without the phone being reachable.
 export type SyncSnapshot = {
@@ -51,7 +52,7 @@ export type WatchWorkoutExercisePayload = {
   exercise_id: string;
   position: number;
   superset_group_id: string | null;
-  tracking_type: string | null;
+  exercise_type: string;
   rest_seconds: number | null;
   notes: string | null;
   sets: WatchLoggedSetPayload[];
@@ -85,13 +86,13 @@ export async function ingestWatchWorkout(payload: WatchWorkoutPayload): Promise<
     for (const we of payload.exercises) {
       await db.runAsync(
         `INSERT INTO workout_exercises
-           (id, workout_id, exercise_id, position, superset_group_id, tracking_type, rest_seconds, notes)
-         VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $tracking_type, $rest_seconds, $notes)
+           (id, workout_id, exercise_id, position, superset_group_id, exercise_type, rest_seconds, notes)
+         VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $exercise_type, $rest_seconds, $notes)
          ON CONFLICT(id) DO UPDATE SET
            exercise_id = excluded.exercise_id,
            position = excluded.position,
            superset_group_id = excluded.superset_group_id,
-           tracking_type = excluded.tracking_type,
+           exercise_type = excluded.exercise_type,
            rest_seconds = excluded.rest_seconds,
            notes = excluded.notes`,
         {
@@ -100,7 +101,7 @@ export async function ingestWatchWorkout(payload: WatchWorkoutPayload): Promise<
           $exercise_id: we.exercise_id,
           $position: we.position,
           $superset_group_id: we.superset_group_id,
-          $tracking_type: we.tracking_type,
+          $exercise_type: requireExerciseType(we.exercise_type),
           $rest_seconds: we.rest_seconds,
           $notes: we.notes,
         }

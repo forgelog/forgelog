@@ -11,7 +11,7 @@ import androidx.room.PrimaryKey
 data class ExerciseEntity(
     @PrimaryKey val id: String,
     val name: String,
-    val trackingType: String?,
+    val exerciseType: String,
 )
 
 @Entity(tableName = "routines")
@@ -29,7 +29,7 @@ data class RoutineExerciseEntity(
     val position: Int,
     val supersetGroupId: String?,
     val restSeconds: Int?,
-    val trackingType: String?,
+    val exerciseType: String,
 )
 
 @Entity(tableName = "routine_sets")
@@ -73,7 +73,7 @@ data class WorkoutExerciseEntity(
     val exerciseId: String,
     val position: Int,
     val supersetGroupId: String?,
-    val trackingType: String?,
+    val exerciseType: String,
     val restSeconds: Int?,
 )
 

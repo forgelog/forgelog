@@ -30,7 +30,7 @@ test('searches, filters, and creates custom exercises on real SQL', async () => 
     name: 'Cable Dragon Press',
     muscle_group: 'chest',
     equipment: 'cable',
-    tracking_type: 'weight_reps',
+    exercise_type: 'weight_reps',
     instructions: ['Brace hard.'],
   });
 
@@ -38,7 +38,7 @@ test('searches, filters, and creates custom exercises on real SQL', async () => 
     name: 'Cable Dragon Press',
     muscle_group: 'chest',
     equipment: 'cable',
-    tracking_type: 'weight_reps',
+    exercise_type: 'weight_reps',
     is_custom: true,
     instructions: ['Brace hard.'],
     images: [],

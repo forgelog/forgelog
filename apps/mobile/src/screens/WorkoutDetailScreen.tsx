@@ -67,7 +67,7 @@ export function WorkoutDetailScreen({ route }: Props) {
                 <View key={set.id} style={styles.setRow}>
                   <Text style={[styles.setIndex, { color: c.sub }]}>{i + 1}</Text>
                   <Text style={[styles.setText, { color: c.fg }]}>
-                    {formatSet(we.tracking_type ?? we.exercise.tracking_type, set)}
+                    {formatSet(we.exercise_type, set)}
                   </Text>
                   <View
                     style={[

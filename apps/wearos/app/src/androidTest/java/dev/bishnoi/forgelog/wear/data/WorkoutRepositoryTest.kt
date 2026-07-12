@@ -10,9 +10,12 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+
+private const val PUSH_DAY_NAME = "Push Day"
 
 @RunWith(AndroidJUnit4::class)
 class WorkoutRepositoryTest {
@@ -56,7 +59,7 @@ class WorkoutRepositoryTest {
                 ExerciseEntity("ex2", "Plank", "duration"),
             ),
         )
-        referenceDao.upsertRoutines(listOf(RoutineEntity("r1", "Push Day", 0)))
+        referenceDao.upsertRoutines(listOf(RoutineEntity("r1", PUSH_DAY_NAME, 0)))
         referenceDao.upsertRoutineExercises(
             listOf(
                 RoutineExerciseEntity(
@@ -66,7 +69,7 @@ class WorkoutRepositoryTest {
                     position = 0,
                     supersetGroupId = "sg1",
                     restSeconds = 75,
-                    trackingType = "reps_only",
+                    exerciseType = "reps_only",
                 ),
                 RoutineExerciseEntity(
                     id = "re2",
@@ -75,7 +78,7 @@ class WorkoutRepositoryTest {
                     position = 1,
                     supersetGroupId = null,
                     restSeconds = 30,
-                    trackingType = null,
+                    exerciseType = "duration",
                 ),
             ),
         )
@@ -134,7 +137,7 @@ class WorkoutRepositoryTest {
 
         val workout = repo.startWorkout("r1")
 
-        assertEquals("Push Day", workout.name)
+        assertEquals(PUSH_DAY_NAME, workout.name)
         assertEquals("r1", workout.routineId)
 
         val workoutExercises = db.workoutDao().workoutExercises(workout.id)
@@ -143,11 +146,11 @@ class WorkoutRepositoryTest {
         val bench = workoutExercises[0]
         assertEquals("ex1", bench.exerciseId)
         assertEquals("sg1", bench.supersetGroupId)
-        assertEquals("reps_only", bench.trackingType)
+        assertEquals("reps_only", bench.exerciseType)
         assertEquals(75, bench.restSeconds)
 
         val plank = workoutExercises[1]
-        assertEquals("duration", plank.trackingType)
+        assertEquals("duration", plank.exerciseType)
         assertEquals(30, plank.restSeconds)
 
         val benchSets = db.workoutDao().loggedSets(bench.id)
@@ -163,8 +166,37 @@ class WorkoutRepositoryTest {
             ),
         )
 
-        assertEquals("reps_only", db.workoutDao().getWorkoutExercise(bench.id)?.trackingType)
+        assertEquals("reps_only", db.workoutDao().getWorkoutExercise(bench.id)?.exerciseType)
         assertEquals(75, db.workoutDao().getWorkoutExercise(bench.id)?.restSeconds)
+    }
+
+    @Test
+    fun startWorkoutRejectsInvalidRoutineExerciseTypeBeforeCreatingWorkout() = runBlocking {
+        val referenceDao = db.referenceDao()
+        referenceDao.upsertExercises(listOf(ExerciseEntity("ex1", "Bench Press", "weight_reps")))
+        referenceDao.upsertRoutines(listOf(RoutineEntity("r1", PUSH_DAY_NAME, 0)))
+        referenceDao.upsertRoutineExercises(
+            listOf(
+                RoutineExerciseEntity(
+                    id = "re1",
+                    routineId = "r1",
+                    exerciseId = "ex1",
+                    position = 0,
+                    supersetGroupId = null,
+                    restSeconds = 60,
+                    exerciseType = "bad_type",
+                ),
+            ),
+        )
+
+        try {
+            repo.startWorkout("r1")
+            fail("Expected invalid exercise type to abort workout creation")
+        } catch (error: IllegalArgumentException) {
+            assertEquals("Missing or invalid exercise_type: bad_type", error.message)
+        }
+
+        assertEquals(0, db.workoutDao().unsyncedWorkouts().size)
     }
 
     @Test

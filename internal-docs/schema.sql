@@ -17,7 +17,18 @@ CREATE TABLE exercises (
                                              -- 'lats','legs','lower_back','middle_back','neck','other','quadriceps',
                                              -- 'shoulders','traps','triceps','upper_back'
   equipment     TEXT NOT NULL,              -- free text, any equipment value from the source dataset
-  tracking_type TEXT,                       -- 'weight_reps','reps_only','duration','duration_distance'; unset for now
+  exercise_type TEXT NOT NULL CHECK (
+    exercise_type IN (
+      'weight_reps',
+      'reps_only',
+      'weighted_bodyweight',
+      'assisted_bodyweight',
+      'duration',
+      'duration_weight',
+      'distance_duration',
+      'weight_distance'
+    )
+  ),
   is_custom     INTEGER NOT NULL DEFAULT 0, -- user-created vs seeded from the library
   instructions  TEXT,                       -- JSON array of strings, e.g. '["Step 1...","Step 2..."]'
   images        TEXT,                       -- JSON array of image URLs, e.g. '["https://...0.jpg","https://...1.jpg"]'
@@ -44,7 +55,18 @@ CREATE TABLE routine_exercises (
   position          INTEGER NOT NULL,
   superset_group_id TEXT,               -- shared value links exercises into one superset
   rest_seconds      INTEGER,
-  tracking_type     TEXT,               -- per-routine override; falls back to exercises.tracking_type
+  exercise_type     TEXT NOT NULL CHECK (
+    exercise_type IN (
+      'weight_reps',
+      'reps_only',
+      'weighted_bodyweight',
+      'assisted_bodyweight',
+      'duration',
+      'duration_weight',
+      'distance_duration',
+      'weight_distance'
+    )
+  ),                                    -- snapshot of exercises.exercise_type
   notes             TEXT
 );
 
@@ -81,7 +103,18 @@ CREATE TABLE workout_exercises (
   exercise_id       TEXT NOT NULL REFERENCES exercises(id),
   position          INTEGER NOT NULL,
   superset_group_id TEXT,               -- shared value links exercises into one superset
-  tracking_type     TEXT,               -- snapshot of the effective type at log time; falls back to exercises.tracking_type
+  exercise_type     TEXT NOT NULL CHECK (
+    exercise_type IN (
+      'weight_reps',
+      'reps_only',
+      'weighted_bodyweight',
+      'assisted_bodyweight',
+      'duration',
+      'duration_weight',
+      'distance_duration',
+      'weight_distance'
+    )
+  ),                                    -- snapshot of routine/catalog exercise_type at log time
   rest_seconds      INTEGER,            -- snapshot of routine_exercises.rest_seconds at log time; null falls back to a default
   notes             TEXT
 );

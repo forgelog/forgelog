@@ -67,7 +67,6 @@ test('starts from routines and reports detail, history, previous sets, and profi
   const routineExercise = await addExerciseToRoutine(routine.id, bench.id);
   await updateRoutineExercise(routineExercise.id, {
     rest_seconds: 150,
-    tracking_type: 'weight_reps',
     notes: 'Snapshot this',
   });
   await addRoutineSet(routineExercise.id, { target_weight: 100, target_reps: 5 });
@@ -83,7 +82,7 @@ test('starts from routines and reports detail, history, previous sets, and profi
       expect.objectContaining({
         exercise_id: bench.id,
         rest_seconds: 150,
-        tracking_type: 'weight_reps',
+        exercise_type: 'weight_reps',
         notes: 'Snapshot this',
         sets: [expect.objectContaining({ weight: 100, reps: 5, completed: false })],
       }),

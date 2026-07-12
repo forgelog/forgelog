@@ -3,7 +3,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -22,25 +21,21 @@ import {
   getWorkoutDetail,
   hasCompletedSet,
   updateLoggedSet,
-  updateWorkoutExercise,
 } from '../db/repositories/workouts';
 import type { LoggedSet, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
 import {
-  effectiveTrackingType,
-  fieldsFor,
+  fieldsForExerciseType,
   formatCompactSet,
   hasLoggedValue,
-  parseNonNegativeInteger,
-  parseNonNegativeNumber,
+  parseSetFieldValue,
+  requireExerciseType,
   resolveRestSeconds,
-  SetFieldKey,
-  TRACKING_LABELS,
-  TRACKING_TYPES,
+  type ExerciseType,
+  type ExerciseTypeFieldDescriptor,
+  type SetFieldKey,
 } from '../domain/setFields';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
-
-const INTEGER_FIELDS = new Set<SetFieldKey>(['reps', 'duration']);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveWorkout'>;
 
@@ -152,23 +147,14 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     patchExercise(we.id, (w) => ({ ...w, sets: [...w.sets, created] }));
   }
 
-  async function cycleTrackingType(we: WorkoutExerciseDetail) {
-    const current = effectiveTrackingType(we.tracking_type, we.exercise.tracking_type);
-    const next = TRACKING_TYPES[(TRACKING_TYPES.indexOf(current) + 1) % TRACKING_TYPES.length];
-    patchExercise(we.id, (w) => ({ ...w, tracking_type: next }));
-    try {
-      await updateWorkoutExercise(we.id, { tracking_type: next });
-    } catch {
-      Alert.alert('Save failed', 'Could not save tracking type change.');
-      reload();
-    }
-  }
-
-  async function editSetField(weId: string, setId: string, field: SetFieldKey, raw: string) {
-    const column = SET_COLUMN[field];
-    const value = INTEGER_FIELDS.has(field)
-      ? parseNonNegativeInteger(raw)
-      : parseNonNegativeNumber(raw);
+  async function editSetField(
+    weId: string,
+    setId: string,
+    field: ExerciseTypeFieldDescriptor,
+    raw: string
+  ) {
+    const column = SET_COLUMN[field.key];
+    const value = parseSetFieldValue(field, raw);
     if (value === undefined) return;
     patchExercise(weId, (w) => ({
       ...w,
@@ -185,8 +171,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   async function toggleComplete(we: WorkoutExerciseDetail, setId: string, completed: boolean) {
     if (completed) {
       const set = we.sets.find((s) => s.id === setId);
-      const trackingType = effectiveTrackingType(we.tracking_type, we.exercise.tracking_type);
-      if (!set || !hasLoggedValue(trackingType, set)) {
+      const exerciseType = requireExerciseType(we.exercise_type);
+      if (!set || !hasLoggedValue(exerciseType, set)) {
         Alert.alert('Missing values', 'Enter reps (or time) before marking this set complete.');
         return;
       }
@@ -314,7 +300,6 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             prevSets={prevSets}
             prSetIds={prSetIds}
             onOpenExercise={(exerciseId) => navigation.navigate('ExerciseDetail', { exerciseId })}
-            onCycleTrackingType={cycleTrackingType}
             onEditSetField={editSetField}
             onToggleComplete={toggleComplete}
             onRemoveSet={removeSet}
@@ -353,8 +338,12 @@ type ActiveWorkoutExerciseItemProps = Readonly<{
   prevSets: Record<string, LoggedSet[]>;
   prSetIds: Set<string>;
   onOpenExercise: (exerciseId: string) => void;
-  onCycleTrackingType: (item: WorkoutExerciseDetail) => void;
-  onEditSetField: (weId: string, setId: string, field: SetFieldKey, raw: string) => void;
+  onEditSetField: (
+    weId: string,
+    setId: string,
+    field: ExerciseTypeFieldDescriptor,
+    raw: string
+  ) => void;
   onToggleComplete: (item: WorkoutExerciseDetail, setId: string, completed: boolean) => void;
   onRemoveSet: (weId: string, setId: string) => void;
   onAddSet: (item: WorkoutExerciseDetail) => void;
@@ -366,15 +355,14 @@ function ActiveWorkoutExerciseItem({
   prevSets,
   prSetIds,
   onOpenExercise,
-  onCycleTrackingType,
   onEditSetField,
   onToggleComplete,
   onRemoveSet,
   onAddSet,
 }: ActiveWorkoutExerciseItemProps) {
   const c = useTheme();
-  const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
-  const fields = fieldsFor(trackingType);
+  const exerciseType = requireExerciseType(item.exercise_type);
+  const fields = fieldsForExerciseType(exerciseType);
 
   return (
     <View style={[styles.exercise, { borderTopColor: c.sep }]}>
@@ -389,19 +377,13 @@ function ActiveWorkoutExerciseItem({
           </Text>
           <Icon name="information-outline" variant="sub" size={18} />
         </Pressable>
-        <Chip
-          label={TRACKING_LABELS[trackingType]}
-          onPress={() => onCycleTrackingType(item)}
-          accessibilityLabel={`Workout tracking type for ${item.exercise.name}: ${TRACKING_LABELS[trackingType]}`}
-          testID={`workout-exercise-${index}-tracking-type`}
-        />
       </View>
       <View style={styles.columnHeader}>
         <Text style={[styles.columnLabel, { color: c.sub, width: 26, textAlign: 'center' }]}>SET</Text>
         <Text style={[styles.columnLabel, { color: c.sub, width: 52, textAlign: 'center' }]}>PREV</Text>
         {fields.map((field) => (
-          <Text key={field} style={[styles.columnLabel, { color: c.sub, flex: 1, textAlign: 'center' }]}>
-            {field.toUpperCase()}
+          <Text key={field.key} style={[styles.columnLabel, { color: c.sub, flex: 1, textAlign: 'center' }]}>
+            {field.columnLabel.toUpperCase()}
           </Text>
         ))}
       </View>
@@ -414,7 +396,7 @@ function ActiveWorkoutExerciseItem({
           exercise={item}
           fields={fields}
           previousSet={prevSets[item.exercise.id]?.[setIndex]}
-          trackingType={trackingType}
+          exerciseType={exerciseType}
           isPersonalRecord={prSetIds.has(set.id)}
           onEditSetField={onEditSetField}
           onToggleComplete={onToggleComplete}
@@ -439,11 +421,16 @@ type ActiveWorkoutSetRowProps = Readonly<{
   setIndex: number;
   exerciseIndex: number;
   exercise: WorkoutExerciseDetail;
-  fields: SetFieldKey[];
+  fields: readonly ExerciseTypeFieldDescriptor[];
   previousSet?: LoggedSet;
-  trackingType: ReturnType<typeof effectiveTrackingType>;
+  exerciseType: ExerciseType;
   isPersonalRecord: boolean;
-  onEditSetField: (weId: string, setId: string, field: SetFieldKey, raw: string) => void;
+  onEditSetField: (
+    weId: string,
+    setId: string,
+    field: ExerciseTypeFieldDescriptor,
+    raw: string
+  ) => void;
   onToggleComplete: (item: WorkoutExerciseDetail, setId: string, completed: boolean) => void;
   onRemoveSet: (weId: string, setId: string) => void;
 }>;
@@ -455,14 +442,14 @@ function ActiveWorkoutSetRow({
   exercise,
   fields,
   previousSet,
-  trackingType,
+  exerciseType,
   isPersonalRecord,
   onEditSetField,
   onToggleComplete,
   onRemoveSet,
 }: ActiveWorkoutSetRowProps) {
   const c = useTheme();
-  const previousValue = previousSet ? formatCompactSet(trackingType, previousSet) : '–';
+  const previousValue = previousSet ? formatCompactSet(exerciseType, previousSet) : '–';
   const completedIconColor = set.completed ? '#fff' : c.sub;
 
   return (
@@ -482,7 +469,7 @@ function ActiveWorkoutSetRow({
         valueForField={(field) => (set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
         onChangeField={(field, text) => onEditSetField(exercise.id, set.id, field, text)}
         accessibilityLabelForField={(field) =>
-          `Workout set ${setIndex + 1} ${field} for ${exercise.exercise.name}`
+          `Workout set ${setIndex + 1} ${field.inputLabel} for ${exercise.exercise.name}`
         }
         testIDForField={(field) => `workout-set-${exerciseIndex}-${setIndex}-${field}`}
       />

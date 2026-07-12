@@ -1,5 +1,5 @@
 {
-  "protocol_version": 1,
+  "protocol_version": 2,
   "id": "w1",
   "routine_id": "r1",
   "name": "Push Day",
@@ -12,7 +12,7 @@
       "exercise_id": "ex1",
       "position": 0,
       "superset_group_id": null,
-      "tracking_type": "weight_reps",
+      "exercise_type": "weight_reps",
       "rest_seconds": 90,
       "notes": null,
       "sets": [
