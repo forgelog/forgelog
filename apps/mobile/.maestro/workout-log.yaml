@@ -83,11 +83,6 @@ appId: dev.bishnoi.forgelog.mobile
 - tapOn:
     id: "routine-exercise-1-add-set"
 - tapOn:
-    id: "routine-exercise-1-tracking-type"
-- extendedWaitUntil:
-    visible: "Reps"
-    timeout: 60000
-- tapOn:
     id: "routine-set-1-0-reps"
 - inputText: "12"
 - scrollUntilVisible:
@@ -121,16 +116,6 @@ appId: dev.bishnoi.forgelog.mobile
     direction: DOWN
 - tapOn:
     id: "routine-exercise-2-add-set"
-- tapOn:
-    id: "routine-exercise-2-tracking-type"
-- extendedWaitUntil:
-    visible: "Reps"
-    timeout: 60000
-- tapOn:
-    id: "routine-exercise-2-tracking-type"
-- extendedWaitUntil:
-    visible: "Time"
-    timeout: 60000
 - tapOn:
     id: "routine-set-2-0-duration"
 - inputText: "45"

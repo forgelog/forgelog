@@ -1,52 +1,124 @@
 export type SetFieldKey = 'weight' | 'reps' | 'duration' | 'distance';
 
-export type TrackingType = 'weight_reps' | 'reps_only' | 'duration' | 'duration_distance';
-
-export const TRACKING_TYPES: TrackingType[] = [
+export const EXERCISE_TYPES = [
   'weight_reps',
   'reps_only',
+  'weighted_bodyweight',
+  'assisted_bodyweight',
   'duration',
-  'duration_distance',
-];
+  'duration_weight',
+  'distance_duration',
+  'weight_distance',
+] as const;
 
-export const TRACKING_LABELS: Record<TrackingType, string> = {
+export type ExerciseType = (typeof EXERCISE_TYPES)[number];
+
+export const EXERCISE_TYPE_LABELS: Record<ExerciseType, string> = {
   weight_reps: 'Weight × reps',
   reps_only: 'Reps',
+  weighted_bodyweight: 'Added × reps',
+  assisted_bodyweight: 'Assist × reps',
   duration: 'Time',
-  duration_distance: 'Time + dist',
+  duration_weight: 'Weight × time',
+  distance_duration: 'Distance × time',
+  weight_distance: 'Weight × distance',
 };
 
-const FIELDS: Record<TrackingType, SetFieldKey[]> = {
-  weight_reps: ['weight', 'reps'],
-  reps_only: ['reps'],
-  duration: ['duration'],
-  duration_distance: ['duration', 'distance'],
+export type ExerciseTypeFieldDescriptor = {
+  key: SetFieldKey;
+  columnLabel: string;
+  inputLabel: string;
+  placeholder: string;
+  keyboardType: 'number-pad' | 'decimal-pad';
+  parser: 'integer' | 'number';
 };
 
-// Resolve the type actually in effect: a per-context override wins over the
-// catalog default; both may be null, in which case we default to weight × reps.
-export function effectiveTrackingType(
-  override: string | null,
-  catalogDefault: string | null
-): TrackingType {
-  return toTrackingType(override) ?? toTrackingType(catalogDefault) ?? 'weight_reps';
-}
+const WEIGHT_FIELD: ExerciseTypeFieldDescriptor = {
+  key: 'weight',
+  columnLabel: 'Weight',
+  inputLabel: 'weight',
+  placeholder: 'kg',
+  keyboardType: 'decimal-pad',
+  parser: 'number',
+};
 
-function toTrackingType(value: string | null): TrackingType | null {
-  return TRACKING_TYPES.includes(value as TrackingType) ? (value as TrackingType) : null;
-}
+const ADDED_WEIGHT_FIELD: ExerciseTypeFieldDescriptor = {
+  ...WEIGHT_FIELD,
+  columnLabel: 'Added',
+  inputLabel: 'added weight',
+};
 
-// tracking_type is null for seeded exercises — default to weight × reps.
-export function fieldsFor(trackingType: string | null): SetFieldKey[] {
-  return FIELDS[(trackingType as TrackingType) ?? 'weight_reps'] ?? FIELDS.weight_reps;
-}
+const ASSISTANCE_WEIGHT_FIELD: ExerciseTypeFieldDescriptor = {
+  ...WEIGHT_FIELD,
+  columnLabel: 'Assist',
+  inputLabel: 'assistance',
+};
+
+const REPS_FIELD: ExerciseTypeFieldDescriptor = {
+  key: 'reps',
+  columnLabel: 'Reps',
+  inputLabel: 'reps',
+  placeholder: 'reps',
+  keyboardType: 'number-pad',
+  parser: 'integer',
+};
+
+const DURATION_FIELD: ExerciseTypeFieldDescriptor = {
+  key: 'duration',
+  columnLabel: 'Time',
+  inputLabel: 'duration',
+  placeholder: 'sec',
+  keyboardType: 'number-pad',
+  parser: 'integer',
+};
+
+const DISTANCE_FIELD: ExerciseTypeFieldDescriptor = {
+  key: 'distance',
+  columnLabel: 'Distance',
+  inputLabel: 'distance',
+  placeholder: 'm',
+  keyboardType: 'decimal-pad',
+  parser: 'number',
+};
+
+const FIELDS: Record<ExerciseType, readonly ExerciseTypeFieldDescriptor[]> = {
+  weight_reps: [WEIGHT_FIELD, REPS_FIELD],
+  reps_only: [REPS_FIELD],
+  weighted_bodyweight: [ADDED_WEIGHT_FIELD, REPS_FIELD],
+  assisted_bodyweight: [ASSISTANCE_WEIGHT_FIELD, REPS_FIELD],
+  duration: [DURATION_FIELD],
+  duration_weight: [WEIGHT_FIELD, DURATION_FIELD],
+  distance_duration: [DISTANCE_FIELD, DURATION_FIELD],
+  weight_distance: [WEIGHT_FIELD, DISTANCE_FIELD],
+};
 
 export const FIELD_PLACEHOLDER: Record<SetFieldKey, string> = {
-  weight: 'kg',
-  reps: 'reps',
-  duration: 'sec',
-  distance: 'm',
+  weight: WEIGHT_FIELD.placeholder,
+  reps: REPS_FIELD.placeholder,
+  duration: DURATION_FIELD.placeholder,
+  distance: DISTANCE_FIELD.placeholder,
 };
+
+export function normalizeExerciseType(value: string | null): ExerciseType | null {
+  return EXERCISE_TYPES.includes(value as ExerciseType) ? (value as ExerciseType) : null;
+}
+
+export function requireExerciseType(value: string | null): ExerciseType {
+  const type = normalizeExerciseType(value);
+  if (!type) throw new Error(`Missing or invalid exercise_type: ${value ?? 'null'}`);
+  return type;
+}
+
+export function fieldsForExerciseType(type: ExerciseType): readonly ExerciseTypeFieldDescriptor[] {
+  return FIELDS[type];
+}
+
+export function parseSetFieldValue(
+  field: ExerciseTypeFieldDescriptor,
+  raw: string
+): number | null | undefined {
+  return field.parser === 'integer' ? parseNonNegativeInteger(raw) : parseNonNegativeNumber(raw);
+}
 
 type SetLike = {
   weight: number | null;
@@ -57,41 +129,47 @@ type SetLike = {
 
 // Full display format with units, e.g. "80 kg × 8 reps" — used for read-only
 // history views (workout detail, exercise history).
-export function formatSet(trackingType: string | null, set: SetLike): string {
-  return fieldsFor(trackingType)
-    .map((field) => {
-      switch (field) {
-        case 'weight':
-          return `${set.weight ?? '–'} kg`;
-        case 'reps':
-          return `${set.reps ?? '–'} reps`;
-        case 'duration':
-          return `${set.duration_seconds ?? '–'} s`;
-        case 'distance':
-          return `${set.distance_meters ?? '–'} m`;
-      }
-    })
-    .join(' × ');
+export function formatSet(exerciseType: string | null, set: SetLike): string {
+  const type = requireExerciseType(exerciseType);
+  return FIELDS[type].map((field) => formatField(type, field.key, set)).join(' × ');
 }
 
 // Compact, unit-less format, e.g. "77.5 × 8" — used for the narrow PREV
 // column while actively logging a set.
-export function formatCompactSet(trackingType: string | null, set: SetLike): string | null {
-  const fields = fieldsFor(trackingType);
-  const values = fields.map((field) => {
-    switch (field) {
-      case 'weight':
-        return set.weight;
-      case 'reps':
-        return set.reps;
-      case 'duration':
-        return set.duration_seconds;
-      case 'distance':
-        return set.distance_meters;
-    }
-  });
-  if (values.some((v) => v == null)) return null;
+export function formatCompactSet(exerciseType: string | null, set: SetLike): string | null {
+  const type = requireExerciseType(exerciseType);
+  const values = FIELDS[type].map((field) => valueForField(field.key, set));
+  if (values.some((value) => value == null)) return null;
   return values.join(' × ');
+}
+
+function valueForField(field: SetFieldKey, set: SetLike): number | null {
+  switch (field) {
+    case 'weight':
+      return set.weight;
+    case 'reps':
+      return set.reps;
+    case 'duration':
+      return set.duration_seconds;
+    case 'distance':
+      return set.distance_meters;
+  }
+}
+
+function formatField(type: ExerciseType, field: SetFieldKey, set: SetLike): string {
+  const value = valueForField(field, set) ?? '-';
+  switch (field) {
+    case 'weight':
+      if (type === 'weighted_bodyweight') return `${value} kg added`;
+      if (type === 'assisted_bodyweight') return `${value} kg assist`;
+      return `${value} kg`;
+    case 'reps':
+      return `${value} reps`;
+    case 'duration':
+      return `${value} s`;
+    case 'distance':
+      return `${value} m`;
+  }
 }
 
 // Parses a numeric text input, rejecting negative and non-finite values
@@ -112,18 +190,20 @@ export function parseNonNegativeInteger(raw: string): number | null | undefined 
   return Number.isInteger(value) ? value : undefined;
 }
 
-// The field whose value proves a set was actually performed, per tracking
-// type — weight is never required so bodyweight sets stay valid.
-const LOGGED_VALUE_FIELD: Record<TrackingType, 'reps' | 'duration_seconds'> = {
+const LOGGED_VALUE_FIELD: Record<ExerciseType, keyof SetLike> = {
   weight_reps: 'reps',
   reps_only: 'reps',
+  weighted_bodyweight: 'reps',
+  assisted_bodyweight: 'reps',
   duration: 'duration_seconds',
-  duration_distance: 'duration_seconds',
+  duration_weight: 'duration_seconds',
+  distance_duration: 'duration_seconds',
+  weight_distance: 'distance_meters',
 };
 
-export function hasLoggedValue(trackingType: string | null, set: SetLike): boolean {
-  const field = LOGGED_VALUE_FIELD[(trackingType as TrackingType) ?? 'weight_reps'] ?? 'reps';
-  return (set[field] ?? 0) > 0;
+export function hasLoggedValue(exerciseType: string | null, set: SetLike): boolean {
+  const type = requireExerciseType(exerciseType);
+  return (set[LOGGED_VALUE_FIELD[type]] ?? 0) > 0;
 }
 
 export const DEFAULT_REST_SECONDS = 90;

@@ -1,8 +1,8 @@
 import {
   parseNonNegativeInteger,
-  parseNonNegativeNumber,
+  parseSetFieldValue,
+  type ExerciseTypeFieldDescriptor,
   type SetFieldKey,
-  type TrackingType,
 } from './setFields';
 import { NAME_MAX_LENGTH, NOTES_MAX_LENGTH, validateText } from '../validation/textInput';
 
@@ -13,7 +13,7 @@ export type DraftExercise = {
   name: string;
   muscle_group: string;
   equipment: string;
-  tracking_type: string | null;
+  exercise_type: string;
   is_custom: boolean;
   instructions: string[];
   images: string[];
@@ -30,7 +30,7 @@ type RoutineDetailSource = {
     exercise_id: string;
     superset_group_id: string | null;
     rest_seconds: number | null;
-    tracking_type: string | null;
+    exercise_type: string;
     notes: string | null;
     exercise: DraftExercise;
     sets: {
@@ -58,7 +58,7 @@ export type RoutineExerciseDraft = {
   superset_group_id: string | null;
   exercise: DraftExercise;
   rest_seconds: number | null;
-  tracking_type: string | null;
+  exercise_type: string;
   notes: string | null;
   sets: RoutineSetDraft[];
 };
@@ -81,7 +81,7 @@ export type SaveReadyRoutineDraft = {
     exercise_id: string;
     superset_group_id: string | null;
     rest_seconds: number | null;
-    tracking_type: string | null;
+    exercise_type: string;
     notes: string | null;
     sets: {
       set_type: SetType;
@@ -110,8 +110,6 @@ const SET_COLUMN: Record<SetFieldKey, keyof RoutineSetDraft> = {
   distance: 'target_distance_meters',
 };
 
-const INTEGER_FIELDS = new Set<SetFieldKey>(['reps', 'duration']);
-
 export function createEmptyRoutineDraft(): RoutineDraft {
   return { name: '', notes: '', exercises: [] };
 }
@@ -131,7 +129,7 @@ export function routineDetailToDraft(
       superset_group_id: exercise.superset_group_id,
       exercise: { ...exercise.exercise },
       rest_seconds: exercise.rest_seconds,
-      tracking_type: exercise.tracking_type,
+      exercise_type: exercise.exercise_type,
       notes: exercise.notes,
       sets: exercise.sets.map((set) => ({
         localId: makeLocalId(),
@@ -161,7 +159,7 @@ export function addExerciseToDraft(
         superset_group_id: null,
         exercise: { ...exercise },
         rest_seconds: null,
-        tracking_type: null,
+        exercise_type: exercise.exercise_type,
         notes: null,
         sets: [],
       },
@@ -234,29 +232,16 @@ export function updateDraftRest(
   return updateExercise(draft, exerciseLocalId, (exercise) => ({ ...exercise, rest_seconds: value }));
 }
 
-export function updateDraftTrackingType(
-  draft: RoutineDraft,
-  exerciseLocalId: string,
-  trackingType: TrackingType
-): RoutineDraft {
-  return updateExercise(draft, exerciseLocalId, (exercise) => ({
-    ...exercise,
-    tracking_type: trackingType,
-  }));
-}
-
 export function updateDraftSetField(
   draft: RoutineDraft,
   exerciseLocalId: string,
   setLocalId: string,
-  field: SetFieldKey,
+  field: ExerciseTypeFieldDescriptor,
   raw: string
 ): RoutineDraft {
-  const value = INTEGER_FIELDS.has(field)
-    ? parseNonNegativeInteger(raw)
-    : parseNonNegativeNumber(raw);
+  const value = parseSetFieldValue(field, raw);
   if (value === undefined) return draft;
-  const column = SET_COLUMN[field];
+  const column = SET_COLUMN[field.key];
   return updateExercise(draft, exerciseLocalId, (exercise) => ({
     ...exercise,
     sets: exercise.sets.map((set) => (set.localId === setLocalId ? { ...set, [column]: value } : set)),
@@ -295,7 +280,7 @@ export function validateRoutineDraft(draft: RoutineDraft): RoutineDraftValidatio
         exercise_id: exercise.exercise_id,
         superset_group_id: exercise.superset_group_id,
         rest_seconds: exercise.rest_seconds,
-        tracking_type: exercise.tracking_type,
+        exercise_type: exercise.exercise_type,
         notes: exercise.notes,
         sets: exercise.sets.map((set) => ({
           set_type: set.set_type,

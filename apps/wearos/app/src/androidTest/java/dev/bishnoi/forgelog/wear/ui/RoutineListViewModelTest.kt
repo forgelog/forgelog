@@ -45,8 +45,8 @@ class RoutineListViewModelTest {
         db.referenceDao().upsertRoutines(listOf(RoutineEntity("r1", "Push Day", 0)))
         db.referenceDao().upsertRoutineExercises(
             listOf(
-                RoutineExerciseEntity("re1", "r1", "ex1", 0, null, 90, null),
-                RoutineExerciseEntity("re2", "r1", "ex1", 1, null, 90, null),
+                RoutineExerciseEntity("re1", "r1", "ex1", 0, null, 90, "weight_reps"),
+                RoutineExerciseEntity("re2", "r1", "ex1", 1, null, 90, "weight_reps"),
             ),
         )
 

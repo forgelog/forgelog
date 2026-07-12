@@ -39,7 +39,7 @@ function RoutineEditorWithPickedParam(props: ComponentProps<typeof RoutineEditor
 async function insertExercise(exerciseId = 'ex1', name = 'Bench Press') {
   const db = await getDb();
   await db.runAsync(
-    `INSERT OR IGNORE INTO exercises (id, name, muscle_group, equipment, tracking_type, is_custom)
+    `INSERT OR IGNORE INTO exercises (id, name, muscle_group, equipment, exercise_type, is_custom)
      VALUES ($id, $name, 'chest', 'barbell', 'weight_reps', 1)`,
     { $id: exerciseId, $name: name }
   );

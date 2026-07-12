@@ -7,7 +7,7 @@ const DB_NAME = 'forgelog.db';
 
 // Bump this and add an `if (currentVersion < N)` branch below whenever the
 // schema changes, so existing installs migrate instead of losing data.
-const LATEST_SCHEMA_VERSION = 6;
+const LATEST_SCHEMA_VERSION = 7;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -63,6 +63,12 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
         await db.execAsync("UPDATE profile SET name = '' WHERE name = 'Alex Rivera';");
       });
     }
+    if (currentVersion < 7) {
+      // v7: replace nullable tracking_type overrides with required exercise_type
+      // snapshots. This app is still pre-release, so dev installs can be rebuilt
+      // instead of preserving old local rows.
+      await rebuildDevSchema(db);
+    }
   }
 
   if (currentVersion < LATEST_SCHEMA_VERSION) {
@@ -73,4 +79,24 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   await seedExercises(db);
 
   return db;
+}
+
+async function rebuildDevSchema(db: SQLite.SQLiteDatabase): Promise<void> {
+  await db.execAsync('PRAGMA foreign_keys = OFF;');
+  try {
+    await db.execAsync(`
+      DROP TABLE IF EXISTS personal_records;
+      DROP TABLE IF EXISTS logged_sets;
+      DROP TABLE IF EXISTS workout_exercises;
+      DROP TABLE IF EXISTS workouts;
+      DROP TABLE IF EXISTS routine_sets;
+      DROP TABLE IF EXISTS routine_exercises;
+      DROP TABLE IF EXISTS routines;
+      DROP TABLE IF EXISTS exercises;
+      DROP TABLE IF EXISTS profile;
+    `);
+    await db.execAsync(SCHEMA_SQL);
+  } finally {
+    await db.execAsync('PRAGMA foreign_keys = ON;');
+  }
 }

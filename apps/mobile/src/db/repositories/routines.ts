@@ -1,5 +1,6 @@
 import { getDb } from '../index';
 import { id } from '../id';
+import { requireExerciseType } from '../../domain/setFields';
 import { NAME_MAX_LENGTH, NOTES_MAX_LENGTH, validateText } from '../../validation/textInput';
 import type {
   Routine,
@@ -15,7 +16,7 @@ type ExerciseRow = {
   name: string;
   muscle_group: string;
   equipment: string;
-  tracking_type: string | null;
+  exercise_type: string;
   is_custom: number;
   instructions: string | null;
   images: string | null;
@@ -57,7 +58,7 @@ export async function getRoutineDetail(routineId: string): Promise<RoutineDetail
         name: exRow.name,
         muscle_group: exRow.muscle_group,
         equipment: exRow.equipment,
-        tracking_type: exRow.tracking_type,
+        exercise_type: requireExerciseType(exRow.exercise_type),
         is_custom: exRow.is_custom === 1,
         instructions: exRow.instructions ? (JSON.parse(exRow.instructions) as string[]) : [],
         images: exRow.images ? (JSON.parse(exRow.images) as string[]) : [],
@@ -163,10 +164,21 @@ export async function addExerciseToRoutine(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM routine_exercises WHERE routine_id = $id',
     { $id: routineId }
   );
+  const exercise = await db.getFirstAsync<{ exercise_type: string }>(
+    'SELECT exercise_type FROM exercises WHERE id = $id',
+    { $id: exerciseId }
+  );
+  if (!exercise) throw new Error('Exercise not found');
   await db.runAsync(
-    `INSERT INTO routine_exercises (id, routine_id, exercise_id, position)
-     VALUES ($id, $routine_id, $exercise_id, $position)`,
-    { $id: newId, $routine_id: routineId, $exercise_id: exerciseId, $position: row?.next ?? 0 }
+    `INSERT INTO routine_exercises (id, routine_id, exercise_id, position, exercise_type)
+     VALUES ($id, $routine_id, $exercise_id, $position, $exercise_type)`,
+    {
+      $id: newId,
+      $routine_id: routineId,
+      $exercise_id: exerciseId,
+      $position: row?.next ?? 0,
+      $exercise_type: requireExerciseType(exercise.exercise_type),
+    }
   );
   const created = await db.getFirstAsync<RoutineExercise>(
     'SELECT * FROM routine_exercises WHERE id = $id',
@@ -186,7 +198,6 @@ export async function updateRoutineExercise(
   fields: {
     rest_seconds?: number | null;
     superset_group_id?: string | null;
-    tracking_type?: string | null;
     notes?: string | null;
   }
 ): Promise<void> {
@@ -201,10 +212,6 @@ export async function updateRoutineExercise(
   if (fields.superset_group_id !== undefined) {
     sets.push('superset_group_id = $superset');
     params.$superset = fields.superset_group_id;
-  }
-  if (fields.tracking_type !== undefined) {
-    sets.push('tracking_type = $tracking');
-    params.$tracking = fields.tracking_type;
   }
   if (fields.notes !== undefined) {
     sets.push('notes = $notes');
@@ -242,7 +249,7 @@ export type SaveRoutineDraftInput = {
     exercise_id: string;
     superset_group_id?: string | null;
     rest_seconds: number | null;
-    tracking_type: string | null;
+    exercise_type: string;
     notes: string | null;
     sets: {
       set_type: SetType;
@@ -282,16 +289,17 @@ export async function saveRoutineDraft(input: SaveRoutineDraftInput): Promise<Ro
 
     for (let exerciseIndex = 0; exerciseIndex < input.exercises.length; exerciseIndex++) {
       const exercise = input.exercises[exerciseIndex];
-      const exerciseExists = await db.getFirstAsync<{ id: string }>(
-        'SELECT id FROM exercises WHERE id = $id',
+      const exerciseExists = await db.getFirstAsync<{ id: string; exercise_type: string }>(
+        'SELECT id, exercise_type FROM exercises WHERE id = $id',
         { $id: exercise.exercise_id }
       );
       if (!exerciseExists) throw new Error('Exercise not found');
+      const exerciseType = requireExerciseType(exercise.exercise_type);
       const routineExerciseId = id();
       await db.runAsync(
         `INSERT INTO routine_exercises
-           (id, routine_id, exercise_id, position, superset_group_id, rest_seconds, tracking_type, notes)
-         VALUES ($id, $routine_id, $exercise_id, $position, $superset_group_id, $rest_seconds, $tracking_type, $notes)`,
+           (id, routine_id, exercise_id, position, superset_group_id, rest_seconds, exercise_type, notes)
+         VALUES ($id, $routine_id, $exercise_id, $position, $superset_group_id, $rest_seconds, $exercise_type, $notes)`,
         {
           $id: routineExerciseId,
           $routine_id: routineId,
@@ -299,7 +307,7 @@ export async function saveRoutineDraft(input: SaveRoutineDraftInput): Promise<Ro
           $position: exerciseIndex,
           $superset_group_id: exercise.superset_group_id ?? null,
           $rest_seconds: exercise.rest_seconds,
-          $tracking_type: exercise.tracking_type,
+          $exercise_type: exerciseType,
           $notes: exercise.notes,
         }
       );

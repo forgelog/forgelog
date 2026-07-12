@@ -1,16 +1,15 @@
 import type { StyleProp, TextStyle } from 'react-native';
 import { TextInput } from 'react-native';
 
-import { FIELD_PLACEHOLDER } from '../domain/setFields';
-import type { SetFieldKey } from '../domain/setFields';
+import type { ExerciseTypeFieldDescriptor, SetFieldKey } from '../domain/setFields';
 import { useTheme } from '../theme/ThemeContext';
 
 type Props = Readonly<{
-  fields: SetFieldKey[];
+  fields: readonly ExerciseTypeFieldDescriptor[];
   inputStyle: StyleProp<TextStyle>;
   valueForField: (field: SetFieldKey) => string;
-  onChangeField: (field: SetFieldKey, text: string) => void;
-  accessibilityLabelForField: (field: SetFieldKey) => string;
+  onChangeField: (field: ExerciseTypeFieldDescriptor, text: string) => void;
+  accessibilityLabelForField: (field: ExerciseTypeFieldDescriptor) => string;
   testIDForField: (field: SetFieldKey) => string;
   editable?: boolean;
 }>;
@@ -30,17 +29,17 @@ export function SetFieldInputs({
     <>
       {fields.map((field) => (
         <TextInput
-          key={field}
+          key={field.key}
           style={[inputStyle, { backgroundColor: c.fill, color: c.fg }]}
-          value={valueForField(field)}
+          value={valueForField(field.key)}
           onChangeText={(text) => onChangeField(field, text)}
-          placeholder={FIELD_PLACEHOLDER[field]}
+          placeholder={field.placeholder}
           placeholderTextColor={c.sub}
-          keyboardType="numeric"
+          keyboardType={field.keyboardType}
           editable={editable}
           accessibilityState={editable ? undefined : { disabled: true }}
           accessibilityLabel={accessibilityLabelForField(field)}
-          testID={testIDForField(field)}
+          testID={testIDForField(field.key)}
         />
       ))}
     </>

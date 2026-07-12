@@ -5,7 +5,7 @@ export type Exercise = {
   name: string;
   muscle_group: string;
   equipment: string;
-  tracking_type: string | null;
+  exercise_type: string;
   is_custom: boolean;
   instructions: string[];
   images: string[];
@@ -29,7 +29,7 @@ export type RoutineExercise = {
   position: number;
   superset_group_id: string | null;
   rest_seconds: number | null;
-  tracking_type: string | null;
+  exercise_type: string;
   notes: string | null;
 };
 
@@ -59,7 +59,7 @@ export type WorkoutExercise = {
   exercise_id: string;
   position: number;
   superset_group_id: string | null;
-  tracking_type: string | null;
+  exercise_type: string;
   rest_seconds: number | null;
   notes: string | null;
 };

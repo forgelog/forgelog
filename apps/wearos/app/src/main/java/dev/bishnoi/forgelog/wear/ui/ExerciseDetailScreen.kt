@@ -40,7 +40,8 @@ import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Picker
 import androidx.wear.compose.material.PickerState
 import androidx.wear.compose.material.Text
-import dev.bishnoi.forgelog.wear.logic.TrackingType
+import dev.bishnoi.forgelog.wear.logic.ExerciseType
+import dev.bishnoi.forgelog.wear.logic.fieldsForExerciseType
 import dev.bishnoi.forgelog.wear.logic.setTypeLabel
 
 /**
@@ -158,7 +159,7 @@ private fun SetEditorPage(
         )
         Spacer(Modifier.height(4.dp))
 
-        MetricPickers(set, state.trackingType, setActions)
+        MetricPickers(set, state.exerciseType, setActions)
 
         Spacer(Modifier.height(8.dp))
         Row(
@@ -181,40 +182,29 @@ private fun SetEditorPage(
 @Composable
 private fun MetricPickers(
     set: SetRow,
-    trackingType: TrackingType,
+    exerciseType: ExerciseType,
     setActions: ExerciseDetailSetActions,
 ) {
     val weights = remember { (0..300).toList() }
     val reps = remember { (0..50).toList() }
     val durations = remember { (0..600 step 5).toList() }
     val distances = remember { (0..5000 step 50).toList() }
+    val fields = remember(exerciseType) { fieldsForExerciseType(exerciseType) }
 
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        when (trackingType) {
-            TrackingType.REPS_ONLY -> {
-                ValueWheel("Reps", reps, set.reps ?: 0, set.id) {
-                    setActions.updateValues(set.id, set.weight, it)
-                }
-            }
-            TrackingType.DURATION -> {
-                ValueWheel("Sec", durations, set.durationSeconds ?: 0, set.id) {
-                    setActions.updateDuration(set.id, it)
-                }
-            }
-            TrackingType.DURATION_DISTANCE -> {
-                ValueWheel("Sec", durations, set.durationSeconds ?: 0, set.id) {
-                    setActions.updateDuration(set.id, it)
-                }
-                ValueWheel("Meters", distances, (set.distanceMeters ?: 0.0).toInt(), set.id) {
-                    setActions.updateDistance(set.id, it.toDouble())
-                }
-            }
-            TrackingType.WEIGHT_REPS -> {
-                ValueWheel("kg", weights, (set.weight ?: 0.0).toInt(), set.id) {
+        for (field in fields) {
+            when (field.key) {
+                "weight" -> ValueWheel(field.label, weights, (set.weight ?: 0.0).toInt(), set.id) {
                     setActions.updateValues(set.id, it.toDouble(), set.reps)
                 }
-                ValueWheel("Reps", reps, set.reps ?: 0, set.id) {
+                "reps" -> ValueWheel(field.label, reps, set.reps ?: 0, set.id) {
                     setActions.updateValues(set.id, set.weight, it)
+                }
+                "duration" -> ValueWheel(field.label, durations, set.durationSeconds ?: 0, set.id) {
+                    setActions.updateDuration(set.id, it)
+                }
+                "distance" -> ValueWheel(field.label, distances, (set.distanceMeters ?: 0.0).toInt(), set.id) {
+                    setActions.updateDistance(set.id, it.toDouble())
                 }
             }
         }

@@ -22,6 +22,17 @@ interface WorkoutDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLoggedSet(loggedSet: LoggedSetEntity)
 
+    @Transaction
+    suspend fun insertWorkoutSession(
+        workout: WorkoutEntity,
+        workoutExercises: List<WorkoutExerciseEntity>,
+        loggedSets: List<LoggedSetEntity>,
+    ) {
+        insertWorkout(workout)
+        workoutExercises.forEach { insertWorkoutExercise(it) }
+        loggedSets.forEach { insertLoggedSet(it) }
+    }
+
     @Update
     suspend fun updateLoggedSet(loggedSet: LoggedSetEntity)
 

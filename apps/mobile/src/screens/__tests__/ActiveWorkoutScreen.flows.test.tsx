@@ -109,7 +109,7 @@ test('completes PR sets', async () => {
   });
 });
 
-test('switches tracking fields', async () => {
+test('renders fields from the workout exercise snapshot', async () => {
   const trackingBench = await seededExercise('Barbell Bench Press - Medium Grip');
   const trackingWorkout = await startWorkout({ name: 'Tracking Switch' });
   const trackingExercise = await addExerciseToWorkout(trackingWorkout.id, trackingBench.id);
@@ -117,16 +117,11 @@ test('switches tracking fields', async () => {
   const tracking = await renderActiveWorkout(trackingWorkout.id);
 
   await waitFor(() =>
-    expect(tracking.getByLabelText(`Workout tracking type for ${trackingBench.name}: Weight × reps`)).toBeTruthy()
+    expect(tracking.getByLabelText(`Workout set 1 weight for ${trackingBench.name}`)).toBeTruthy()
   );
-  await act(async () => {
-    fireEvent.press(tracking.getByTestId('workout-exercise-0-tracking-type'));
-  });
-  await waitFor(() =>
-    expect(tracking.getByLabelText(`Workout tracking type for ${trackingBench.name}: Reps`)).toBeTruthy()
-  );
-  expect(tracking.queryByTestId('workout-set-0-0-weight')).toBeNull();
+  expect(tracking.getByTestId('workout-set-0-0-weight')).toBeTruthy();
   expect(tracking.getByTestId('workout-set-0-0-reps')).toBeTruthy();
+  expect(tracking.queryByTestId('workout-exercise-0-tracking-type')).toBeNull();
 });
 
 test('finishes a workout', async () => {

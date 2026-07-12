@@ -29,7 +29,7 @@ data class RoutineExerciseDetailDto(
     val position: Int,
     @SerialName("superset_group_id") val supersetGroupId: String? = null,
     @SerialName("rest_seconds") val restSeconds: Int? = null,
-    @SerialName("tracking_type") val trackingType: String? = null,
+    @SerialName("exercise_type") val exerciseType: String,
     val exercise: ExerciseDto,
     val sets: List<RoutineSetDto> = emptyList(),
 )
@@ -38,7 +38,7 @@ data class RoutineExerciseDetailDto(
 data class ExerciseDto(
     val id: String,
     val name: String,
-    @SerialName("tracking_type") val trackingType: String? = null,
+    @SerialName("exercise_type") val exerciseType: String,
 )
 
 @Serializable
@@ -66,7 +66,7 @@ data class PersonalRecordDto(
 
 @Serializable
 data class WorkoutPayloadDto(
-    @SerialName("protocol_version") val protocolVersion: Int = 1,
+    @SerialName("protocol_version") val protocolVersion: Int = 2,
     val id: String,
     @SerialName("routine_id") val routineId: String? = null,
     val name: String,
@@ -82,7 +82,7 @@ data class WorkoutExercisePayloadDto(
     @SerialName("exercise_id") val exerciseId: String,
     val position: Int,
     @SerialName("superset_group_id") val supersetGroupId: String? = null,
-    @SerialName("tracking_type") val trackingType: String? = null,
+    @SerialName("exercise_type") val exerciseType: String,
     @SerialName("rest_seconds") val restSeconds: Int? = null,
     val notes: String? = null,
     val sets: List<LoggedSetPayloadDto>,

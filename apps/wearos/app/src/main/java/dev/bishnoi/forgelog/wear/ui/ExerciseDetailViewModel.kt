@@ -9,8 +9,7 @@ import dev.bishnoi.forgelog.wear.data.WorkoutDao
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
 import dev.bishnoi.forgelog.wear.logic.RecordType
 import dev.bishnoi.forgelog.wear.logic.SetPerformance
-import dev.bishnoi.forgelog.wear.logic.TrackingType
-import dev.bishnoi.forgelog.wear.logic.effectiveTrackingType
+import dev.bishnoi.forgelog.wear.logic.ExerciseType
 import dev.bishnoi.forgelog.wear.logic.resolveRestSeconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -37,7 +36,7 @@ data class SetRow(
 
 data class ExerciseDetailUiState(
     val exerciseName: String = "",
-    val trackingType: TrackingType = TrackingType.WEIGHT_REPS,
+    val exerciseType: ExerciseType = ExerciseType.WEIGHT_REPS,
     val sets: List<SetRow> = emptyList(),
     val currentIndex: Int = 0,
     val restRemaining: Int? = null,
@@ -79,7 +78,7 @@ class ExerciseDetailViewModel(
         latestSets = sets
         ExerciseDetailUiState(
             exerciseName = name,
-            trackingType = effectiveTrackingType(we?.trackingType, null),
+            exerciseType = we?.let { ExerciseType.fromValue(it.exerciseType) } ?: ExerciseType.WEIGHT_REPS,
             sets = sets.map { it.toSetRow() },
             currentIndex = index.coerceIn(0, (sets.size - 1).coerceAtLeast(0)),
             restRemaining = rest,

@@ -62,14 +62,14 @@ function makeExercise(id: string, name: string, superset_group_id: string | null
     position: 0,
     superset_group_id,
     rest_seconds: null,
-    tracking_type: null,
+    exercise_type: 'weight_reps',
     notes: null,
     exercise: {
       id: `${id}-ex`,
       name,
       muscle_group: 'chest',
       equipment: 'barbell',
-      tracking_type: 'weight_reps',
+      exercise_type: 'weight_reps',
       is_custom: false,
       instructions: [],
       images: [],
@@ -342,7 +342,8 @@ test('exposes stable E2E labels for routine editing controls', async () => {
   await waitFor(() => expect(getByText('Bench Press')).toBeTruthy());
   expect(getByLabelText('Routine name')).toBeTruthy();
   expect(getByLabelText('Routine notes')).toBeTruthy();
-  expect(getByLabelText('Tracking type for Bench Press: Weight × reps')).toBeTruthy();
+  expect(getByLabelText('Routine set 1 weight for Bench Press')).toBeTruthy();
+  expect(getByLabelText('Routine set 1 reps for Bench Press')).toBeTruthy();
   expect(getByLabelText('Move Bench Press up')).toBeTruthy();
   expect(getByLabelText('Move Bench Press down')).toBeTruthy();
   expect(getByLabelText('Add Exercise')).toBeTruthy();

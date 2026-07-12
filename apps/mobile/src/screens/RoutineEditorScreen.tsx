@@ -21,7 +21,6 @@ import {
   View,
 } from 'react-native';
 
-import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -40,19 +39,16 @@ import {
   updateDraftNotes,
   updateDraftRest,
   updateDraftSetField,
-  updateDraftTrackingType,
   validateRoutineDraft,
   type RoutineDraft,
   type RoutineExerciseDraft,
   type RoutineSetDraft,
 } from '../domain/routineDraft';
 import {
-  effectiveTrackingType,
-  fieldsFor,
+  fieldsForExerciseType,
+  requireExerciseType,
+  type ExerciseTypeFieldDescriptor,
   type SetFieldKey,
-  TRACKING_LABELS,
-  TRACKING_TYPES,
-  type TrackingType,
 } from '../domain/setFields';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
@@ -82,11 +78,10 @@ type RoutineDraftController = {
     removeExercise(exerciseLocalId: string): void;
     moveExercise(index: number, delta: number): void;
     updateRest(exerciseLocalId: string, raw: string): void;
-    cycleTrackingType(exerciseLocalId: string): void;
     updateSetField(
       exerciseLocalId: string,
       setLocalId: string,
-      field: SetFieldKey,
+      field: ExerciseTypeFieldDescriptor,
       raw: string
     ): void;
     save(): Promise<boolean>;
@@ -352,20 +347,8 @@ function RoutineDraftProvider({
     updateDraft((current) => updateDraftRest(current, exerciseLocalId, raw));
   }, [updateDraft]);
 
-  const cycleTrackingType = useCallback((exerciseLocalId: string) => {
-    updateDraft((current) => {
-      const exercise = current.exercises.find((candidate) => candidate.localId === exerciseLocalId);
-      if (!exercise) return current;
-      const currentType = effectiveTrackingType(exercise.tracking_type, exercise.exercise.tracking_type);
-      const next = TRACKING_TYPES[
-        (TRACKING_TYPES.indexOf(currentType) + 1) % TRACKING_TYPES.length
-      ] as TrackingType;
-      return updateDraftTrackingType(current, exerciseLocalId, next);
-    });
-  }, [updateDraft]);
-
   const updateSetField = useCallback(
-    (exerciseLocalId: string, setLocalId: string, field: SetFieldKey, raw: string) => {
+    (exerciseLocalId: string, setLocalId: string, field: ExerciseTypeFieldDescriptor, raw: string) => {
       updateDraft((current) => updateDraftSetField(current, exerciseLocalId, setLocalId, field, raw));
     },
     [updateDraft]
@@ -429,7 +412,6 @@ function RoutineDraftProvider({
         removeExercise,
         moveExercise,
         updateRest,
-        cycleTrackingType,
         updateSetField,
         save,
         close,
@@ -441,7 +423,6 @@ function RoutineDraftProvider({
       addPickedExercise,
       addSet,
       close,
-      cycleTrackingType,
       dirty,
       draft,
       loadFailed,
@@ -600,8 +581,8 @@ function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps
     state: { submitting },
     actions,
   } = useRoutineDraft();
-  const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
-  const fields = fieldsFor(trackingType);
+  const exerciseType = requireExerciseType(item.exercise_type);
+  const fields = fieldsForExerciseType(exerciseType);
 
   return (
     <View style={[styles.exercise, { borderTopColor: c.sep }]}>
@@ -636,13 +617,6 @@ function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps
       </View>
 
       <View style={styles.metaRow}>
-        <Chip
-          label={TRACKING_LABELS[trackingType]}
-          onPress={() => actions.cycleTrackingType(item.localId)}
-          disabled={submitting}
-          accessibilityLabel={`Tracking type for ${item.exercise.name}: ${TRACKING_LABELS[trackingType]}`}
-          testID={`routine-exercise-${index}-tracking-type`}
-        />
         <View style={styles.restBox}>
           <Text style={[styles.restLabel, { color: c.sub }]}>Rest</Text>
           <TextInput
@@ -702,7 +676,7 @@ type RoutineSetDraftRowProps = Readonly<{
   setIndex: number;
   exerciseIndex: number;
   exercise: RoutineExerciseDraft;
-  fields: SetFieldKey[];
+  fields: readonly ExerciseTypeFieldDescriptor[];
   disabled: boolean;
 }>;
 
@@ -729,7 +703,7 @@ function RoutineSetDraftRow({
         }
         editable={!disabled}
         accessibilityLabelForField={(field) =>
-          `Routine set ${setIndex + 1} ${field} for ${exercise.exercise.name}`
+          `Routine set ${setIndex + 1} ${field.inputLabel} for ${exercise.exercise.name}`
         }
         testIDForField={(field) => `routine-set-${exerciseIndex}-${setIndex}-${field}`}
       />

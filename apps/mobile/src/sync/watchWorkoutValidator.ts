@@ -1,8 +1,10 @@
 import Ajv from 'ajv';
 
 import type { WatchWorkoutPayload } from '../db/repositories/sync';
+import { EXERCISE_TYPES } from '../domain/setFields';
 
 const ajv = new Ajv();
+export const WATCH_WORKOUT_PROTOCOL_VERSION = 2;
 
 export const LOGGED_SET_PAYLOAD_SCHEMA = {
   type: 'object',
@@ -24,13 +26,13 @@ export const LOGGED_SET_PAYLOAD_SCHEMA = {
 
 export const WORKOUT_EXERCISE_PAYLOAD_SCHEMA = {
   type: 'object',
-  required: ['id', 'exercise_id', 'position', 'sets'],
+  required: ['id', 'exercise_id', 'position', 'exercise_type', 'sets'],
   properties: {
     id: { type: 'string' },
     exercise_id: { type: 'string' },
     position: { type: 'integer' },
     superset_group_id: { type: ['string', 'null'] },
-    tracking_type: { type: ['string', 'null'] },
+    exercise_type: { type: 'string', enum: [...EXERCISE_TYPES] },
     rest_seconds: { type: ['integer', 'null'] },
     notes: { type: ['string', 'null'] },
     sets: { type: 'array', items: LOGGED_SET_PAYLOAD_SCHEMA },
@@ -41,7 +43,7 @@ export const WATCH_WORKOUT_PAYLOAD_SCHEMA = {
   type: 'object',
   required: ['protocol_version', 'id', 'name', 'started_at', 'exercises'],
   properties: {
-    protocol_version: { type: 'integer', const: 1 },
+    protocol_version: { type: 'integer', const: WATCH_WORKOUT_PROTOCOL_VERSION },
     id: { type: 'string' },
     routine_id: { type: ['string', 'null'] },
     name: { type: 'string' },

@@ -12,7 +12,7 @@ import dev.bishnoi.forgelog.wear.data.WorkoutEntity
 import dev.bishnoi.forgelog.wear.data.WorkoutExerciseEntity
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
 import dev.bishnoi.forgelog.wear.logic.RecordType
-import dev.bishnoi.forgelog.wear.logic.TrackingType
+import dev.bishnoi.forgelog.wear.logic.ExerciseType
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -83,12 +83,23 @@ class ExerciseDetailViewModelTest {
         val row = state.sets[0]
 
         assertEquals("Bench Press", state.exerciseName)
-        assertEquals(TrackingType.WEIGHT_REPS, state.trackingType)
+        assertEquals(ExerciseType.WEIGHT_REPS, state.exerciseType)
         assertEquals("s1", row.id)
         assertEquals("normal", row.setType)
         assertEquals(75.0, row.weight)
         assertEquals(8, row.reps)
         assertFalse(row.completed)
+    }
+
+    @Test
+    fun uiStateFallsBackWhenPersistedExerciseTypeIsInvalid() = runBlocking {
+        seedExercise()
+        db.workoutDao().insertWorkoutExercise(WorkoutExerciseEntity("we1", "w1", "ex1", 0, null, "bad_type", 60))
+        val vm = viewModel()
+
+        val state = withTimeout(5000) { vm.uiState.first { it.sets.isNotEmpty() } }
+
+        assertEquals(ExerciseType.WEIGHT_REPS, state.exerciseType)
     }
 
     @Test

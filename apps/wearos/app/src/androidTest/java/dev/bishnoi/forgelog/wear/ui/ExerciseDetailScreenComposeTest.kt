@@ -12,7 +12,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import dev.bishnoi.forgelog.wear.logic.TrackingType
+import dev.bishnoi.forgelog.wear.logic.ExerciseType
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -24,8 +24,8 @@ class ExerciseDetailScreenComposeTest {
     val compose = createComposeRule()
 
     @Test
-    fun pageZeroShowsMetricPickersForEachTrackingType() {
-        var state by mutableStateOf(exerciseState(TrackingType.WEIGHT_REPS))
+    fun pageZeroShowsMetricPickersForEachExerciseType() {
+        var state by mutableStateOf(exerciseState(ExerciseType.WEIGHT_REPS))
 
         compose.setContent {
             ExerciseDetailUnderTest(state = state)
@@ -33,28 +33,44 @@ class ExerciseDetailScreenComposeTest {
 
         compose.onNodeWithText(BENCH_PRESS).assertIsDisplayed()
         compose.onNodeWithText("Set 1 of 1").assertIsDisplayed()
-        compose.assertPickerValue("kg", "80")
+        compose.assertPickerValue("Weight", "80")
         compose.assertPickerValue("Reps", "8")
 
-        compose.runOnIdle { state = exerciseState(TrackingType.REPS_ONLY) }
+        compose.runOnIdle { state = exerciseState(ExerciseType.REPS_ONLY) }
         compose.assertPickerValue("Reps", "8")
-        compose.assertNoContentDescription("kg")
+        compose.assertNoContentDescription("Weight")
         compose.assertNoText("80")
 
-        compose.runOnIdle { state = exerciseState(TrackingType.DURATION) }
-        compose.assertPickerValue("Sec", "30")
+        compose.runOnIdle { state = exerciseState(ExerciseType.WEIGHTED_BODYWEIGHT) }
+        compose.assertPickerValue("Added", "80")
+        compose.assertPickerValue("Reps", "8")
+
+        compose.runOnIdle { state = exerciseState(ExerciseType.ASSISTED_BODYWEIGHT) }
+        compose.assertPickerValue("Assist", "80")
+        compose.assertPickerValue("Reps", "8")
+
+        compose.runOnIdle { state = exerciseState(ExerciseType.DURATION) }
+        compose.assertPickerValue("Time", "30")
         compose.assertNoContentDescription("Reps")
         compose.assertNoText("8")
 
-        compose.runOnIdle { state = exerciseState(TrackingType.DURATION_DISTANCE) }
-        compose.assertPickerValue("Sec", "30")
-        compose.assertPickerValue("Meters", "400")
+        compose.runOnIdle { state = exerciseState(ExerciseType.DURATION_WEIGHT) }
+        compose.assertPickerValue("Weight", "80")
+        compose.assertPickerValue("Time", "30")
+
+        compose.runOnIdle { state = exerciseState(ExerciseType.DISTANCE_DURATION) }
+        compose.assertPickerValue("Distance", "400")
+        compose.assertPickerValue("Time", "30")
+
+        compose.runOnIdle { state = exerciseState(ExerciseType.WEIGHT_DISTANCE) }
+        compose.assertPickerValue("Weight", "80")
+        compose.assertPickerValue("Distance", "400")
     }
 
     @Test
     fun pageOneShowsSetAndExerciseOptions() {
         compose.setContent {
-            ExerciseDetailUnderTest(state = exerciseState(TrackingType.WEIGHT_REPS))
+            ExerciseDetailUnderTest(state = exerciseState(ExerciseType.WEIGHT_REPS))
         }
 
         compose.onRoot().performTouchInput { swipeLeft() }
@@ -71,7 +87,7 @@ class ExerciseDetailScreenComposeTest {
 
     @Test
     fun restingOverlayCountsDownAndSkipDismissesIt() {
-        var state by mutableStateOf(exerciseState(TrackingType.WEIGHT_REPS, restRemaining = 45))
+        var state by mutableStateOf(exerciseState(ExerciseType.WEIGHT_REPS, restRemaining = 45))
         var skipped = false
 
         compose.setContent {
@@ -102,11 +118,11 @@ class ExerciseDetailScreenComposeTest {
 }
 
 private fun exerciseState(
-    trackingType: TrackingType,
+    exerciseType: ExerciseType,
     restRemaining: Int? = null,
 ) = ExerciseDetailUiState(
     exerciseName = BENCH_PRESS,
-    trackingType = trackingType,
+    exerciseType = exerciseType,
     sets = listOf(
         SetRow(
             id = "s1",

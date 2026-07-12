@@ -1,4 +1,5 @@
 import seedData from '../exercises.seed.json';
+import { normalizeExerciseType } from '../../domain/setFields';
 import { RawSeedExercise, toExerciseRow } from '../seed';
 
 const sample: RawSeedExercise = {
@@ -9,6 +10,7 @@ const sample: RawSeedExercise = {
   secondaryMuscles: ['calves'],
   instructions: ['Lie down.', 'Sit up.'],
   images: ['https://example.com/0.jpg', 'https://example.com/1.jpg'],
+  exercise_type: 'reps_only',
 };
 
 test('maps primaryMuscles[0] to muscle_group', () => {
@@ -24,10 +26,10 @@ test('serialises instructions and images as JSON arrays', () => {
   ]);
 });
 
-test('seeds are non-custom with unset tracking_type', () => {
+test('seeds are non-custom with required exercise_type', () => {
   const row = toExerciseRow(sample);
   expect(row.is_custom).toBe(0);
-  expect(row.tracking_type).toBeNull();
+  expect(row.exercise_type).toBe('reps_only');
 });
 
 test('falls back to "other" when equipment is null', () => {
@@ -53,6 +55,7 @@ test('every bundled exercise transforms into a valid row', () => {
     expect(row.name).toBeTruthy();
     expect(row.muscle_group).toBeTruthy();
     expect(row.equipment).toBeTruthy();
+    expect(normalizeExerciseType(row.exercise_type)).toBe(row.exercise_type);
     expect(() => JSON.parse(row.instructions!)).not.toThrow();
     expect(() => JSON.parse(row.images!)).not.toThrow();
     expect(() => JSON.parse(row.secondary_muscles!)).not.toThrow();
