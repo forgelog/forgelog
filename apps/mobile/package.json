@@ -28,6 +28,7 @@
     "wear-sync": "file:./modules/wear-sync"
   },
   "devDependencies": {
+    "@expo/config-plugins": "57.0.3",
     "@testing-library/react-native": "^14.0.1",
     "@types/better-sqlite3": "^7.6.13",
     "@types/jest": "^30.0.0",
