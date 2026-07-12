@@ -23,8 +23,13 @@ appId: dev.bishnoi.forgelog.mobile
 - tapOn:
     id: "routine-name-input"
 - inputText: "New Routine"
-- tapOn:
-    id: "routine-add-exercise"
+- tapOn: "+ Add Exercise"
+- runFlow:
+    when:
+      visible: "Create Routine"
+    commands:
+      - tapOn:
+          id: "routine-add-exercise"
 - extendedWaitUntil:
     visible: "Search exercises"
     timeout: 60000
