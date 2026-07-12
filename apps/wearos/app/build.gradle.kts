@@ -53,7 +53,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             // Same upload keystore as the mobile app (via the same env vars)
             // so both APKs carry an identical signing certificate.
             signingConfig = if (System.getenv("FORGELOG_RELEASE_STORE_FILE") != null) {

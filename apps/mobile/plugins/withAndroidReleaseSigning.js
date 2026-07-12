@@ -1,4 +1,4 @@
-const { withAppBuildGradle } = require('@expo/config-plugins');
+const { withAppBuildGradle, withGradleProperties } = require('@expo/config-plugins');
 const { mergeContents } = require('@expo/config-plugins/build/utils/generateCode');
 
 const RELEASE_SIGNING_CONFIG = `        release {
@@ -19,7 +19,34 @@ const NEW_RELEASE_SIGNING_CONFIG_LINE = `            // Caution! In production, 
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig System.getenv("FORGELOG_RELEASE_STORE_FILE") ? signingConfigs.release : signingConfigs.debug`;
 
+const RELEASE_OPTIMIZATION_PROPERTIES = {
+  'android.enableMinifyInReleaseBuilds': 'true',
+  'android.enableShrinkResourcesInReleaseBuilds': 'true',
+  // Required by AGP 8.12 for its optimized resource shrinking pipeline.
+  'android.r8.optimizedResourceShrinking': 'true',
+};
+
+function withReleaseOptimizationProperties(config) {
+  return withGradleProperties(config, (config) => {
+    for (const [key, value] of Object.entries(RELEASE_OPTIMIZATION_PROPERTIES)) {
+      const property = config.modResults.find(
+        (item) => item.type === 'property' && item.key === key,
+      );
+
+      if (property) {
+        property.value = value;
+      } else {
+        config.modResults.push({ type: 'property', key, value });
+      }
+    }
+
+    return config;
+  });
+}
+
 function withAndroidReleaseSigning(config) {
+  config = withReleaseOptimizationProperties(config);
+
   return withAppBuildGradle(config, (config) => {
     let contents = config.modResults.contents;
 
