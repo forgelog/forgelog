@@ -15,7 +15,7 @@ export type RootStackParamList = {
   EditProfile: undefined;
   ExerciseDetail: { exerciseId: string };
   ExerciseLibrary: { mode?: 'browse' | 'pick'; returnTo?: 'ActiveWorkout' | 'RoutineEditor' } | undefined;
-  RoutineEditor: { routineId: string; pickedExerciseId?: string };
+  RoutineEditor: { routineId: string; pickedExerciseId?: string; isNew?: boolean };
   WorkoutDetail: { workoutId: string };
 };
 

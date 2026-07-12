@@ -101,7 +101,7 @@ export function HomeScreen() {
 
   async function handleCreateRoutine() {
     const routine = await createRoutine('New Routine');
-    navigation.navigate('RoutineEditor', { routineId: routine.id });
+    navigation.navigate('RoutineEditor', { routineId: routine.id, isNew: true });
   }
 
   function confirmDelete(routine: RoutineSummary) {

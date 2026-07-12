@@ -1,6 +1,6 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { CommonActions, useFocusEffect, usePreventRemove } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Chip } from '../components/Chip';
@@ -11,6 +11,7 @@ import { SetFieldInputs } from '../components/SetFieldInputs';
 import {
   addExerciseToRoutine,
   addRoutineSet,
+  deleteRoutine,
   deleteRoutineSet,
   getRoutineDetail,
   removeRoutineExercise,
@@ -36,6 +37,7 @@ import {
 const INTEGER_FIELDS = new Set<SetFieldKey>(['reps', 'duration']);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RoutineEditor'>;
+type NavigationAction = Parameters<Props['navigation']['dispatch']>[0];
 
 const SET_COLUMN: Record<SetFieldKey, keyof RoutineSet> = {
   weight: 'target_weight',
@@ -45,13 +47,16 @@ const SET_COLUMN: Record<SetFieldKey, keyof RoutineSet> = {
 };
 
 export function RoutineEditorScreen({ route, navigation }: Props) {
-  const { routineId, pickedExerciseId } = route.params;
+  const { routineId, pickedExerciseId, isNew } = route.params;
   const c = useTheme();
   const [detail, setDetail] = useState<RoutineDetail | null>(null);
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [notesError, setNotesError] = useState<string | null>(null);
+  const [discardNewRoutineOnExit, setDiscardNewRoutineOnExit] = useState(Boolean(isNew));
+  const pendingRemovalAction = useRef<NavigationAction | null>(null);
+  const discardInProgress = useRef(false);
 
   const reload = useCallback(() => {
     getRoutineDetail(routineId).then((d) => {
@@ -66,6 +71,27 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
   }, [routineId]);
 
   useFocusEffect(reload);
+
+  usePreventRemove(discardNewRoutineOnExit, ({ data }) => {
+    if (discardInProgress.current) return;
+    discardInProgress.current = true;
+    deleteRoutine(routineId)
+      .then(() => {
+        pendingRemovalAction.current = data.action;
+        setDiscardNewRoutineOnExit(false);
+      })
+      .catch(() => {
+        discardInProgress.current = false;
+        Alert.alert('Close failed', 'Could not discard the new routine.');
+      });
+  });
+
+  useEffect(() => {
+    if (discardNewRoutineOnExit || !pendingRemovalAction.current) return;
+    const action = pendingRemovalAction.current;
+    pendingRemovalAction.current = null;
+    navigation.dispatch(action);
+  }, [discardNewRoutineOnExit, navigation]);
 
   useEffect(() => {
     if (!pickedExerciseId) return;
@@ -191,6 +217,10 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
     await reorderRoutineExercises(reordered.map((r) => r.id));
   }
 
+  function handleClose() {
+    navigation.goBack();
+  }
+
   async function handleDone() {
     if (!detail) return;
     const nameResult = validateText(name, {
@@ -221,7 +251,12 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
       });
       setName(nameResult.value);
       setNotes(notesResult.value);
-      navigation.goBack();
+      if (isNew) {
+        pendingRemovalAction.current = CommonActions.goBack();
+        setDiscardNewRoutineOnExit(false);
+      } else {
+        navigation.goBack();
+      }
     } catch {
       Alert.alert('Save failed', 'Could not save routine.');
       reload();
@@ -234,7 +269,7 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <ScreenHeader
         title="Edit routine"
-        onLeadingPress={handleDone}
+        onLeadingPress={handleClose}
         trailing={<PillButton label="Save" onPress={handleDone} variant="filled" />}
       />
       <FlatList

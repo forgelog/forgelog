@@ -1,26 +1,53 @@
-import { NavigationContainer } from '@react-navigation/native';
+import { CommonActions, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import type { ComponentProps } from 'react';
+import { Alert, Text } from 'react-native';
 
+import { deleteRoutine, getRoutineDetail, updateRoutine } from '../../db/repositories/routines';
 import type { RoutineDetail } from '../../db/types';
+import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 
 jest.mock('../../db/repositories/routines');
 
-import { getRoutineDetail, updateRoutine } from '../../db/repositories/routines';
-
+const mockDeleteRoutine = deleteRoutine as jest.MockedFunction<typeof deleteRoutine>;
 const mockGetRoutineDetail = getRoutineDetail as jest.MockedFunction<typeof getRoutineDetail>;
 const mockUpdateRoutine = updateRoutine as jest.MockedFunction<typeof updateRoutine>;
 
-type TestParamList = {
+type TestParamList = RootStackParamList & {
   Home: undefined;
-  RoutineEditor: { routineId: string };
 };
 
 const Stack = createNativeStackNavigator<TestParamList>();
 
 function HomeStub() {
-  return null;
+  return <Text>Home screen</Text>;
+}
+
+function RoutineEditorWithPop(props: ComponentProps<typeof RoutineEditorScreen>) {
+  return (
+    <>
+      <RoutineEditorScreen {...props} />
+      <Text onPress={() => props.navigation.dispatch(CommonActions.goBack())}>Pop editor</Text>
+    </>
+  );
+}
+
+function renderEditor(
+  params: RootStackParamList['RoutineEditor'],
+  editor: typeof RoutineEditorScreen = RoutineEditorScreen
+) {
+  return render(
+    <NavigationContainer
+      initialState={{ routes: [{ name: 'Home' }, { name: 'RoutineEditor', params }], index: 1 }}
+    >
+      <Stack.Navigator>
+        <Stack.Screen name="Home" component={HomeStub} />
+        <Stack.Screen name="RoutineEditor" component={editor} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
 }
 
 function makeExercise(id: string, name: string, superset_group_id: string | null) {
@@ -74,6 +101,8 @@ const routineDetail: RoutineDetail = {
 };
 
 beforeEach(() => {
+  jest.clearAllMocks();
+  mockDeleteRoutine.mockResolvedValue();
   mockGetRoutineDetail.mockResolvedValue(routineDetail);
 });
 
@@ -172,6 +201,58 @@ test('pressing Save persists the current routine name without requiring a blur f
       expect.objectContaining({ name: 'Phase Five Workout' })
     )
   );
+});
+
+test('closing an empty newly created routine discards it without Save validation', async () => {
+  mockGetRoutineDetail.mockResolvedValue({ ...routineDetail, exercises: [] });
+  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const { getByLabelText, getByText } = await renderEditor({ routineId: 'r1', isNew: true });
+
+  await waitFor(() => expect(getByLabelText('Close')).toBeTruthy());
+  await act(async () => fireEvent.press(getByLabelText('Close')));
+
+  await waitFor(() => expect(getByText('Home screen')).toBeTruthy());
+  expect(mockDeleteRoutine).toHaveBeenCalledWith('r1');
+  expect(mockUpdateRoutine).not.toHaveBeenCalled();
+  expect(alertSpy).not.toHaveBeenCalledWith('No exercises', expect.any(String));
+});
+
+test('closing an existing routine does not delete it', async () => {
+  const { getByLabelText, getByText } = await renderEditor({ routineId: 'r1' });
+
+  await waitFor(() => expect(getByLabelText('Close')).toBeTruthy());
+  await act(async () => fireEvent.press(getByLabelText('Close')));
+
+  await waitFor(() => expect(getByText('Home screen')).toBeTruthy());
+  expect(mockDeleteRoutine).not.toHaveBeenCalled();
+});
+
+test('stays in the editor when discarding a new routine fails', async () => {
+  mockDeleteRoutine.mockRejectedValue(new Error('delete failed'));
+  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const { getByLabelText, queryByText } = await renderEditor({ routineId: 'r1', isNew: true });
+
+  await waitFor(() => expect(getByLabelText('Close')).toBeTruthy());
+  await act(async () => fireEvent.press(getByLabelText('Close')));
+
+  await waitFor(() =>
+    expect(alertSpy).toHaveBeenCalledWith('Close failed', 'Could not discard the new routine.')
+  );
+  expect(queryByText('Home screen')).toBeNull();
+  expect(getByLabelText('Close')).toBeTruthy();
+});
+
+test('a navigator back action also discards a newly created routine', async () => {
+  const { getByDisplayValue, getByText } = await renderEditor(
+    { routineId: 'r1', isNew: true },
+    RoutineEditorWithPop
+  );
+
+  await waitFor(() => expect(getByDisplayValue('Push Day')).toBeTruthy());
+  await act(async () => fireEvent.press(getByText('Pop editor')));
+
+  await waitFor(() => expect(getByText('Home screen')).toBeTruthy());
+  expect(mockDeleteRoutine).toHaveBeenCalledWith('r1');
 });
 
 test('exposes stable E2E labels for routine editing controls', async () => {
