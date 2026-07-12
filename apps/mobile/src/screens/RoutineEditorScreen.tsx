@@ -257,6 +257,7 @@ function RoutineDraftProvider({
   }, [dirty, navigation, submitting]);
 
   const updateDraft = useCallback((update: (current: RoutineDraft) => RoutineDraft) => {
+    if (submittingRef.current) return;
     setDraft((current) => {
       if (!current) return current;
       const next = update(current);
@@ -266,6 +267,7 @@ function RoutineDraftProvider({
   }, []);
 
   const updateName = useCallback((value: string) => {
+    if (submittingRef.current) return;
     setNameError(
       validateText(value, {
         required: true,
@@ -277,6 +279,7 @@ function RoutineDraftProvider({
   }, [updateDraft]);
 
   const updateNotes = useCallback((value: string) => {
+    if (submittingRef.current) return;
     setNotesError(
       validateText(value, {
         maxLength: NOTES_MAX_LENGTH,
@@ -288,16 +291,21 @@ function RoutineDraftProvider({
   }, [updateDraft]);
 
   const addPickedExercise = useCallback(async (exerciseId: string) => {
-    const exercise = await getExercise(exerciseId);
-    if (!exercise) {
+    if (submittingRef.current) return;
+    try {
+      const exercise = await getExercise(exerciseId);
+      if (!exercise) {
+        Alert.alert('Save failed', 'Could not add exercise.');
+        return;
+      }
+      setDraft((current) => {
+        if (!current || submittingRef.current) return current;
+        setDirty(true);
+        return addExerciseToDraft(current, exercise, makeLocalId);
+      });
+    } catch {
       Alert.alert('Save failed', 'Could not add exercise.');
-      return;
     }
-    setDraft((current) => {
-      if (!current) return current;
-      setDirty(true);
-      return addExerciseToDraft(current, exercise, makeLocalId);
-    });
   }, [makeLocalId]);
 
   useEffect(() => {
@@ -405,6 +413,7 @@ function RoutineDraftProvider({
   }, [navigation]);
 
   const openExercisePicker = useCallback(() => {
+    if (submittingRef.current) return;
     navigation.navigate('ExerciseLibrary', { mode: 'pick', returnTo: 'RoutineEditor' });
   }, [navigation]);
 
@@ -487,8 +496,14 @@ function RoutineDraftFrame() {
 
   if (loadFailed || !draft) {
     return (
-      <View style={[styles.centered, { backgroundColor: c.bg }]}>
-        <Text style={[styles.emptyText, { color: c.sub }]}>Could not load routine.</Text>
+      <View style={[styles.container, { backgroundColor: c.bg }]}>
+        <ScreenHeader
+          title={meta.mode.kind === 'create' ? 'Create Routine' : 'Edit Routine'}
+          onLeadingPress={actions.close}
+        />
+        <View style={styles.centeredContent}>
+          <Text style={[styles.emptyText, { color: c.sub }]}>Could not load routine.</Text>
+        </View>
       </View>
     );
   }
@@ -517,6 +532,7 @@ function RoutineDraftFrame() {
             label="+ Add Exercise"
             onPress={actions.openExercisePicker}
             variant="dark"
+            disabled={submitting}
             style={styles.addExercise}
             accessibilityLabel="Add Exercise"
             testID="routine-add-exercise"
@@ -530,7 +546,7 @@ function RoutineDraftFrame() {
 function RoutineDraftFields() {
   const c = useTheme();
   const {
-    state: { draft, nameError, notesError },
+    state: { draft, nameError, notesError, submitting },
     actions,
   } = useRoutineDraft();
 
@@ -545,6 +561,8 @@ function RoutineDraftFields() {
         placeholder="Routine name"
         placeholderTextColor={c.sub}
         maxLength={NAME_MAX_LENGTH}
+        editable={!submitting}
+        accessibilityState={submitting ? { disabled: true } : undefined}
         accessibilityLabel="Routine name"
         testID="routine-name-input"
       />
@@ -559,6 +577,8 @@ function RoutineDraftFields() {
         placeholderTextColor={c.sub}
         multiline
         maxLength={NOTES_MAX_LENGTH}
+        editable={!submitting}
+        accessibilityState={submitting ? { disabled: true } : undefined}
         accessibilityLabel="Routine notes"
         testID="routine-notes-input"
       />
@@ -576,7 +596,10 @@ type RoutineExerciseDraftItemProps = Readonly<{
 
 function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps) {
   const c = useTheme();
-  const { actions } = useRoutineDraft();
+  const {
+    state: { submitting },
+    actions,
+  } = useRoutineDraft();
   const trackingType = effectiveTrackingType(item.tracking_type, item.exercise.tracking_type);
   const fields = fieldsFor(trackingType);
 
@@ -589,7 +612,9 @@ function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps
         <View style={styles.headerActions}>
           <Pressable
             onPress={() => actions.moveExercise(index, -1)}
+            disabled={submitting}
             hitSlop={8}
+            accessibilityState={submitting ? { disabled: true } : undefined}
             accessibilityLabel={`Move ${item.exercise.name} up`}
             accessibilityRole="button"
             testID={`routine-exercise-${index}-move-up`}
@@ -598,7 +623,9 @@ function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps
           </Pressable>
           <Pressable
             onPress={() => actions.moveExercise(index, 1)}
+            disabled={submitting}
             hitSlop={8}
+            accessibilityState={submitting ? { disabled: true } : undefined}
             accessibilityLabel={`Move ${item.exercise.name} down`}
             accessibilityRole="button"
             testID={`routine-exercise-${index}-move-down`}
@@ -612,6 +639,7 @@ function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps
         <Chip
           label={TRACKING_LABELS[trackingType]}
           onPress={() => actions.cycleTrackingType(item.localId)}
+          disabled={submitting}
           accessibilityLabel={`Tracking type for ${item.exercise.name}: ${TRACKING_LABELS[trackingType]}`}
           testID={`routine-exercise-${index}-tracking-type`}
         />
@@ -624,6 +652,8 @@ function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps
             placeholder="sec"
             placeholderTextColor={c.sub}
             keyboardType="numeric"
+            editable={!submitting}
+            accessibilityState={submitting ? { disabled: true } : undefined}
             accessibilityLabel={`Rest seconds for ${item.exercise.name}`}
             testID={`routine-exercise-${index}-rest`}
           />
@@ -638,11 +668,14 @@ function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps
           exerciseIndex={index}
           exercise={item}
           fields={fields}
+          disabled={submitting}
         />
       ))}
       <Pressable
         style={styles.addSet}
         onPress={() => actions.addSet(item.localId)}
+        disabled={submitting}
+        accessibilityState={submitting ? { disabled: true } : undefined}
         accessibilityLabel={`Add set to ${item.exercise.name}`}
         accessibilityRole="button"
         testID={`routine-exercise-${index}-add-set`}
@@ -652,6 +685,8 @@ function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps
       <Pressable
         style={styles.removeExercise}
         onPress={() => actions.removeExercise(item.localId)}
+        disabled={submitting}
+        accessibilityState={submitting ? { disabled: true } : undefined}
         accessibilityLabel={`Remove ${item.exercise.name}`}
         accessibilityRole="button"
         testID={`routine-exercise-${index}-remove`}
@@ -668,6 +703,7 @@ type RoutineSetDraftRowProps = Readonly<{
   exerciseIndex: number;
   exercise: RoutineExerciseDraft;
   fields: SetFieldKey[];
+  disabled: boolean;
 }>;
 
 function RoutineSetDraftRow({
@@ -676,6 +712,7 @@ function RoutineSetDraftRow({
   exerciseIndex,
   exercise,
   fields,
+  disabled,
 }: RoutineSetDraftRowProps) {
   const { actions } = useRoutineDraft();
   const c = useTheme();
@@ -690,6 +727,7 @@ function RoutineSetDraftRow({
         onChangeField={(field, text) =>
           actions.updateSetField(exercise.localId, set.localId, field, text)
         }
+        editable={!disabled}
         accessibilityLabelForField={(field) =>
           `Routine set ${setIndex + 1} ${field} for ${exercise.exercise.name}`
         }
@@ -697,7 +735,9 @@ function RoutineSetDraftRow({
       />
       <Pressable
         onPress={() => actions.removeSet(exercise.localId, set.localId)}
+        disabled={disabled}
         hitSlop={8}
+        accessibilityState={disabled ? { disabled: true } : undefined}
         accessibilityLabel={`Remove set ${setIndex + 1} from ${exercise.exercise.name}`}
         accessibilityRole="button"
         testID={`routine-set-${exerciseIndex}-${setIndex}-remove`}
@@ -711,6 +751,7 @@ function RoutineSetDraftRow({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centeredContent: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 14 },
   header: { padding: 16, gap: 8 },
   nameInput: { fontSize: 22, fontWeight: '700', borderBottomWidth: 2, paddingBottom: 6 },

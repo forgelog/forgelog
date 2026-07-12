@@ -14,8 +14,5 @@ console.error = (...args) => {
   if (message.includes('VirtualizedList') && message.includes('inside a test was not wrapped in act(...)')) {
     return;
   }
-  if (message.includes('You seem to have overlapping act() calls')) {
-    return;
-  }
   originalConsoleError(...args);
 };

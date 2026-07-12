@@ -12,6 +12,7 @@ type Props = Readonly<{
   onChangeField: (field: SetFieldKey, text: string) => void;
   accessibilityLabelForField: (field: SetFieldKey) => string;
   testIDForField: (field: SetFieldKey) => string;
+  editable?: boolean;
 }>;
 
 export function SetFieldInputs({
@@ -21,6 +22,7 @@ export function SetFieldInputs({
   onChangeField,
   accessibilityLabelForField,
   testIDForField,
+  editable = true,
 }: Props) {
   const c = useTheme();
 
@@ -35,6 +37,8 @@ export function SetFieldInputs({
           placeholder={FIELD_PLACEHOLDER[field]}
           placeholderTextColor={c.sub}
           keyboardType="numeric"
+          editable={editable}
+          accessibilityState={editable ? undefined : { disabled: true }}
           accessibilityLabel={accessibilityLabelForField(field)}
           testID={testIDForField(field)}
         />

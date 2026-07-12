@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react
 import type { ComponentProps } from 'react';
 import { Alert, Text } from 'react-native';
 
+import { getExercise } from '../../db/repositories/exercises';
 import { getRoutineDetail, saveRoutineDraft } from '../../db/repositories/routines';
 import type { RoutineDetail } from '../../db/types';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
@@ -11,7 +12,9 @@ import { deferred, latestAlertButtons } from '../../test-utils/async';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 
 jest.mock('../../db/repositories/routines');
+jest.mock('../../db/repositories/exercises');
 
+const mockGetExercise = getExercise as jest.MockedFunction<typeof getExercise>;
 const mockGetRoutineDetail = getRoutineDetail as jest.MockedFunction<typeof getRoutineDetail>;
 const mockSaveRoutineDraft = saveRoutineDraft as jest.MockedFunction<typeof saveRoutineDraft>;
 let alertSpy: jest.SpyInstance;
@@ -108,9 +111,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockGetRoutineDetail.mockReset();
   mockSaveRoutineDraft.mockReset();
+  mockGetExercise.mockReset();
   alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   mockGetRoutineDetail.mockResolvedValue(routineDetail);
   mockSaveRoutineDraft.mockResolvedValue(routineDetail);
+  mockGetExercise.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -252,6 +257,25 @@ test('closing an existing clean routine does not save it', async () => {
   expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
 });
 
+test('load failure still shows a visible Close action', async () => {
+  mockGetRoutineDetail.mockResolvedValue(null);
+  const { getByLabelText, getByText } = await renderEditor({ routineId: 'missing' });
+
+  await waitFor(() => expect(getByText('Could not load routine.')).toBeTruthy());
+  expect(getByText('Edit Routine')).toBeTruthy();
+  expect(getByLabelText('Close')).toBeTruthy();
+});
+
+test('picked exercise read failures show an alert instead of rejecting', async () => {
+  mockGetExercise.mockRejectedValue(new Error('bad exercise payload'));
+  await renderEditor({ pickedExerciseId: 'ex1' });
+
+  await waitFor(() =>
+    expect(alertSpy).toHaveBeenCalledWith('Save failed', 'Could not add exercise.')
+  );
+  expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
+});
+
 test('dirty close prompt keeps editing until Discard is pressed', async () => {
   const { getByDisplayValue, getByLabelText, getByText, queryByText } = await renderEditor({
     routineId: 'r1',
@@ -339,6 +363,8 @@ test('pending Save blocks close/discard until the save finishes', async () => {
   await act(async () => fireEvent.changeText(getByDisplayValue('Push Day'), 'Updated'));
   fireEvent.press(getByText('Save'));
   await waitFor(() => expect(getByLabelText('Saving...')).toBeTruthy());
+  await act(async () => fireEvent.changeText(getByLabelText('Routine name'), 'Late Edit'));
+  expect(getByDisplayValue('Updated')).toBeTruthy();
   fireEvent.press(getByLabelText('Close'));
 
   await waitFor(() =>
@@ -349,16 +375,16 @@ test('pending Save blocks close/discard until the save finishes', async () => {
 
   await act(async () => save.resolve(routineDetail));
   await waitFor(() => expect(getByText('Home screen')).toBeTruthy());
+  expect(mockSaveRoutineDraft).toHaveBeenCalledWith(expect.objectContaining({ name: 'Updated' }));
 });
 
-test('Save is busy while submitting and rapid presses only call the repository once', async () => {
+test('Save is busy and disabled while submitting', async () => {
   const save = deferred<RoutineDetail>();
   mockSaveRoutineDraft.mockReturnValue(save.promise);
   const { getByDisplayValue, getByLabelText, getByText } = await renderEditor({ routineId: 'r1' });
 
   await waitFor(() => expect(getByDisplayValue('Push Day')).toBeTruthy());
   await act(async () => fireEvent.changeText(getByDisplayValue('Push Day'), 'Updated'));
-  fireEvent.press(getByText('Save'));
   fireEvent.press(getByText('Save'));
 
   await waitFor(() =>
