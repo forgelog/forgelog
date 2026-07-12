@@ -1,4 +1,4 @@
-const { withAppBuildGradle, withGradleProperties } = require('@expo/config-plugins');
+const { withAndroidManifest, withAppBuildGradle, withGradleProperties } = require('@expo/config-plugins');
 const { mergeContents } = require('@expo/config-plugins/build/utils/generateCode');
 
 const RELEASE_SIGNING_CONFIG = `        release {
@@ -44,8 +44,22 @@ function withReleaseOptimizationProperties(config) {
   });
 }
 
+function withAndroidSecurityDefaults(config) {
+  return withAndroidManifest(config, (config) => {
+    const application = config.modResults.manifest.application?.[0];
+
+    if (application) {
+      application.$['android:allowBackup'] = 'false';
+      application.$['android:usesCleartextTraffic'] = 'false';
+    }
+
+    return config;
+  });
+}
+
 function withAndroidReleaseSigning(config) {
   config = withReleaseOptimizationProperties(config);
+  config = withAndroidSecurityDefaults(config);
 
   return withAppBuildGradle(config, (config) => {
     let contents = config.modResults.contents;
