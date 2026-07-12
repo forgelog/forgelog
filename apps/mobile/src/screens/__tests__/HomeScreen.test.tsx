@@ -62,7 +62,7 @@ test('truncates a long routine name instead of pushing the Start button off-scre
   const nameNode = await waitFor(() => getByText(LONG_ROUTINE_NAME));
   expect(nameNode.props.numberOfLines).toBe(1);
   await waitFor(() => expect(getByText('Start')).toBeTruthy());
-  expect(getByLabelText(`Edit routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
+  expect(getByLabelText(`View routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
   expect(getByLabelText(`Start routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
-  expect(getByLabelText(`Delete routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
+  expect(getByLabelText(`Routine options ${LONG_ROUTINE_NAME}`)).toBeTruthy();
 });

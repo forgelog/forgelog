@@ -12,6 +12,7 @@ import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 import { ExerciseDetailScreen } from '../ExerciseDetailScreen';
 import { ExerciseLibraryScreen } from '../ExerciseLibraryScreen';
 import { HomeScreen } from '../HomeScreen';
+import { RoutineDetailScreen } from '../RoutineDetailScreen';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 
 type TestStackParamList = RootStackParamList & {
@@ -40,6 +41,7 @@ function renderHomeStack() {
   return renderWithStack<TestStackParamList>([
     { name: 'Home', component: HomeScreen },
     { name: 'ActiveWorkout', component: ActiveWorkoutScreen },
+    { name: 'RoutineDetail', component: RoutineDetailScreen },
     { name: 'RoutineEditor', component: RoutineEditorScreen },
     { name: 'ExerciseLibrary', component: ExerciseLibraryScreen },
     { name: 'ExerciseDetail', component: ExerciseDetailScreen },
@@ -77,6 +79,52 @@ test('starts a workout from a routine', async () => {
   fireEvent.press(routineLaunch.getByLabelText('Start routine Routine Launch'));
   await waitFor(() => expect(routineLaunch.getByText('Barbell Bench Press - Medium Grip')).toBeTruthy());
   expect(routineLaunch.getByTestId('workout-set-0-0-weight').props.value).toBe('100');
+});
+
+test('opens a routine in read-only detail mode from the routine row', async () => {
+  await createRoutineWithBench('Read Only Push');
+  const routineDetail = await renderHomeStack();
+
+  await waitFor(() => expect(routineDetail.getByLabelText('View routine Read Only Push')).toBeTruthy());
+  fireEvent.press(routineDetail.getByLabelText('View routine Read Only Push'));
+
+  await waitFor(() => expect(routineDetail.getByText('Barbell Bench Press - Medium Grip')).toBeTruthy());
+  expect(routineDetail.getByText('100 kg × 5 reps')).toBeTruthy();
+  expect(routineDetail.queryByLabelText('Routine name')).toBeNull();
+  expect(routineDetail.queryByLabelText('Add Exercise')).toBeNull();
+});
+
+test('shows routine options in a bottom sheet and opens the editor from Edit Routine', async () => {
+  await createRoutineWithBench('Menu Push');
+  const options = await renderHomeStack();
+
+  await waitFor(() => expect(options.getByLabelText('Routine options Menu Push')).toBeTruthy());
+  fireEvent.press(options.getByLabelText('Routine options Menu Push'));
+
+  await waitFor(() => expect(options.getByTestId('routine-actions-sheet')).toBeTruthy());
+  expect(options.getByLabelText('Edit Routine')).toBeTruthy();
+  expect(options.getByLabelText('Delete Routine')).toBeTruthy();
+  fireEvent.press(options.getByLabelText('Edit Routine'));
+
+  await waitFor(() => expect(options.getByDisplayValue('Menu Push')).toBeTruthy());
+  expect(options.getByLabelText('Routine name')).toBeTruthy();
+});
+
+test('confirms routine deletion inside the bottom sheet', async () => {
+  await createRoutineWithBench('Delete Me');
+  const deleteFlow = await renderHomeStack();
+
+  await waitFor(() => expect(deleteFlow.getByLabelText('Routine options Delete Me')).toBeTruthy());
+  fireEvent.press(deleteFlow.getByLabelText('Routine options Delete Me'));
+
+  await waitFor(() => expect(deleteFlow.getByLabelText('Delete Routine')).toBeTruthy());
+  fireEvent.press(deleteFlow.getByLabelText('Delete Routine'));
+
+  await waitFor(() => expect(deleteFlow.getByText('Delete this routine?')).toBeTruthy());
+  fireEvent.press(deleteFlow.getByLabelText('Confirm delete routine'));
+
+  await waitFor(() => expect(deleteFlow.queryByText('Delete Me')).toBeNull());
+  expect(deleteFlow.getByText('No routines yet. Create one above.')).toBeTruthy();
 });
 
 test('guards active-workout conflicts when starting a routine', async () => {
