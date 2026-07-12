@@ -3,13 +3,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { render, waitFor } from '@testing-library/react-native';
 
 import type { RoutineSummary } from '../../db/repositories/routines';
-import { HomeScreen } from '../HomeScreen';
-
-jest.mock('../../db/repositories/routines');
-jest.mock('../../db/repositories/workouts');
-
 import { listRoutineSummaries } from '../../db/repositories/routines';
 import { getActiveWorkout } from '../../db/repositories/workouts';
+import { HomeScreen } from '../HomeScreen';
+
+jest.mock('@expo/ui/community/bottom-sheet');
+jest.mock('../../db/repositories/routines');
+jest.mock('../../db/repositories/workouts');
 
 const mockListRoutineSummaries = listRoutineSummaries as jest.MockedFunction<
   typeof listRoutineSummaries

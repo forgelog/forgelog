@@ -1,7 +1,8 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Animated, Easing, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BottomSheet, BottomSheetView } from '@expo/ui/community/bottom-sheet';
+import { useCallback, useState } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../components/Card';
@@ -267,54 +268,27 @@ function RoutineActionsSheet({
   onClosed,
 }: RoutineActionsSheetProps) {
   const c = useTheme();
-  const [progress] = useState(() => new Animated.Value(0));
-
-  useEffect(() => {
-    if (!state) return;
-    progress.stopAnimation();
-    Animated.timing(progress, {
-      toValue: state.closing ? 0 : 1,
-      duration: state.closing ? 180 : 220,
-      easing: state.closing ? Easing.in(Easing.cubic) : Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished && state.closing) {
-        onClosed();
-      }
-    });
-  }, [onClosed, progress, state]);
 
   if (!state) return null;
 
   const { routine, mode, deleting, error } = state;
-  const sheetTranslateY = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [280, 0],
-  });
 
   return (
-    <Modal
-      visible
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-      testID="routine-actions-sheet"
+    <BottomSheet
+      index={state.closing ? -1 : 0}
+      enableDynamicSizing
+      enablePanDownToClose={!deleting}
+      onClose={onClosed}
+      backgroundStyle={{ backgroundColor: c.card }}
     >
-      <View style={styles.sheetRoot}>
-        <Animated.View style={[styles.sheetScrim, { opacity: progress }]}>
-          <Pressable
-            style={styles.sheetScrimPressable}
-            onPress={onClose}
-            accessibilityLabel="Dismiss routine options"
-            accessibilityRole="button"
-          />
-        </Animated.View>
-        <Animated.View style={{ transform: [{ translateY: sheetTranslateY }] }}>
-          <SafeAreaView edges={['bottom']} style={[styles.sheet, { backgroundColor: c.card }]}>
-            <View style={[styles.sheetHandle, { backgroundColor: c.sep }]} />
-            <Text style={[styles.sheetTitle, { color: c.fg }]} numberOfLines={1}>
-              {routine.name}
-            </Text>
+      <BottomSheetView style={styles.sheet}>
+        <SafeAreaView edges={['bottom']} style={styles.sheetSafeArea}>
+          <View testID="routine-actions-sheet">
+            <View style={styles.sheetHeader}>
+              <Text style={[styles.sheetTitle, { color: c.fg }]} numberOfLines={1}>
+                {routine.name}
+              </Text>
+            </View>
             {mode === 'actions' ? (
               <>
                 <RoutineSheetAction
@@ -372,10 +346,10 @@ function RoutineActionsSheet({
                 </View>
               </>
             )}
-          </SafeAreaView>
-        </Animated.View>
-      </View>
-    </Modal>
+          </View>
+        </SafeAreaView>
+      </BottomSheetView>
+    </BottomSheet>
   );
 }
 
@@ -429,35 +403,20 @@ const styles = StyleSheet.create({
   routineText: { flex: 1, minWidth: 0 },
   routineName: { fontSize: 16, fontWeight: '700' },
   routineMeta: { marginTop: 4, fontSize: 13 },
-  sheetRoot: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  sheetScrim: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.32)',
-  },
-  sheetScrimPressable: { flex: 1 },
   sheet: {
     paddingHorizontal: 16,
-    paddingTop: 10,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderCurve: 'continuous',
+    paddingTop: 8,
+  },
+  sheetSafeArea: {
     gap: 4,
   },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 42,
-    height: 5,
-    borderRadius: 999,
-    marginBottom: 10,
+  sheetHeader: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 8,
   },
-  sheetTitle: { fontSize: 17, fontWeight: '700', paddingBottom: 8 },
+  sheetTitle: { maxWidth: '100%', fontSize: 17, fontWeight: '700', textAlign: 'center' },
   sheetAction: {
     flexDirection: 'row',
     alignItems: 'center',

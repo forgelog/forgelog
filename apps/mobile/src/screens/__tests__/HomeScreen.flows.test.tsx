@@ -15,6 +15,8 @@ import { HomeScreen } from '../HomeScreen';
 import { RoutineDetailScreen } from '../RoutineDetailScreen';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 
+jest.mock('@expo/ui/community/bottom-sheet');
+
 type TestStackParamList = RootStackParamList & {
   Home: undefined;
 };
