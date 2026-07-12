@@ -1,5 +1,9 @@
 name: Wear OS
 
+# This workflow only checks out source and uploads build artifacts.
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]

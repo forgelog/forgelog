@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <application>
+  <application
+    android:allowBackup="false"
+    android:usesCleartextTraffic="false">
     <!-- Woken by Play Services when a DataItem lands under /workout, even if
          the app isn't running — matches the offline write-ahead-log flush.
          Also woken by the watch's /request-sync Message (on-demand sync). -->
