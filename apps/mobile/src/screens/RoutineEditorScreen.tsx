@@ -268,7 +268,7 @@ export function RoutineEditorScreen({ route, navigation }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <ScreenHeader
-        title="Edit routine"
+        title={isNew ? 'Create Routine' : 'Edit Routine'}
         onLeadingPress={handleClose}
         trailing={<PillButton label="Save" onPress={handleDone} variant="filled" />}
       />

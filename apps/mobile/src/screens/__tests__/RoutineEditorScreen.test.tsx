@@ -97,13 +97,26 @@ const routineDetail: RoutineDetail = {
   position: 0,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
-  exercises: [makeExercise('re1', 'Bench Press', 'g1'), makeExercise('re2', 'Overhead Press', 'g1')],
+  exercises: [
+    makeExercise('re1', 'Bench Press', 'g1'),
+    makeExercise('re2', 'Overhead Press', 'g1'),
+  ],
 };
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockDeleteRoutine.mockResolvedValue();
   mockGetRoutineDetail.mockResolvedValue(routineDetail);
+});
+
+test('shows the appropriate title for new and existing routines', async () => {
+  const created = await renderEditor({ routineId: 'r1', isNew: true });
+  await waitFor(() => expect(created.getByText('Create Routine')).toBeTruthy());
+  expect(created.queryByText('Edit Routine')).toBeNull();
+
+  const edited = await renderEditor({ routineId: 'r1' });
+  await waitFor(() => expect(edited.getByText('Edit Routine')).toBeTruthy());
+  expect(edited.queryByText('Create Routine')).toBeNull();
 });
 
 test('does not show superset toggle or tag controls, even with a superset_group_id set', async () => {
@@ -143,7 +156,10 @@ test('clearing the routine name shows an error and does not persist it', async (
   await act(async () => fireEvent(nameInput, 'blur'));
 
   await waitFor(() => expect(getByText('Routine name is required.')).toBeTruthy());
-  expect(mockUpdateRoutine).not.toHaveBeenCalledWith('r1', expect.objectContaining({ name: expect.anything() }));
+  expect(mockUpdateRoutine).not.toHaveBeenCalledWith(
+    'r1',
+    expect.objectContaining({ name: expect.anything() })
+  );
   expect(queryByText('Routine name is required.')).toBeTruthy();
 });
 
@@ -166,9 +182,7 @@ test('saving a valid routine name persists the trimmed value', async () => {
   await act(async () => fireEvent.changeText(nameInput, '  Leg Day  '));
   await act(async () => fireEvent(nameInput, 'blur'));
 
-  await waitFor(() =>
-    expect(mockUpdateRoutine).toHaveBeenCalledWith('r1', { name: 'Leg Day' })
-  );
+  await waitFor(() => expect(mockUpdateRoutine).toHaveBeenCalledWith('r1', { name: 'Leg Day' }));
 });
 
 test('pressing Save persists the current routine name without requiring a blur first', async () => {
@@ -181,10 +195,7 @@ test('pressing Save persists the current routine name without requiring a blur f
     >
       <Stack.Navigator>
         <Stack.Screen name="Home" component={HomeStub} />
-        <Stack.Screen
-          name="RoutineEditor"
-          component={RoutineEditorScreen}
-        />
+        <Stack.Screen name="RoutineEditor" component={RoutineEditorScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
