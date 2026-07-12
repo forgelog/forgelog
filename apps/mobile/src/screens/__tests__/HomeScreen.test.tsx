@@ -1,33 +1,40 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Text } from 'react-native';
 
+import type { RootStackParamList } from '../../navigation/RootNavigator';
 import type { RoutineSummary } from '../../db/repositories/routines';
-import { HomeScreen } from '../HomeScreen';
-
-jest.mock('../../db/repositories/routines');
-jest.mock('../../db/repositories/workouts');
-
 import { listRoutineSummaries } from '../../db/repositories/routines';
 import { getActiveWorkout } from '../../db/repositories/workouts';
+import { HomeScreen } from '../HomeScreen';
+
+jest.mock('@expo/ui/community/bottom-sheet');
+jest.mock('../../db/repositories/routines');
+jest.mock('../../db/repositories/workouts');
 
 const mockListRoutineSummaries = listRoutineSummaries as jest.MockedFunction<
   typeof listRoutineSummaries
 >;
 const mockGetActiveWorkout = getActiveWorkout as jest.MockedFunction<typeof getActiveWorkout>;
 
-type TestParamList = { Home: undefined };
+type TestParamList = RootStackParamList & { Home: undefined };
 
 const Stack = createNativeStackNavigator<TestParamList>();
 
 const LONG_ROUTINE_NAME =
   'Push Pull Legs Upper Lower Full Body Hypertrophy Strength Conditioning Routine';
 
+function RoutineEditorStub({ route }: { route: { params?: RootStackParamList['RoutineEditor'] } }) {
+  return <Text>Create editor routineId: {route.params?.routineId ?? 'none'}</Text>;
+}
+
 function renderHome() {
   return render(
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="RoutineEditor" component={RoutineEditorStub as any} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -43,6 +50,15 @@ test('renders the Home screen with a start action', async () => {
   await waitFor(() => expect(getByText('Start Empty Workout')).toBeTruthy());
   expect(getByLabelText('Start Empty Workout')).toBeTruthy();
   expect(getByLabelText('Create routine')).toBeTruthy();
+});
+
+test('create routine opens a new editor draft without a routine id', async () => {
+  const { getByLabelText, getByText } = await renderHome();
+
+  await waitFor(() => expect(getByLabelText('Create routine')).toBeTruthy());
+  fireEvent.press(getByLabelText('Create routine'));
+
+  await waitFor(() => expect(getByText('Create editor routineId: none')).toBeTruthy());
 });
 
 test('truncates a long routine name instead of pushing the Start button off-screen', async () => {
@@ -62,7 +78,7 @@ test('truncates a long routine name instead of pushing the Start button off-scre
   const nameNode = await waitFor(() => getByText(LONG_ROUTINE_NAME));
   expect(nameNode.props.numberOfLines).toBe(1);
   await waitFor(() => expect(getByText('Start')).toBeTruthy());
-  expect(getByLabelText(`Edit routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
+  expect(getByLabelText(`View routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
   expect(getByLabelText(`Start routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
-  expect(getByLabelText(`Delete routine ${LONG_ROUTINE_NAME}`)).toBeTruthy();
+  expect(getByLabelText(`Routine options ${LONG_ROUTINE_NAME}`)).toBeTruthy();
 });

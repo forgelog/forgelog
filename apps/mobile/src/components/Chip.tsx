@@ -7,26 +7,37 @@ type Props = Readonly<{
   label: string;
   selected?: boolean;
   onPress: () => void;
+  disabled?: boolean;
   showCheck?: boolean;
   accessibilityLabel?: string;
   testID?: string;
 }>;
 
-export function Chip({ label, selected, onPress, showCheck, accessibilityLabel, testID }: Props) {
+export function Chip({
+  label,
+  selected,
+  onPress,
+  disabled,
+  showCheck,
+  accessibilityLabel,
+  testID,
+}: Props) {
   const c = useTheme();
 
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityRole="button"
-      accessibilityState={{ selected: !!selected }}
+      accessibilityState={disabled ? { selected: !!selected, disabled: true } : { selected: !!selected }}
       testID={testID}
       style={[
         styles.chip,
         {
           borderColor: selected ? c.accent : c.chipbd,
           backgroundColor: selected ? c.asoft : 'transparent',
+          opacity: disabled ? 0.5 : 1,
         },
       ]}
     >

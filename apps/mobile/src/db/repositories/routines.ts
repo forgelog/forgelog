@@ -234,6 +234,104 @@ export type RoutineSetInput = {
   target_distance_meters?: number | null;
 };
 
+export type SaveRoutineDraftInput = {
+  routineId?: string;
+  name: string;
+  notes?: string | null;
+  exercises: {
+    exercise_id: string;
+    superset_group_id?: string | null;
+    rest_seconds: number | null;
+    tracking_type: string | null;
+    notes: string | null;
+    sets: {
+      set_type: SetType;
+      target_weight: number | null;
+      target_reps: number | null;
+      target_duration_seconds: number | null;
+      target_distance_meters: number | null;
+    }[];
+  }[];
+};
+
+export async function saveRoutineDraft(input: SaveRoutineDraftInput): Promise<RoutineDetail> {
+  const validName = validateRoutineName(input.name);
+  const validNotes = validateRoutineNotes(input.notes);
+  if (input.exercises.length === 0) {
+    throw new Error('Add at least one exercise before saving.');
+  }
+  const db = await getDb();
+  const routineId = input.routineId ?? id();
+
+  await db.withTransactionAsync(async () => {
+    if (input.routineId) {
+      await db.runAsync(
+        "UPDATE routines SET name = $name, notes = $notes, updated_at = datetime('now') WHERE id = $id",
+        { $id: routineId, $name: validName, $notes: validNotes }
+      );
+      await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = $id', {
+        $id: routineId,
+      });
+    } else {
+      const position = await nextRoutinePosition(db);
+      await db.runAsync(
+        'INSERT INTO routines (id, name, notes, position) VALUES ($id, $name, $notes, $position)',
+        { $id: routineId, $name: validName, $notes: validNotes, $position: position }
+      );
+    }
+
+    for (let exerciseIndex = 0; exerciseIndex < input.exercises.length; exerciseIndex++) {
+      const exercise = input.exercises[exerciseIndex];
+      const exerciseExists = await db.getFirstAsync<{ id: string }>(
+        'SELECT id FROM exercises WHERE id = $id',
+        { $id: exercise.exercise_id }
+      );
+      if (!exerciseExists) throw new Error('Exercise not found');
+      const routineExerciseId = id();
+      await db.runAsync(
+        `INSERT INTO routine_exercises
+           (id, routine_id, exercise_id, position, superset_group_id, rest_seconds, tracking_type, notes)
+         VALUES ($id, $routine_id, $exercise_id, $position, $superset_group_id, $rest_seconds, $tracking_type, $notes)`,
+        {
+          $id: routineExerciseId,
+          $routine_id: routineId,
+          $exercise_id: exercise.exercise_id,
+          $position: exerciseIndex,
+          $superset_group_id: exercise.superset_group_id ?? null,
+          $rest_seconds: exercise.rest_seconds,
+          $tracking_type: exercise.tracking_type,
+          $notes: exercise.notes,
+        }
+      );
+
+      for (let setIndex = 0; setIndex < exercise.sets.length; setIndex++) {
+        const set = exercise.sets[setIndex];
+        await db.runAsync(
+          `INSERT INTO routine_sets
+             (id, routine_exercise_id, position, set_type,
+              target_weight, target_reps, target_duration_seconds, target_distance_meters)
+           VALUES ($id, $routine_exercise_id, $position, $set_type,
+              $target_weight, $target_reps, $target_duration_seconds, $target_distance_meters)`,
+          {
+            $id: id(),
+            $routine_exercise_id: routineExerciseId,
+            $position: setIndex,
+            $set_type: set.set_type,
+            $target_weight: set.target_weight,
+            $target_reps: set.target_reps,
+            $target_duration_seconds: set.target_duration_seconds,
+            $target_distance_meters: set.target_distance_meters,
+          }
+        );
+      }
+    }
+  });
+
+  const saved = await getRoutineDetail(routineId);
+  if (!saved) throw new Error('Failed to save routine');
+  return saved;
+}
+
 export async function addRoutineSet(
   routineExerciseId: string,
   input: RoutineSetInput = {}

@@ -1,5 +1,6 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomSheet, BottomSheetView } from '@expo/ui/community/bottom-sheet';
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,12 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
-import {
-  createRoutine,
-  deleteRoutine,
-  listRoutineSummaries,
-  RoutineSummary,
-} from '../db/repositories/routines';
+import { deleteRoutine, listRoutineSummaries, RoutineSummary } from '../db/repositories/routines';
 import { getActiveWorkout } from '../db/repositories/workouts';
 import { discardWorkout, startOrResumeWorkout } from '../application/activeWorkout';
 import type { Workout } from '../db/types';
@@ -20,6 +16,13 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type RoutineSheetState = {
+  routine: RoutineSummary;
+  mode: 'actions' | 'delete';
+  deleting?: boolean;
+  error?: string;
+  closing?: boolean;
+};
 
 export function HomeScreen() {
   const c = useTheme();
@@ -28,6 +31,7 @@ export function HomeScreen() {
   const [routines, setRoutines] = useState<RoutineSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [routineSheet, setRoutineSheet] = useState<RoutineSheetState | null>(null);
 
   const reload = useCallback(() => {
     let current = true;
@@ -99,23 +103,47 @@ export function HomeScreen() {
     navigation.navigate('ActiveWorkout', { workoutId: workout.id });
   }
 
-  async function handleCreateRoutine() {
-    const routine = await createRoutine('New Routine');
+  function handleCreateRoutine() {
+    navigation.navigate('RoutineEditor', {});
+  }
+
+  function showRoutineActions(routine: RoutineSummary) {
+    setRoutineSheet({ routine, mode: 'actions' });
+  }
+
+  const closeRoutineSheet = useCallback(() => {
+    setRoutineSheet((current) => {
+      if (!current || current.deleting || current.closing) return current;
+      return { ...current, closing: true };
+    });
+  }, []);
+
+  const handleRoutineSheetClosed = useCallback(() => {
+    setRoutineSheet(null);
+  }, []);
+
+  function handleEditRoutine(routine: RoutineSummary) {
+    setRoutineSheet(null);
     navigation.navigate('RoutineEditor', { routineId: routine.id });
   }
 
-  function confirmDelete(routine: RoutineSummary) {
-    Alert.alert('Delete routine', `Delete "${routine.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteRoutine(routine.id);
-          reload();
-        },
-      },
-    ]);
+  function prepareDeleteRoutine(routine: RoutineSummary) {
+    setRoutineSheet({ routine, mode: 'delete' });
+  }
+
+  async function handleDeleteRoutine(routine: RoutineSummary) {
+    setRoutineSheet({ routine, mode: 'delete', deleting: true });
+    try {
+      await deleteRoutine(routine.id);
+      setRoutineSheet((current) => (current ? { ...current, deleting: false, closing: true } : null));
+      reload();
+    } catch {
+      setRoutineSheet({
+        routine,
+        mode: 'delete',
+        error: 'Could not delete this routine.',
+      });
+    }
   }
 
   return (
@@ -152,9 +180,9 @@ export function HomeScreen() {
           <Card style={styles.routineCard}>
             <Pressable
               style={styles.routineTouchable}
-              onPress={() => navigation.navigate('RoutineEditor', { routineId: item.id })}
-              onLongPress={() => confirmDelete(item)}
-              accessibilityLabel={`Edit routine ${item.name}`}
+              onPress={() => navigation.navigate('RoutineDetail', { routineId: item.id })}
+              onLongPress={() => showRoutineActions(item)}
+              accessibilityLabel={`View routine ${item.name}`}
               accessibilityRole="button"
             >
               <View style={styles.routineText}>
@@ -178,8 +206,8 @@ export function HomeScreen() {
               />
               <Pressable
                 hitSlop={8}
-                onPress={() => confirmDelete(item)}
-                accessibilityLabel={`Delete routine ${item.name}`}
+                onPress={() => showRoutineActions(item)}
+                accessibilityLabel={`Routine options ${item.name}`}
                 accessibilityRole="button"
               >
                 <Icon name="dots-vertical" variant="sub" size={20} />
@@ -187,6 +215,14 @@ export function HomeScreen() {
             </Pressable>
           </Card>
         )}
+      />
+      <RoutineActionsSheet
+        state={routineSheet}
+        onClose={closeRoutineSheet}
+        onEdit={handleEditRoutine}
+        onPrepareDelete={prepareDeleteRoutine}
+        onDelete={handleDeleteRoutine}
+        onClosed={handleRoutineSheetClosed}
       />
     </SafeAreaView>
   );
@@ -208,6 +244,140 @@ function HomeEmptyState({ loading, loadFailed }: HomeEmptyStateProps) {
   return <Text style={[styles.empty, { color: c.sub }]}>{message}</Text>;
 }
 
+type RoutineActionsSheetProps = Readonly<{
+  state: RoutineSheetState | null;
+  onClose: () => void;
+  onEdit: (routine: RoutineSummary) => void;
+  onPrepareDelete: (routine: RoutineSummary) => void;
+  onDelete: (routine: RoutineSummary) => void;
+  onClosed: () => void;
+}>;
+
+function RoutineActionsSheet({
+  state,
+  onClose,
+  onEdit,
+  onPrepareDelete,
+  onDelete,
+  onClosed,
+}: RoutineActionsSheetProps) {
+  const c = useTheme();
+
+  if (!state) return null;
+
+  const { routine, mode, deleting, error } = state;
+
+  return (
+    <BottomSheet
+      index={state.closing ? -1 : 0}
+      enableDynamicSizing
+      enablePanDownToClose={!deleting}
+      onClose={onClosed}
+      backgroundStyle={{ backgroundColor: c.card }}
+    >
+      <BottomSheetView style={styles.sheet}>
+        <SafeAreaView edges={['bottom']} style={styles.sheetSafeArea}>
+          <View testID="routine-actions-sheet">
+            <View style={styles.sheetHeader}>
+              <Text style={[styles.sheetTitle, { color: c.fg }]} numberOfLines={1}>
+                {routine.name}
+              </Text>
+            </View>
+            {mode === 'actions' ? (
+              <>
+                <RoutineSheetAction
+                  label="Edit Routine"
+                  icon="pencil-outline"
+                  onPress={() => onEdit(routine)}
+                  testID="routine-action-edit"
+                />
+                <RoutineSheetAction
+                  label="Delete Routine"
+                  icon="trash-can-outline"
+                  onPress={() => onPrepareDelete(routine)}
+                  destructive
+                  testID="routine-action-delete"
+                />
+                <Pressable
+                  style={[styles.sheetCancel, { backgroundColor: c.fill }]}
+                  onPress={onClose}
+                  accessibilityLabel="Cancel routine options"
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.sheetCancelText, { color: c.fg }]}>Cancel</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.deleteTitle, { color: c.fg }]}>Delete this routine?</Text>
+                <Text style={[styles.deleteMessage, { color: c.sub }]}>This cannot be undone.</Text>
+                {error ? <Text style={[styles.sheetError, { color: c.danger }]}>{error}</Text> : null}
+                <View style={styles.deleteActions}>
+                  <Pressable
+                    style={[styles.deleteButton, { backgroundColor: c.fill }]}
+                    onPress={onClose}
+                    disabled={deleting}
+                    accessibilityLabel="Cancel delete routine"
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.deleteButtonText, { color: c.fg }]}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.deleteButton,
+                      { backgroundColor: c.danger, opacity: deleting ? 0.6 : 1 },
+                    ]}
+                    onPress={() => onDelete(routine)}
+                    disabled={deleting}
+                    accessibilityLabel="Confirm delete routine"
+                    accessibilityRole="button"
+                    testID="routine-delete-confirm"
+                  >
+                    <Text style={[styles.deleteButtonText, { color: '#fff' }]}>
+                      {deleting ? 'Deleting...' : 'Delete'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </View>
+        </SafeAreaView>
+      </BottomSheetView>
+    </BottomSheet>
+  );
+}
+
+type RoutineSheetActionProps = Readonly<{
+  label: string;
+  icon: React.ComponentProps<typeof Icon>['name'];
+  onPress: () => void;
+  destructive?: boolean;
+  testID: string;
+}>;
+
+function RoutineSheetAction({
+  label,
+  icon,
+  onPress,
+  destructive,
+  testID,
+}: RoutineSheetActionProps) {
+  const c = useTheme();
+  const color = destructive ? c.danger : c.fg;
+  return (
+    <Pressable
+      style={[styles.sheetAction, { borderTopColor: c.sep }]}
+      onPress={onPress}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      testID={testID}
+    >
+      <Icon name={icon} color={color} size={20} />
+      <Text style={[styles.sheetActionText, { color }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   listContent: { padding: 16, gap: 12 },
@@ -227,4 +397,49 @@ const styles = StyleSheet.create({
   routineText: { flex: 1, minWidth: 0 },
   routineName: { fontSize: 16, fontWeight: '700' },
   routineMeta: { marginTop: 4, fontSize: 13 },
+  sheet: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  sheetSafeArea: {
+    gap: 4,
+  },
+  sheetHeader: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 8,
+  },
+  sheetTitle: { maxWidth: '100%', fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  sheetAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 52,
+    borderTopWidth: 1,
+  },
+  sheetActionText: { fontSize: 16, fontWeight: '600' },
+  sheetCancel: {
+    minHeight: 48,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  sheetCancelText: { fontSize: 16, fontWeight: '700' },
+  deleteTitle: { fontSize: 18, fontWeight: '700' },
+  deleteMessage: { fontSize: 14, lineHeight: 20 },
+  sheetError: { fontSize: 13, fontWeight: '600' },
+  deleteActions: { flexDirection: 'row', gap: 10, marginTop: 12, marginBottom: 8 },
+  deleteButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteButtonText: { fontSize: 16, fontWeight: '700' },
 });

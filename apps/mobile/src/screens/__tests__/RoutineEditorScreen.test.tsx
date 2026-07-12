@@ -1,26 +1,57 @@
-import { NavigationContainer } from '@react-navigation/native';
+import { CommonActions, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react-native';
+import type { ComponentProps } from 'react';
+import { Alert, Text } from 'react-native';
 
+import { getExercise } from '../../db/repositories/exercises';
+import { getRoutineDetail, saveRoutineDraft } from '../../db/repositories/routines';
 import type { RoutineDetail } from '../../db/types';
+import type { RootStackParamList } from '../../navigation/RootNavigator';
+import { deferred, latestAlertButtons } from '../../test-utils/async';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 
 jest.mock('../../db/repositories/routines');
+jest.mock('../../db/repositories/exercises');
 
-import { getRoutineDetail, updateRoutine } from '../../db/repositories/routines';
-
+const mockGetExercise = getExercise as jest.MockedFunction<typeof getExercise>;
 const mockGetRoutineDetail = getRoutineDetail as jest.MockedFunction<typeof getRoutineDetail>;
-const mockUpdateRoutine = updateRoutine as jest.MockedFunction<typeof updateRoutine>;
+const mockSaveRoutineDraft = saveRoutineDraft as jest.MockedFunction<typeof saveRoutineDraft>;
+let alertSpy: jest.SpyInstance;
 
-type TestParamList = {
+type TestParamList = RootStackParamList & {
   Home: undefined;
-  RoutineEditor: { routineId: string };
 };
 
 const Stack = createNativeStackNavigator<TestParamList>();
 
 function HomeStub() {
-  return null;
+  return <Text>Home screen</Text>;
+}
+
+function RoutineEditorWithPop(props: ComponentProps<typeof RoutineEditorScreen>) {
+  return (
+    <>
+      <RoutineEditorScreen {...props} />
+      <Text onPress={() => props.navigation.dispatch(CommonActions.goBack())}>Pop editor</Text>
+    </>
+  );
+}
+
+function renderEditor(
+  params: RootStackParamList['RoutineEditor'],
+  editor: typeof RoutineEditorScreen = RoutineEditorScreen
+) {
+  return render(
+    <NavigationContainer
+      initialState={{ routes: [{ name: 'Home' }, { name: 'RoutineEditor', params }], index: 1 }}
+    >
+      <Stack.Navigator>
+        <Stack.Screen name="Home" component={HomeStub} />
+        <Stack.Screen name="RoutineEditor" component={editor} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
 }
 
 function makeExercise(id: string, name: string, superset_group_id: string | null) {
@@ -70,11 +101,36 @@ const routineDetail: RoutineDetail = {
   position: 0,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
-  exercises: [makeExercise('re1', 'Bench Press', 'g1'), makeExercise('re2', 'Overhead Press', 'g1')],
+  exercises: [
+    makeExercise('re1', 'Bench Press', 'g1'),
+    makeExercise('re2', 'Overhead Press', 'g1'),
+  ],
 };
 
 beforeEach(() => {
+  jest.clearAllMocks();
+  mockGetRoutineDetail.mockReset();
+  mockSaveRoutineDraft.mockReset();
+  mockGetExercise.mockReset();
+  alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   mockGetRoutineDetail.mockResolvedValue(routineDetail);
+  mockSaveRoutineDraft.mockResolvedValue(routineDetail);
+  mockGetExercise.mockResolvedValue(null);
+});
+
+afterEach(() => {
+  cleanup();
+  jest.restoreAllMocks();
+});
+
+test('shows the appropriate title for new and existing routines', async () => {
+  const created = await renderEditor({});
+  await waitFor(() => expect(created.getByText('Create Routine')).toBeTruthy());
+  expect(created.queryByText('Edit Routine')).toBeNull();
+
+  const edited = await renderEditor({ routineId: 'r1' });
+  await waitFor(() => expect(edited.getByText('Edit Routine')).toBeTruthy());
+  expect(edited.queryByText('Create Routine')).toBeNull();
 });
 
 test('does not show superset toggle or tag controls, even with a superset_group_id set', async () => {
@@ -94,7 +150,7 @@ test('does not show superset toggle or tag controls, even with a superset_group_
   expect(queryByText(/Superset/)).toBeNull();
 });
 
-test('clearing the routine name shows an error and does not persist it', async () => {
+test('clearing the routine name shows an error and does not persist on blur', async () => {
   const { getByDisplayValue, getByText, queryByText } = await render(
     <NavigationContainer>
       <Stack.Navigator>
@@ -114,11 +170,11 @@ test('clearing the routine name shows an error and does not persist it', async (
   await act(async () => fireEvent(nameInput, 'blur'));
 
   await waitFor(() => expect(getByText('Routine name is required.')).toBeTruthy());
-  expect(mockUpdateRoutine).not.toHaveBeenCalledWith('r1', expect.objectContaining({ name: expect.anything() }));
+  expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
   expect(queryByText('Routine name is required.')).toBeTruthy();
 });
 
-test('saving a valid routine name persists the trimmed value', async () => {
+test('blur does not save a valid routine name', async () => {
   const { getByDisplayValue } = await render(
     <NavigationContainer>
       <Stack.Navigator>
@@ -137,12 +193,10 @@ test('saving a valid routine name persists the trimmed value', async () => {
   await act(async () => fireEvent.changeText(nameInput, '  Leg Day  '));
   await act(async () => fireEvent(nameInput, 'blur'));
 
-  await waitFor(() =>
-    expect(mockUpdateRoutine).toHaveBeenCalledWith('r1', { name: 'Leg Day' })
-  );
+  expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
 });
 
-test('pressing Save persists the current routine name without requiring a blur first', async () => {
+test('pressing Save persists the full draft with the trimmed routine name', async () => {
   const { getByDisplayValue, getByText } = await render(
     <NavigationContainer
       initialState={{
@@ -152,10 +206,7 @@ test('pressing Save persists the current routine name without requiring a blur f
     >
       <Stack.Navigator>
         <Stack.Screen name="Home" component={HomeStub} />
-        <Stack.Screen
-          name="RoutineEditor"
-          component={RoutineEditorScreen}
-        />
+        <Stack.Screen name="RoutineEditor" component={RoutineEditorScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -167,11 +218,112 @@ test('pressing Save persists the current routine name without requiring a blur f
   await act(async () => fireEvent.press(getByText('Save')));
 
   await waitFor(() =>
-    expect(mockUpdateRoutine).toHaveBeenCalledWith(
-      'r1',
-      expect.objectContaining({ name: 'Phase Five Workout' })
+    expect(mockSaveRoutineDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ routineId: 'r1', name: 'Phase Five Workout' })
     )
   );
+});
+
+test('new routine starts empty and Save shows missing-name validation', async () => {
+  const { getByLabelText, getByText } = await renderEditor({});
+
+  await waitFor(() => expect(getByLabelText('Routine name').props.value).toBe(''));
+  await act(async () => fireEvent.press(getByText('Save')));
+
+  await waitFor(() => expect(getByText('Routine name is required.')).toBeTruthy());
+  expect(Alert.alert).toHaveBeenCalledWith('Name required', expect.any(String));
+  expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
+});
+
+test('closing an untouched new routine performs no writes or validation', async () => {
+  const { getByLabelText, getByText } = await renderEditor({});
+
+  await waitFor(() => expect(getByLabelText('Close')).toBeTruthy());
+  await act(async () => fireEvent.press(getByLabelText('Close')));
+
+  await waitFor(() => expect(getByText('Home screen')).toBeTruthy());
+  expect(mockGetRoutineDetail).not.toHaveBeenCalled();
+  expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
+  expect(Alert.alert).not.toHaveBeenCalledWith('No exercises', expect.any(String));
+});
+
+test('closing an existing clean routine does not save it', async () => {
+  const { getByLabelText, getByText } = await renderEditor({ routineId: 'r1' });
+
+  await waitFor(() => expect(getByLabelText('Close')).toBeTruthy());
+  await act(async () => fireEvent.press(getByLabelText('Close')));
+
+  await waitFor(() => expect(getByText('Home screen')).toBeTruthy());
+  expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
+});
+
+test('load failure still shows a visible Close action', async () => {
+  mockGetRoutineDetail.mockResolvedValue(null);
+  const { getByLabelText, getByText } = await renderEditor({ routineId: 'missing' });
+
+  await waitFor(() => expect(getByText('Could not load routine.')).toBeTruthy());
+  expect(getByText('Edit Routine')).toBeTruthy();
+  expect(getByLabelText('Close')).toBeTruthy();
+});
+
+test('picked exercise read failures show an alert instead of rejecting', async () => {
+  mockGetExercise.mockRejectedValue(new Error('bad exercise payload'));
+  await renderEditor({ pickedExerciseId: 'ex1' });
+
+  await waitFor(() =>
+    expect(alertSpy).toHaveBeenCalledWith('Save failed', 'Could not add exercise.')
+  );
+  expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
+});
+
+test('dirty close prompt keeps editing until Discard is pressed', async () => {
+  const { getByDisplayValue, getByLabelText, getByText, queryByText } = await renderEditor({
+    routineId: 'r1',
+  });
+
+  await waitFor(() => expect(getByDisplayValue('Push Day')).toBeTruthy());
+  await act(async () => fireEvent.changeText(getByDisplayValue('Push Day'), 'Draft Name'));
+  await act(async () => fireEvent.press(getByLabelText('Close')));
+
+  await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith(
+    'Discard changes?',
+    expect.any(String),
+    expect.any(Array)
+  ));
+  const keepEditing = latestAlertButtons(alertSpy).find(
+    (button) => button.text === 'Keep editing'
+  );
+  await act(async () => keepEditing?.onPress?.());
+  expect(queryByText('Home screen')).toBeNull();
+
+  await act(async () => fireEvent.press(getByLabelText('Close')));
+  const discard = latestAlertButtons(alertSpy).find(
+    (button) => button.text === 'Discard'
+  );
+  await act(async () => discard?.onPress?.());
+
+  await waitFor(() => expect(getByText('Home screen')).toBeTruthy());
+  expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
+});
+
+test('a navigator back action also prompts before discarding dirty changes', async () => {
+  const { getByDisplayValue, getByText, queryByText } = await renderEditor(
+    { routineId: 'r1' },
+    RoutineEditorWithPop
+  );
+
+  await waitFor(() => expect(getByDisplayValue('Push Day')).toBeTruthy());
+  await act(async () => fireEvent.changeText(getByDisplayValue('Push Day'), 'Draft Name'));
+  await act(async () => fireEvent.press(getByText('Pop editor')));
+
+  expect(queryByText('Home screen')).toBeNull();
+  const discard = latestAlertButtons(alertSpy).find(
+    (button) => button.text === 'Discard'
+  );
+  await act(async () => discard?.onPress?.());
+
+  await waitFor(() => expect(getByText('Home screen')).toBeTruthy());
+  expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
 });
 
 test('exposes stable E2E labels for routine editing controls', async () => {
@@ -191,9 +343,53 @@ test('exposes stable E2E labels for routine editing controls', async () => {
   expect(getByLabelText('Routine name')).toBeTruthy();
   expect(getByLabelText('Routine notes')).toBeTruthy();
   expect(getByLabelText('Tracking type for Bench Press: Weight × reps')).toBeTruthy();
+  expect(getByLabelText('Move Bench Press up')).toBeTruthy();
+  expect(getByLabelText('Move Bench Press down')).toBeTruthy();
   expect(getByLabelText('Add Exercise')).toBeTruthy();
   expect(getByLabelText('Add set to Bench Press')).toBeTruthy();
   expect(getByLabelText('Remove Bench Press')).toBeTruthy();
   expect(getByTestId('routine-set-0-0-weight')).toBeTruthy();
   expect(getByTestId('routine-set-0-0-reps')).toBeTruthy();
+});
+
+test('pending Save blocks close/discard until the save finishes', async () => {
+  const save = deferred<RoutineDetail>();
+  mockSaveRoutineDraft.mockReturnValue(save.promise);
+  const { getByDisplayValue, getByLabelText, getByText, queryByText } = await renderEditor({
+    routineId: 'r1',
+  });
+
+  await waitFor(() => expect(getByDisplayValue('Push Day')).toBeTruthy());
+  await act(async () => fireEvent.changeText(getByDisplayValue('Push Day'), 'Updated'));
+  fireEvent.press(getByText('Save'));
+  await waitFor(() => expect(getByLabelText('Saving...')).toBeTruthy());
+  await act(async () => fireEvent.changeText(getByLabelText('Routine name'), 'Late Edit'));
+  expect(getByDisplayValue('Updated')).toBeTruthy();
+  fireEvent.press(getByLabelText('Close'));
+
+  await waitFor(() =>
+    expect(alertSpy).toHaveBeenCalledWith('Save in progress', expect.any(String))
+  );
+  expect(queryByText('Home screen')).toBeNull();
+  expect(latestAlertButtons(alertSpy).some((button) => button.text === 'Discard')).toBe(false);
+
+  await act(async () => save.resolve(routineDetail));
+  await waitFor(() => expect(getByText('Home screen')).toBeTruthy());
+  expect(mockSaveRoutineDraft).toHaveBeenCalledWith(expect.objectContaining({ name: 'Updated' }));
+});
+
+test('Save is busy and disabled while submitting', async () => {
+  const save = deferred<RoutineDetail>();
+  mockSaveRoutineDraft.mockReturnValue(save.promise);
+  const { getByDisplayValue, getByLabelText, getByText } = await renderEditor({ routineId: 'r1' });
+
+  await waitFor(() => expect(getByDisplayValue('Push Day')).toBeTruthy());
+  await act(async () => fireEvent.changeText(getByDisplayValue('Push Day'), 'Updated'));
+  fireEvent.press(getByText('Save'));
+
+  await waitFor(() =>
+    expect(getByLabelText('Saving...').props.accessibilityState).toEqual({ disabled: true })
+  );
+  expect(mockSaveRoutineDraft).toHaveBeenCalledTimes(1);
+  await act(async () => save.resolve(routineDetail));
 });
