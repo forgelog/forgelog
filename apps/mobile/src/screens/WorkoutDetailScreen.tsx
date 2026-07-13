@@ -3,10 +3,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { discardWorkout } from '../application/activeWorkout';
 import { Icon } from '../components/Icon';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { deleteWorkout, getWorkoutDetail } from '../db/repositories/workouts';
-import type { WorkoutDetail } from '../db/types';
+import { getRecordEventsForWorkout } from '../db/repositories/personalRecords';
+import { getWorkoutDetail } from '../db/repositories/workouts';
+import type { PersonalRecordEvent, WorkoutDetail } from '../db/types';
 import { formatSet } from '../domain/setFields';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
@@ -18,9 +20,18 @@ export function WorkoutDetailScreen({ route }: Props) {
   const c = useTheme();
   const navigation = useNavigation();
   const [detail, setDetail] = useState<WorkoutDetail | null>(null);
+  const [recordEvents, setRecordEvents] = useState<PersonalRecordEvent[]>([]);
 
   useEffect(() => {
-    getWorkoutDetail(workoutId).then(setDetail);
+    Promise.all([
+      getWorkoutDetail(workoutId),
+      getRecordEventsForWorkout(workoutId).catch(() => []),
+    ]).then(
+      ([workout, events]) => {
+        setDetail(workout);
+        setRecordEvents(events);
+      }
+    );
   }, [workoutId]);
 
   if (!detail) return null;
@@ -34,7 +45,7 @@ export function WorkoutDetailScreen({ route }: Props) {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await deleteWorkout(workoutId);
+          await discardWorkout(workoutId);
           navigation.goBack();
         },
       },
@@ -60,6 +71,9 @@ export function WorkoutDetailScreen({ route }: Props) {
         </Text>
         {detail.notes ? <Text style={[styles.notes, { color: c.fg }]}>{detail.notes}</Text> : null}
         {detail.exercises.map((we) => {
+          const eventSetIds = new Set(
+            recordEvents.flatMap((event) => (event.logged_set_id ? [event.logged_set_id] : []))
+          );
           return (
             <View key={we.id} style={[styles.exercise, { borderTopColor: c.sep }]}>
               <Text style={[styles.exerciseName, { color: c.fg }]}>{we.exercise.name}</Text>
@@ -69,6 +83,11 @@ export function WorkoutDetailScreen({ route }: Props) {
                   <Text style={[styles.setText, { color: c.fg }]}>
                     {formatSet(we.exercise_type, set)}
                   </Text>
+                  {eventSetIds.has(set.id) ? (
+                    <View style={[styles.prBadge, { backgroundColor: c.asoft }]}>
+                      <Text style={[styles.prBadgeText, { color: c.accent }]}>PR</Text>
+                    </View>
+                  ) : null}
                   <View
                     style={[
                       styles.badge,
@@ -136,4 +155,6 @@ const styles = StyleSheet.create({
   setText: { fontSize: 15, flex: 1 },
   badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeText: { fontSize: 12, fontWeight: '700' },
+  prBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  prBadgeText: { fontSize: 12, fontWeight: '700' },
 });

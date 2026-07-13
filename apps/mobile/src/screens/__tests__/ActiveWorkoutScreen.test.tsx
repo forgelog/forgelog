@@ -8,15 +8,15 @@ import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 jest.mock('../../db/repositories/personalRecords');
 jest.mock('../../db/repositories/workouts');
 
-import { getRecordsForExercise } from '../../db/repositories/personalRecords';
+import { getRecordEventsForWorkout } from '../../db/repositories/personalRecords';
 import { getPreviousSessionSets, getWorkoutDetail } from '../../db/repositories/workouts';
 
 const mockGetWorkoutDetail = getWorkoutDetail as jest.MockedFunction<typeof getWorkoutDetail>;
 const mockGetPreviousSessionSets = getPreviousSessionSets as jest.MockedFunction<
   typeof getPreviousSessionSets
 >;
-const mockGetRecordsForExercise = getRecordsForExercise as jest.MockedFunction<
-  typeof getRecordsForExercise
+const mockGetRecordEventsForWorkout = getRecordEventsForWorkout as jest.MockedFunction<
+  typeof getRecordEventsForWorkout
 >;
 
 type TestParamList = { ActiveWorkout: { workoutId: string } };
@@ -77,7 +77,7 @@ const workoutDetail: WorkoutDetail = {
 beforeEach(() => {
   mockGetWorkoutDetail.mockResolvedValue(workoutDetail);
   mockGetPreviousSessionSets.mockResolvedValue([]);
-  mockGetRecordsForExercise.mockResolvedValue([]);
+  mockGetRecordEventsForWorkout.mockResolvedValue([]);
 });
 
 test('truncates a long exercise name and renders descriptor-driven set fields', async () => {

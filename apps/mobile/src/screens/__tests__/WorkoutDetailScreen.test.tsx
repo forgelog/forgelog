@@ -6,10 +6,15 @@ import type { WorkoutDetail } from '../../db/types';
 import { WorkoutDetailScreen } from '../WorkoutDetailScreen';
 
 jest.mock('../../db/repositories/workouts');
+jest.mock('../../db/repositories/personalRecords');
 
+import { getRecordEventsForWorkout } from '../../db/repositories/personalRecords';
 import { getWorkoutDetail } from '../../db/repositories/workouts';
 
 const mockGetWorkoutDetail = getWorkoutDetail as jest.MockedFunction<typeof getWorkoutDetail>;
+const mockGetRecordEventsForWorkout = getRecordEventsForWorkout as jest.MockedFunction<
+  typeof getRecordEventsForWorkout
+>;
 
 type TestParamList = { WorkoutDetail: { workoutId: string } };
 
@@ -67,6 +72,7 @@ const workoutDetail: WorkoutDetail = {
 
 beforeEach(() => {
   mockGetWorkoutDetail.mockResolvedValue(workoutDetail);
+  mockGetRecordEventsForWorkout.mockResolvedValue([]);
 });
 
 test('does not show a superset tag even when exercises share a superset_group_id', async () => {
@@ -84,4 +90,23 @@ test('does not show a superset tag even when exercises share a superset_group_id
 
   await waitFor(() => expect(getByText('Overhead Press')).toBeTruthy());
   expect(queryByText(/Superset/)).toBeNull();
+});
+
+test('keeps workout detail visible when PR events fail to load', async () => {
+  mockGetRecordEventsForWorkout.mockRejectedValueOnce(new Error('record events unavailable'));
+
+  const { getByText, queryByText } = await render(
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen
+          name="WorkoutDetail"
+          component={WorkoutDetailScreen}
+          initialParams={{ workoutId: 'w1' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+
+  await waitFor(() => expect(getByText('Overhead Press')).toBeTruthy());
+  expect(queryByText('PR')).toBeNull();
 });

@@ -3,11 +3,9 @@ import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenHeader } from '../components/ScreenHeader';
-import { isPrSet } from '../domain/records';
 import { getExercise } from '../db/repositories/exercises';
-import { getRecordsForExercise } from '../db/repositories/personalRecords';
 import { ExerciseSession, getSessionsForExercise } from '../db/repositories/workouts';
-import type { Exercise, PersonalRecord } from '../db/types';
+import type { Exercise } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
 import { formatSet } from '../domain/setFields';
@@ -22,7 +20,7 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
   const [tab, setTab] = useState<Tab>('about');
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [sessions, setSessions] = useState<ExerciseSession[]>([]);
-  const [records, setRecords] = useState<PersonalRecord[]>([]);
+  const [sessionsExerciseId, setSessionsExerciseId] = useState<string | null>(null);
   const [loadedExerciseId, setLoadedExerciseId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [historyLoadFailed, setHistoryLoadFailed] = useState(false);
@@ -33,31 +31,26 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
       .then((exerciseRow) => {
         if (!current) return;
         setExercise(exerciseRow);
-        setSessions([]);
-        setRecords([]);
-        setHistoryLoadFailed(false);
         setLoadError(exerciseRow ? null : 'Exercise not found.');
         setLoadedExerciseId(exerciseId);
       })
       .catch(() => {
         if (!current) return;
         setExercise(null);
-        setSessions([]);
-        setRecords([]);
         setLoadError('Could not load exercise.');
         setLoadedExerciseId(exerciseId);
       });
-    Promise.all([getSessionsForExercise(exerciseId), getRecordsForExercise(exerciseId)])
-      .then(([sessionRows, recordRows]) => {
+    getSessionsForExercise(exerciseId)
+      .then((sessionRows) => {
         if (!current) return;
         setSessions(sessionRows);
-        setRecords(recordRows);
+        setSessionsExerciseId(exerciseId);
         setHistoryLoadFailed(false);
       })
       .catch(() => {
         if (!current) return;
         setSessions([]);
-        setRecords([]);
+        setSessionsExerciseId(exerciseId);
         setHistoryLoadFailed(true);
       });
     return () => {
@@ -82,7 +75,8 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  const recordMap = Object.fromEntries(records.map((r) => [r.record_type, r.value]));
+  const visibleSessions = sessionsExerciseId === exerciseId ? sessions : [];
+  const visibleHistoryLoadFailed = sessionsExerciseId === exerciseId && historyLoadFailed;
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -94,7 +88,7 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
       {tab === 'about' ? (
         <AboutTab exercise={exercise} />
       ) : (
-        <HistoryTab sessions={sessions} recordMap={recordMap} loadFailed={historyLoadFailed} />
+        <HistoryTab sessions={visibleSessions} loadFailed={visibleHistoryLoadFailed} />
       )}
     </View>
   );
@@ -186,13 +180,11 @@ function AboutTab({ exercise }: AboutTabProps) {
 
 type HistoryTabProps = Readonly<{
   sessions: ExerciseSession[];
-  recordMap: Partial<Record<PersonalRecord['record_type'], number>>;
   loadFailed: boolean;
 }>;
 
 function HistoryTab({
   sessions,
-  recordMap,
   loadFailed,
 }: HistoryTabProps) {
   const c = useTheme();
@@ -207,28 +199,33 @@ function HistoryTab({
 
   return (
     <ScrollView>
-      {sessions.map((session, i) => (
-        <View
-          key={session.workoutId}
-          style={[styles.session, i > 0 && { borderTopColor: c.sep, borderTopWidth: 1 }]}
-        >
-          <Text style={[styles.sessionName, { color: c.fg }]}>{session.workoutName}</Text>
-          <Text style={[styles.sessionDate, { color: c.accent }]}>{formatDate(session.startedAt)}</Text>
-          {session.sets.map((set, setIndex) => (
-            <View key={set.id} style={styles.setRow}>
-              <Text style={[styles.setIndex, { color: c.sub }]}>{setIndex + 1}</Text>
-              <Text style={[styles.setText, { color: c.fg }]}>
-                {formatSet(session.exerciseType, set)}
-              </Text>
-              {isPrSet(set, recordMap) ? (
-                <View style={[styles.prBadge, { backgroundColor: c.asoft }]}>
-                  <Text style={[styles.prBadgeText, { color: c.accent }]}>🏆 PR</Text>
-                </View>
-              ) : null}
-            </View>
-          ))}
-        </View>
-      ))}
+      {sessions.map((session, i) => {
+        const recordSetIds = new Set(
+          session.recordEvents.flatMap((event) => (event.logged_set_id ? [event.logged_set_id] : []))
+        );
+        return (
+          <View
+            key={session.workoutId}
+            style={[styles.session, i > 0 && { borderTopColor: c.sep, borderTopWidth: 1 }]}
+          >
+            <Text style={[styles.sessionName, { color: c.fg }]}>{session.workoutName}</Text>
+            <Text style={[styles.sessionDate, { color: c.accent }]}>{formatDate(session.startedAt)}</Text>
+            {session.sets.map((set, setIndex) => (
+              <View key={set.id} style={styles.setRow}>
+                <Text style={[styles.setIndex, { color: c.sub }]}>{setIndex + 1}</Text>
+                <Text style={[styles.setText, { color: c.fg }]}>
+                  {formatSet(session.exerciseType, set)}
+                </Text>
+                {recordSetIds.has(set.id) ? (
+                  <View style={[styles.prBadge, { backgroundColor: c.asoft }]}>
+                    <Text style={[styles.prBadgeText, { color: c.accent }]}>PR</Text>
+                  </View>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        );
+      })}
     </ScrollView>
   );
 }

@@ -1,6 +1,12 @@
 import { getDb, resetDbForTests } from '../../index';
+import { backfillPersonalRecordState } from '../../personalRecordState';
 import { seededExercise } from '../../../test-utils/db';
-import { getRecordsForExercise, replaceRecordsForExercise } from '../personalRecords';
+import {
+  getRecordEventsForExercise,
+  getRecordsForExercise,
+  replaceRecordStateForExercise,
+  replaceRecordsForExercise,
+} from '../personalRecords';
 import {
   addExerciseToWorkout,
   addSet,
@@ -21,6 +27,21 @@ async function setCompletedAt(setId: string, completedAt: string): Promise<void>
   });
 }
 
+async function clearCompletedAt(setId: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE logged_sets SET completed_at = NULL WHERE id = $id', {
+    $id: setId,
+  });
+}
+
+async function setWorkoutStartedAt(workoutId: string, startedAt: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE workouts SET started_at = $startedAt WHERE id = $id', {
+    $startedAt: startedAt,
+    $id: workoutId,
+  });
+}
+
 test('replacement uses completed sets and earliest timing tie-breaks', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const workout = await startWorkout({ name: 'PR session' });
@@ -38,13 +59,144 @@ test('replacement uses completed sets and earliest timing tie-breaks', async () 
 
   const records = await replaceRecordsForExercise(bench.id);
 
-  expect(records).toHaveLength(4);
+  expect(records).toHaveLength(3);
   expect(records.every((record) => record.logged_set_id === earlierTie.id)).toBe(true);
   await expect(getRecordsForExercise(bench.id)).resolves.toEqual(
     expect.arrayContaining([
       expect.objectContaining({ record_type: 'max_weight', value: 100, logged_set_id: earlierTie.id }),
-      expect.objectContaining({ record_type: 'max_reps', value: 5, logged_set_id: earlierTie.id }),
       expect.objectContaining({ record_type: 'max_volume', value: 500, logged_set_id: earlierTie.id }),
+    ])
+  );
+});
+
+test('replacement keeps completed sets eligible when completed_at is missing', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const workout = await startWorkout({ name: 'Imported history' });
+  const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
+  const legacyCompleted = await addSet(workoutExercise.id);
+
+  await updateLoggedSet(legacyCompleted.id, { weight: 100, reps: 5, completed: true });
+  await finishWorkout(workout.id);
+  await clearCompletedAt(legacyCompleted.id);
+
+  const records = await replaceRecordsForExercise(bench.id);
+
+  expect(records).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ record_type: 'max_weight', value: 100, logged_set_id: legacyCompleted.id }),
+      expect.objectContaining({ record_type: 'max_volume', value: 500, logged_set_id: legacyCompleted.id }),
+    ])
+  );
+});
+
+test('record state baselines first occurrence and writes later historical events', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const firstWorkout = await startWorkout({ name: 'Baseline' });
+  const firstExercise = await addExerciseToWorkout(firstWorkout.id, bench.id);
+  const firstSet = await addSet(firstExercise.id);
+  await updateLoggedSet(firstSet.id, { weight: 100, reps: 5, completed: true });
+  await finishWorkout(firstWorkout.id);
+  await setWorkoutStartedAt(firstWorkout.id, '2026-07-01T10:00:00.000Z');
+  await setCompletedAt(firstSet.id, '2026-07-01T10:05:00.000Z');
+
+  const secondWorkout = await startWorkout({ name: 'Improve' });
+  const secondExercise = await addExerciseToWorkout(secondWorkout.id, bench.id);
+  const ramp = await addSet(secondExercise.id);
+  const top = await addSet(secondExercise.id);
+  await updateLoggedSet(ramp.id, { weight: 105, reps: 3, completed: true });
+  await updateLoggedSet(top.id, { weight: 110, reps: 5, completed: true });
+  await finishWorkout(secondWorkout.id);
+  await setWorkoutStartedAt(secondWorkout.id, '2026-07-08T10:00:00.000Z');
+  await setCompletedAt(ramp.id, '2026-07-08T10:05:00.000Z');
+  await setCompletedAt(top.id, '2026-07-08T10:08:00.000Z');
+
+  const state = await replaceRecordStateForExercise(bench.id);
+
+  expect(state.currentRecords).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ record_type: 'max_weight', value: 110, logged_set_id: top.id }),
+      expect.objectContaining({ record_type: 'max_volume', value: 550, logged_set_id: top.id }),
+    ])
+  );
+  expect(state.events).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ record_type: 'max_weight', value: 110, logged_set_id: top.id }),
+      expect.objectContaining({ record_type: 'max_volume', value: 550, logged_set_id: top.id }),
+    ])
+  );
+  expect(state.events.some((event) => event.logged_set_id === firstSet.id)).toBe(false);
+  expect(state.events.some((event) => event.logged_set_id === ramp.id)).toBe(false);
+  await expect(getRecordEventsForExercise(bench.id)).resolves.toHaveLength(state.events.length);
+});
+
+test('personal record backfill rebuilds current records and historical events', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const firstWorkout = await startWorkout({ name: 'Baseline' });
+  const firstExercise = await addExerciseToWorkout(firstWorkout.id, bench.id);
+  const firstSet = await addSet(firstExercise.id);
+  await updateLoggedSet(firstSet.id, { weight: 100, reps: 5, completed: true });
+  await finishWorkout(firstWorkout.id);
+  await setWorkoutStartedAt(firstWorkout.id, '2026-07-01T10:00:00.000Z');
+  await setCompletedAt(firstSet.id, '2026-07-01T10:05:00.000Z');
+
+  const secondWorkout = await startWorkout({ name: 'Improve' });
+  const secondExercise = await addExerciseToWorkout(secondWorkout.id, bench.id);
+  const top = await addSet(secondExercise.id);
+  await updateLoggedSet(top.id, { weight: 110, reps: 5, completed: true });
+  await finishWorkout(secondWorkout.id);
+  await setWorkoutStartedAt(secondWorkout.id, '2026-07-08T10:00:00.000Z');
+  await setCompletedAt(top.id, '2026-07-08T10:05:00.000Z');
+
+  const db = await getDb();
+  await db.runAsync('DELETE FROM personal_records WHERE exercise_id = $id', { $id: bench.id });
+  await db.runAsync('DELETE FROM personal_record_events WHERE exercise_id = $id', { $id: bench.id });
+
+  await backfillPersonalRecordState(db);
+
+  await expect(getRecordsForExercise(bench.id)).resolves.toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ record_type: 'max_weight', value: 110, logged_set_id: top.id }),
+      expect.objectContaining({ record_type: 'max_volume', value: 550, logged_set_id: top.id }),
+    ])
+  );
+  await expect(getRecordEventsForExercise(bench.id)).resolves.toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ record_type: 'max_weight', value: 110, logged_set_id: top.id }),
+      expect.objectContaining({ record_type: 'max_volume', value: 550, logged_set_id: top.id }),
+    ])
+  );
+});
+
+test('record state removes or moves events after completed set edits', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const firstWorkout = await startWorkout({ name: 'Baseline' });
+  const firstExercise = await addExerciseToWorkout(firstWorkout.id, bench.id);
+  const firstSet = await addSet(firstExercise.id);
+  await updateLoggedSet(firstSet.id, { weight: 100, reps: 5, completed: true });
+  await finishWorkout(firstWorkout.id);
+  await setWorkoutStartedAt(firstWorkout.id, '2026-07-01T10:00:00.000Z');
+  await setCompletedAt(firstSet.id, '2026-07-01T10:05:00.000Z');
+
+  const secondWorkout = await startWorkout({ name: 'Improve' });
+  const secondExercise = await addExerciseToWorkout(secondWorkout.id, bench.id);
+  const top = await addSet(secondExercise.id);
+  await updateLoggedSet(top.id, { weight: 110, reps: 5, completed: true });
+  await finishWorkout(secondWorkout.id);
+  await setWorkoutStartedAt(secondWorkout.id, '2026-07-08T10:00:00.000Z');
+  await setCompletedAt(top.id, '2026-07-08T10:05:00.000Z');
+
+  await replaceRecordStateForExercise(bench.id);
+  expect((await getRecordEventsForExercise(bench.id)).some((event) => event.logged_set_id === top.id)).toBe(
+    true
+  );
+
+  await updateLoggedSet(top.id, { weight: 90, reps: 5 });
+  await replaceRecordStateForExercise(bench.id);
+
+  expect(await getRecordEventsForExercise(bench.id)).toEqual([]);
+  await expect(getRecordsForExercise(bench.id)).resolves.toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ record_type: 'max_weight', value: 100, logged_set_id: firstSet.id }),
     ])
   );
 });

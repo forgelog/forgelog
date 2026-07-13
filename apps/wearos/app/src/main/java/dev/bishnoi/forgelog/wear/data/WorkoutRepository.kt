@@ -78,11 +78,10 @@ class WorkoutRepository(
     }
 
     suspend fun markSetCompleted(loggedSet: LoggedSetEntity, completed: Boolean) {
-        workoutDao.updateLoggedSet(
-            loggedSet.copy(
-                completed = completed,
-                completedAt = if (completed) Instant.now().toString() else null,
-            )
+        workoutDao.updateLoggedSetCompletion(
+            loggedSet.id,
+            completed,
+            if (completed) Instant.now().toString() else null,
         )
     }
 

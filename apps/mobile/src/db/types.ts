@@ -79,6 +79,7 @@ export type LoggedSet = {
 };
 
 export type RecordType = 'max_weight' | 'max_reps' | 'max_volume' | 'est_1rm';
+export type RecordScope = 'set' | 'exercise_session';
 
 export type PersonalRecord = {
   id: string;
@@ -87,6 +88,20 @@ export type PersonalRecord = {
   value: number;
   logged_set_id: string | null;
   achieved_at: string;
+};
+
+export type PersonalRecordEvent = {
+  id: string;
+  exercise_id: string;
+  workout_id: string;
+  workout_exercise_id: string;
+  logged_set_id: string | null;
+  record_type: RecordType;
+  scope: RecordScope;
+  value: number;
+  achieved_at: string;
+  formula_version: string | null;
+  created_at: string;
 };
 
 // Composite shapes returned by detail queries.

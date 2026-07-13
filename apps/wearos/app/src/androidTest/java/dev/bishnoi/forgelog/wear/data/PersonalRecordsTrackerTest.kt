@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.bishnoi.forgelog.wear.logic.RecordType
 import dev.bishnoi.forgelog.wear.logic.SetPerformance
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -69,5 +70,44 @@ class PersonalRecordsTrackerTest {
         assertEquals(12.0, records.getValue("max_reps").value, 0.0)
         assertEquals(1000.0, records.getValue("max_volume").value, 0.0)
         assertEquals(130.0, records.getValue("est_1rm").value, 0.0)
+    }
+
+    @Test
+    fun checkAndUpdatePersistsMissingBaselinesWithoutReportingPr() = runBlocking {
+        val improved = tracker.checkAndUpdate("ex1", SetPerformance(weight = 70.0, reps = 8))
+
+        assertEquals(emptyList<RecordType>(), improved)
+        val records = db.referenceDao().recordsForExercise("ex1").associateBy { it.recordType }
+        assertEquals(70.0, records.getValue("max_weight").value, 0.0)
+        assertEquals(560.0, records.getValue("max_volume").value, 0.0)
+    }
+
+    @Test
+    fun checkAndUpdateKeepsLocalBaselinesSilentAcrossLaterSets() = runBlocking {
+        val first = tracker.checkAndUpdate("ex1", SetPerformance(weight = 70.0, reps = 8))
+        val second = tracker.checkAndUpdate("ex1", SetPerformance(weight = 80.0, reps = 8))
+
+        assertEquals(emptyList<RecordType>(), first)
+        assertEquals(emptyList<RecordType>(), second)
+        val records = db.referenceDao().recordsForExercise("ex1").associateBy { it.recordType }
+        assertEquals(80.0, records.getValue("max_weight").value, 0.0)
+        assertEquals(640.0, records.getValue("max_volume").value, 0.0)
+    }
+
+    @Test
+    fun checkAndUpdateSerializesConcurrentUpdatesForOneExercise() = runBlocking {
+        db.referenceDao().upsertPersonalRecords(
+            listOf(
+                PersonalRecordEntity(PR_WEIGHT_ID, "ex1", "max_weight", 62.5, BASELINE_ACHIEVED_AT),
+            ),
+        )
+
+        val lower = async { tracker.checkAndUpdate("ex1", SetPerformance(weight = 80.0, reps = 5)) }
+        val higher = async { tracker.checkAndUpdate("ex1", SetPerformance(weight = 90.0, reps = 5)) }
+        lower.await()
+        higher.await()
+
+        val records = db.referenceDao().recordsForExercise("ex1").associateBy { it.recordType }
+        assertEquals(90.0, records.getValue("max_weight").value, 0.0)
     }
 }

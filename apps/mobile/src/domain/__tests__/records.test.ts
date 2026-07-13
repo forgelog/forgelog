@@ -6,17 +6,17 @@ const fixture = require('../../../../../data/contracts/fixtures/personal-records
   reps_only_sets: SetPerformance[];
 };
 
-test('Epley 1RM formula', () => {
-  expect(estimatedOneRepMax(100, 0)).toBe(100);
-  expect(estimatedOneRepMax(100, 30)).toBe(200);
+test('estimated 1RM uses the supported rep-percentage table', () => {
+  expect(estimatedOneRepMax(100, 10)).toBeCloseTo(133.333);
+  expect(estimatedOneRepMax(100, 16)).toBeNull();
 });
 
 test('computes maxes across completed sets', () => {
   const records = computeRecords(fixture.weighted_sets);
   expect(records.max_weight).toBe(120);
-  expect(records.max_reps).toBe(10);
+  expect(records.max_reps).toBeUndefined();
   expect(records.max_volume).toBe(800); // 80 * 10
-  expect(records.est_1rm).toBeCloseTo(estimatedOneRepMax(120, 3));
+  expect(records.est_1rm).toBeCloseTo(estimatedOneRepMax(120, 3)!);
 });
 
 test('reps-only sets produce max_reps but no weight-based records', () => {

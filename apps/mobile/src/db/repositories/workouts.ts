@@ -4,6 +4,7 @@ import { getDb } from '../index';
 import { id } from '../id';
 import type {
   LoggedSet,
+  PersonalRecordEvent,
   SetType,
   Workout,
   WorkoutDetail,
@@ -180,6 +181,7 @@ export type ExerciseSession = {
   startedAt: string;
   exerciseType: string;
   sets: LoggedSet[];
+  recordEvents: PersonalRecordEvent[];
 };
 
 // Past completed sessions that logged this exercise, most recent first —
@@ -205,6 +207,18 @@ export async function getSessionsForExercise(
       ORDER BY w.started_at DESC, we.position`,
     { $id: exerciseId }
   );
+  const recordEvents = await db.getAllAsync<PersonalRecordEvent>(
+    `SELECT * FROM personal_record_events
+      WHERE exercise_id = $id
+      ORDER BY achieved_at, record_type`,
+    { $id: exerciseId }
+  );
+  const eventsByWorkout = new Map<string, PersonalRecordEvent[]>();
+  for (const event of recordEvents) {
+    const events = eventsByWorkout.get(event.workout_id) ?? [];
+    events.push(event);
+    eventsByWorkout.set(event.workout_id, events);
+  }
 
   const byWorkout = new Map<string, ExerciseSession>();
   for (const we of workoutExercises) {
@@ -222,6 +236,7 @@ export async function getSessionsForExercise(
         startedAt: we.started_at,
         exerciseType: requireExerciseType(we.exercise_type),
         sets: sets.map(mapLoggedSet),
+        recordEvents: eventsByWorkout.get(we.workout_id) ?? [],
       });
     }
   }
