@@ -12,7 +12,9 @@ import {
   deleteSet,
   discardWorkout,
   uncompleteSet,
+  updateSetAndRecomputeRecords,
 } from '../application/activeWorkout';
+import { getRecordEventsForWorkout } from '../db/repositories/personalRecords';
 import {
   addExerciseToWorkout,
   addSet,
@@ -20,8 +22,8 @@ import {
   getPreviousSessionSets,
   getWorkoutDetail,
   hasCompletedSet,
-  updateLoggedSet,
 } from '../db/repositories/workouts';
+import type { LoggedSetUpdate } from '../db/repositories/workouts';
 import type { LoggedSet, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
 import {
   fieldsForExerciseType,
@@ -80,9 +82,11 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             await getPreviousSessionSets(we.exercise.id, workoutId),
           ] as const)
         );
+        const recordEvents = await getRecordEventsForWorkout(workoutId);
         if (!isCurrent()) return;
         setDetail(d);
         setPrevSets(Object.fromEntries(entries));
+        setPrSetIds(eventSetIds(recordEvents));
       })
       .catch(() => {
         if (!isCurrent()) return;
@@ -149,6 +153,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
 
   async function editSetField(
     weId: string,
+    exerciseId: string,
     setId: string,
     field: ExerciseTypeFieldDescriptor,
     raw: string
@@ -161,7 +166,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       sets: w.sets.map((s) => (s.id === setId ? { ...s, [column]: value } : s)),
     }));
     try {
-      await updateLoggedSet(setId, { [column]: value });
+      await updateSetAndRecomputeRecords(setId, exerciseId, { [column]: value } as LoggedSetUpdate);
+      await refreshPrSetIds(workoutId, setPrSetIds);
     } catch {
       Alert.alert('Save failed', 'Could not save field value.');
       reload();
@@ -183,22 +189,18 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     }));
     try {
       if (completed) {
-        const { improvedRecords } = await completeSet(setId, we.exercise.id);
+        const { recordEvents } = await completeSet(setId, we.exercise.id);
         setRestRemaining(resolveRestSeconds(we.rest_seconds));
-        if (improvedRecords.length > 0) {
-          setPrSetIds((prev) => new Set(prev).add(setId));
+        await refreshPrSetIds(workoutId, setPrSetIds);
+        if (recordEvents.length > 0) {
           Alert.alert(
-            'New PR! 🎉',
-            improvedRecords.map((r) => `${label(r.record_type)}: ${round(r.value)}`).join('\n')
+            'New PR',
+            recordEvents.map((event) => `${label(event.record_type)}: ${round(event.value)}`).join('\n')
           );
         }
       } else {
         await uncompleteSet(setId, we.exercise.id);
-        setPrSetIds((prev) => {
-          const next = new Set(prev);
-          next.delete(setId);
-          return next;
-        });
+        await refreshPrSetIds(workoutId, setPrSetIds);
       }
     } catch {
       Alert.alert('Save failed', 'Could not save set status.');
@@ -212,6 +214,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     patchExercise(weId, (w) => ({ ...w, sets: w.sets.filter((s) => s.id !== setId) }));
     try {
       await deleteSet(setId, exerciseId);
+      await refreshPrSetIds(workoutId, setPrSetIds);
     } catch {
       Alert.alert('Save failed', 'Could not delete set.');
       reload();
@@ -340,6 +343,7 @@ type ActiveWorkoutExerciseItemProps = Readonly<{
   onOpenExercise: (exerciseId: string) => void;
   onEditSetField: (
     weId: string,
+    exerciseId: string,
     setId: string,
     field: ExerciseTypeFieldDescriptor,
     raw: string
@@ -427,6 +431,7 @@ type ActiveWorkoutSetRowProps = Readonly<{
   isPersonalRecord: boolean;
   onEditSetField: (
     weId: string,
+    exerciseId: string,
     setId: string,
     field: ExerciseTypeFieldDescriptor,
     raw: string
@@ -467,13 +472,15 @@ function ActiveWorkoutSetRow({
         fields={fields}
         inputStyle={styles.setInput}
         valueForField={(field) => (set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
-        onChangeField={(field, text) => onEditSetField(exercise.id, set.id, field, text)}
+        onChangeField={(field, text) =>
+          onEditSetField(exercise.id, exercise.exercise.id, set.id, field, text)
+        }
         accessibilityLabelForField={(field) =>
           `Workout set ${setIndex + 1} ${field.inputLabel} for ${exercise.exercise.name}`
         }
         testIDForField={(field) => `workout-set-${exerciseIndex}-${setIndex}-${field}`}
       />
-      {isPersonalRecord ? <Text style={styles.prBadge}>🏆</Text> : null}
+      {isPersonalRecord ? <Text style={styles.prBadge}>PR</Text> : null}
       <Pressable
         style={[
           styles.check,
@@ -516,6 +523,14 @@ function label(recordType: string): string {
 
 function round(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+function eventSetIds(events: { logged_set_id: string | null }[]): Set<string> {
+  return new Set(events.flatMap((event) => (event.logged_set_id ? [event.logged_set_id] : [])));
+}
+
+async function refreshPrSetIds(workoutId: string, setIds: (ids: Set<string>) => void): Promise<void> {
+  setIds(eventSetIds(await getRecordEventsForWorkout(workoutId)));
 }
 
 const styles = StyleSheet.create({

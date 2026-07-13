@@ -152,6 +152,28 @@ CREATE TABLE personal_records (
   UNIQUE(exercise_id, record_type)
 );
 
+CREATE TABLE personal_record_events (
+  id                  TEXT PRIMARY KEY,
+  exercise_id         TEXT NOT NULL REFERENCES exercises(id),
+  workout_id          TEXT NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+  workout_exercise_id TEXT NOT NULL REFERENCES workout_exercises(id) ON DELETE CASCADE,
+  logged_set_id       TEXT REFERENCES logged_sets(id) ON DELETE CASCADE,
+  record_type         TEXT NOT NULL, -- 'max_weight','max_reps','max_volume','est_1rm'
+  scope               TEXT NOT NULL CHECK (scope IN ('set','exercise_session')),
+  value               REAL NOT NULL,
+  achieved_at         TEXT NOT NULL,
+  formula_version     TEXT,
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(exercise_id, record_type, workout_exercise_id, scope)
+);
+
+CREATE INDEX idx_personal_record_events_exercise
+  ON personal_record_events(exercise_id, achieved_at DESC);
+CREATE INDEX idx_personal_record_events_set
+  ON personal_record_events(logged_set_id);
+CREATE INDEX idx_personal_record_events_workout
+  ON personal_record_events(workout_id);
+
 -- ---------- Profile ----------
 -- Single-row table for local, unauthenticated profile info.
 CREATE TABLE profile (

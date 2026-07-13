@@ -5,6 +5,7 @@ import { getDb, resetDbForTests } from '../../db/index';
 import {
   addExerciseToWorkout,
   addSet,
+  finishWorkout,
   getWorkoutDetail,
   startWorkout,
   updateLoggedSet,
@@ -89,10 +90,29 @@ test('ignores stale reload responses after a newer reload wins', async () => {
 
 test('completes PR sets', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const baselineWorkout = await startWorkout({ name: 'Baseline Day' });
+  const baselineExercise = await addExerciseToWorkout(baselineWorkout.id, bench.id);
+  const baselineSet = await addSet(baselineExercise.id);
+  await updateLoggedSet(baselineSet.id, { weight: 100, reps: 5, completed: true });
+  await finishWorkout(baselineWorkout.id);
+  const db = await getDb();
+  await db.runAsync('UPDATE workouts SET started_at = $started WHERE id = $id', {
+    $started: '2026-07-01T10:00:00.000Z',
+    $id: baselineWorkout.id,
+  });
+  await db.runAsync('UPDATE logged_sets SET completed_at = $completed WHERE id = $id', {
+    $completed: '2026-07-01T10:05:00.000Z',
+    $id: baselineSet.id,
+  });
+
   const workout = await startWorkout({ name: 'Active PR Day' });
+  await db.runAsync('UPDATE workouts SET started_at = $started WHERE id = $id', {
+    $started: '2026-07-08T10:00:00.000Z',
+    $id: workout.id,
+  });
   const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
   const set = await addSet(workoutExercise.id);
-  await updateLoggedSet(set.id, { weight: 105, reps: 3 });
+  await updateLoggedSet(set.id, { weight: 110, reps: 5 });
   const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
   const active = await renderActiveWorkout(workout.id);
