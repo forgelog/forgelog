@@ -23,7 +23,10 @@ export function WorkoutDetailScreen({ route }: Props) {
   const [recordEvents, setRecordEvents] = useState<PersonalRecordEvent[]>([]);
 
   useEffect(() => {
-    Promise.all([getWorkoutDetail(workoutId), getRecordEventsForWorkout(workoutId)]).then(
+    Promise.all([
+      getWorkoutDetail(workoutId),
+      getRecordEventsForWorkout(workoutId).catch(() => []),
+    ]).then(
       ([workout, events]) => {
         setDetail(workout);
         setRecordEvents(events);

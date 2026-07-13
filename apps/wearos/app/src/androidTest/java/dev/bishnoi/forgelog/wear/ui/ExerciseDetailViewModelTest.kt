@@ -123,6 +123,27 @@ class ExerciseDetailViewModelTest {
     }
 
     @Test
+    fun markDoneUsesPersistedSetValuesForPersonalRecords() = runBlocking {
+        seedExercise()
+        db.referenceDao().upsertPersonalRecords(
+            listOf(PersonalRecordEntity("pr1", "ex1", "max_weight", 80.0, "2026-01-01T00:00:00Z")),
+        )
+        val vm = viewModel()
+        withTimeout(5000) { vm.uiState.first { it.sets.size == 2 } }
+        val persisted = db.workoutDao().loggedSets("we1").first { it.id == "s1" }
+        db.workoutDao().updateLoggedSet(persisted.copy(weight = 90.0, reps = 5))
+        val event = async { withTimeout(5000) { vm.prEvent.first() } }
+
+        vm.markDone("s1")
+
+        val records = event.await()
+        val completed = db.workoutDao().loggedSets("we1").first { it.id == "s1" }
+        assertEquals(true, records.contains(RecordType.MAX_WEIGHT))
+        assertEquals(90.0, completed.weight ?: -1.0, 0.0)
+        assertEquals(90.0, db.referenceDao().recordsForExercise("ex1").first { it.recordType == "max_weight" }.value, 0.0)
+    }
+
+    @Test
     fun markDoneStartsRestTimerAndSkipRestClearsIt() = runBlocking {
         seedExercise(restSeconds = 30)
         val vm = viewModel()

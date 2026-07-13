@@ -73,29 +73,31 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
     if (currentVersion < 8) {
       // v8: historical PR events separate "was a PR when logged" from the
       // current personal_records cache.
-      await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS personal_record_events (
-          id                  TEXT PRIMARY KEY,
-          exercise_id         TEXT NOT NULL REFERENCES exercises(id),
-          workout_id          TEXT NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
-          workout_exercise_id TEXT NOT NULL REFERENCES workout_exercises(id) ON DELETE CASCADE,
-          logged_set_id       TEXT REFERENCES logged_sets(id) ON DELETE CASCADE,
-          record_type         TEXT NOT NULL,
-          scope               TEXT NOT NULL CHECK (scope IN ('set','exercise_session')),
-          value               REAL NOT NULL,
-          achieved_at         TEXT NOT NULL,
-          formula_version     TEXT,
-          created_at          TEXT NOT NULL DEFAULT (datetime('now')),
-          UNIQUE(exercise_id, record_type, workout_exercise_id, scope)
-        );
-        CREATE INDEX IF NOT EXISTS idx_personal_record_events_exercise
-          ON personal_record_events(exercise_id, achieved_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_personal_record_events_set
-          ON personal_record_events(logged_set_id);
-        CREATE INDEX IF NOT EXISTS idx_personal_record_events_workout
-          ON personal_record_events(workout_id);
-      `);
-      await backfillPersonalRecordState(db);
+      await db.withTransactionAsync(async () => {
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS personal_record_events (
+            id                  TEXT PRIMARY KEY,
+            exercise_id         TEXT NOT NULL REFERENCES exercises(id),
+            workout_id          TEXT NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+            workout_exercise_id TEXT NOT NULL REFERENCES workout_exercises(id) ON DELETE CASCADE,
+            logged_set_id       TEXT REFERENCES logged_sets(id) ON DELETE CASCADE,
+            record_type         TEXT NOT NULL,
+            scope               TEXT NOT NULL CHECK (scope IN ('set','exercise_session')),
+            value               REAL NOT NULL,
+            achieved_at         TEXT NOT NULL,
+            formula_version     TEXT,
+            created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(exercise_id, record_type, workout_exercise_id, scope)
+          );
+          CREATE INDEX IF NOT EXISTS idx_personal_record_events_exercise
+            ON personal_record_events(exercise_id, achieved_at DESC);
+          CREATE INDEX IF NOT EXISTS idx_personal_record_events_set
+            ON personal_record_events(logged_set_id);
+          CREATE INDEX IF NOT EXISTS idx_personal_record_events_workout
+            ON personal_record_events(workout_id);
+        `);
+        await backfillPersonalRecordState(db);
+      });
     }
   }
 

@@ -36,6 +36,9 @@ interface WorkoutDao {
     @Update
     suspend fun updateLoggedSet(loggedSet: LoggedSetEntity)
 
+    @Query("UPDATE logged_sets SET completed = :completed, completedAt = :completedAt WHERE id = :loggedSetId")
+    suspend fun updateLoggedSetCompletion(loggedSetId: String, completed: Boolean, completedAt: String?)
+
     @Query("DELETE FROM logged_sets WHERE id = :loggedSetId")
     suspend fun deleteLoggedSet(loggedSetId: String)
 
@@ -100,6 +103,9 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM logged_sets WHERE workoutExerciseId = :workoutExerciseId ORDER BY position")
     suspend fun loggedSets(workoutExerciseId: String): List<LoggedSetEntity>
+
+    @Query("SELECT * FROM logged_sets WHERE id = :loggedSetId")
+    suspend fun loggedSet(loggedSetId: String): LoggedSetEntity?
 
     @Query("SELECT * FROM workout_exercises WHERE workoutId = :workoutId ORDER BY position")
     suspend fun workoutExercises(workoutId: String): List<WorkoutExerciseEntity>

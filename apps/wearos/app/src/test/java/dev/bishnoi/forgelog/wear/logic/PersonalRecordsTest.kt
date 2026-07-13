@@ -73,6 +73,20 @@ class PersonalRecordsTest {
     }
 
     @Test
+    fun `warmup sets are excluded from records`() {
+        val records = computeRecords(
+            listOf(
+                SetPerformance(weight = 200.0, reps = 1, setType = "warmup"),
+                SetPerformance(weight = 100.0, reps = 5),
+            ),
+        )
+
+        assertEquals(100.0, records[RecordType.MAX_WEIGHT])
+        assertEquals(500.0, records[RecordType.MAX_VOLUME])
+        assertEquals(estimatedOneRepMax(100.0, 5)!!, records.getValue(RecordType.EST_1RM), 0.001)
+    }
+
+    @Test
     fun `empty set list produces no records`() {
         assertTrue(computeRecords(emptyList()).isEmpty())
     }

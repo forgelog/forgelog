@@ -6,6 +6,9 @@ import dev.bishnoi.forgelog.wear.logic.computeRecords
 import dev.bishnoi.forgelog.wear.logic.improvedRecords
 import dev.bishnoi.forgelog.wear.logic.newId
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * The "new PR!" moment, offline: compares the set just marked complete
@@ -15,8 +18,14 @@ import java.time.Instant
  */
 class PersonalRecordsTracker(private val referenceDao: ReferenceDao) {
     private val localBaselineIdsByExercise = mutableMapOf<String, MutableMap<RecordType, String>>()
+    private val locksByExercise = ConcurrentHashMap<String, Mutex>()
 
     suspend fun checkAndUpdate(exerciseId: String, set: SetPerformance): List<RecordType> {
+        val lock = locksByExercise.computeIfAbsent(exerciseId) { Mutex() }
+        return lock.withLock { checkAndUpdateLocked(exerciseId, set) }
+    }
+
+    private suspend fun checkAndUpdateLocked(exerciseId: String, set: SetPerformance): List<RecordType> {
         val candidate = computeRecords(listOf(set))
         if (candidate.isEmpty()) return emptyList()
 

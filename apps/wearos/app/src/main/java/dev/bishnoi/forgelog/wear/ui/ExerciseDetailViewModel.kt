@@ -114,10 +114,11 @@ class ExerciseDetailViewModel(
             workoutRepository.markSetCompleted(set, true)
 
             val we = workoutDao.getWorkoutExercise(workoutExerciseId) ?: return@launch
+            val completedSet = workoutDao.loggedSet(setId) ?: return@launch
             val exerciseType = ExerciseType.fromValue(we.exerciseType) ?: ExerciseType.WEIGHT_REPS
             val improved = recordsTracker.checkAndUpdate(
                 we.exerciseId,
-                SetPerformance(set.weight, set.reps, exerciseType, set.setType),
+                SetPerformance(completedSet.weight, completedSet.reps, exerciseType, completedSet.setType),
             )
             if (improved.isNotEmpty()) prEvents.tryEmit(improved)
 

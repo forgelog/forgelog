@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.bishnoi.forgelog.wear.logic.RecordType
 import dev.bishnoi.forgelog.wear.logic.SetPerformance
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -91,5 +92,22 @@ class PersonalRecordsTrackerTest {
         val records = db.referenceDao().recordsForExercise("ex1").associateBy { it.recordType }
         assertEquals(80.0, records.getValue("max_weight").value, 0.0)
         assertEquals(640.0, records.getValue("max_volume").value, 0.0)
+    }
+
+    @Test
+    fun checkAndUpdateSerializesConcurrentUpdatesForOneExercise() = runBlocking {
+        db.referenceDao().upsertPersonalRecords(
+            listOf(
+                PersonalRecordEntity(PR_WEIGHT_ID, "ex1", "max_weight", 62.5, BASELINE_ACHIEVED_AT),
+            ),
+        )
+
+        val lower = async { tracker.checkAndUpdate("ex1", SetPerformance(weight = 80.0, reps = 5)) }
+        val higher = async { tracker.checkAndUpdate("ex1", SetPerformance(weight = 90.0, reps = 5)) }
+        lower.await()
+        higher.await()
+
+        val records = db.referenceDao().recordsForExercise("ex1").associateBy { it.recordType }
+        assertEquals(90.0, records.getValue("max_weight").value, 0.0)
     }
 }
