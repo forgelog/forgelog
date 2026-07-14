@@ -14,7 +14,7 @@ import {
 import { Icon } from '../components/Icon';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Select } from '../components/Select';
-import { listEquipment, listExercises, listMuscleGroups } from '../db/repositories/exercises';
+import { mobileStore } from '../db/mobileStore';
 import type { Exercise } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
@@ -36,14 +36,14 @@ export function ExerciseLibraryScreen({ route, navigation }: Props) {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    listMuscleGroups().then(setMuscleGroups);
-    listEquipment().then(setEquipmentList);
+    mobileStore.exercises.listMuscleGroups().then(setMuscleGroups);
+    mobileStore.exercises.listEquipment().then(setEquipmentList);
   }, []);
 
   useEffect(() => {
     let active = true;
     const handle = setTimeout(() => {
-      listExercises({
+      mobileStore.exercises.list({
         search: search.trim() || undefined,
         muscleGroup: muscleGroup ?? undefined,
         equipment: equipment ?? undefined,

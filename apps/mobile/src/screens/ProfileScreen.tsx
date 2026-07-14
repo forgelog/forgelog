@@ -7,9 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
-import { ExerciseRecordRow, listAllRecords } from '../db/repositories/personalRecords';
-import { getProfile, Profile, setProfileName } from '../db/repositories/profile';
-import { getProfileStats, ProfileStats } from '../db/repositories/workouts';
+import { mobileStore, type ExerciseRecordRow, type Profile, type ProfileStats } from '../db/mobileStore';
 import { computeAge, initials } from '../domain/profile';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme, type ThemeMode } from '../theme/ThemeContext';
@@ -51,9 +49,9 @@ export function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      listAllRecords().then((rows) => setGroups(groupByExercise(rows)));
-      getProfileStats().then(setStats);
-      getProfile().then((profile) => {
+      mobileStore.records.listAll().then((rows) => setGroups(groupByExercise(rows)));
+      mobileStore.workouts.getProfileStats().then(setStats);
+      mobileStore.profile.get().then((profile) => {
         setName(profile.name);
         setBody(profile);
       });
@@ -63,7 +61,7 @@ export function ProfileScreen() {
   function saveName() {
     const sanitized = sanitizeText(name);
     setName(sanitized);
-    setProfileName(sanitized);
+    mobileStore.profile.setName(sanitized);
   }
 
   return (

@@ -14,16 +14,7 @@ import {
   uncompleteSet,
   updateSetAndRecomputeRecords,
 } from '../application/activeWorkout';
-import { getRecordEventsForWorkout } from '../db/repositories/personalRecords';
-import {
-  addExerciseToWorkout,
-  addSet,
-  finishWorkout,
-  getPreviousSessionSets,
-  getWorkoutDetail,
-  hasCompletedSet,
-} from '../db/repositories/workouts';
-import type { LoggedSetUpdate } from '../db/repositories/workouts';
+import { mobileStore, type LoggedSetUpdate } from '../db/mobileStore';
 import type { LoggedSet, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
 import {
   fieldsForExerciseType,
@@ -67,7 +58,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     const isCurrent = () => current && reloadRequestId.current === requestId;
     setLoading(true);
     setLoadError(null);
-    getWorkoutDetail(workoutId)
+    mobileStore.workouts.getDetail(workoutId)
       .then(async (d) => {
         if (!isCurrent()) return;
         if (!d) {
@@ -79,10 +70,10 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         const entries = await Promise.all(
           d.exercises.map(async (we) => [
             we.exercise.id,
-            await getPreviousSessionSets(we.exercise.id, workoutId),
+            await mobileStore.workouts.getPreviousSessionSets(we.exercise.id, workoutId),
           ] as const)
         );
-        const recordEvents = await getRecordEventsForWorkout(workoutId);
+        const recordEvents = await mobileStore.records.getEventsForWorkout(workoutId);
         if (!isCurrent()) return;
         setDetail(d);
         setPrevSets(Object.fromEntries(entries));
@@ -108,7 +99,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!pickedExerciseId) return;
     navigation.setParams({ pickedExerciseId: undefined });
-    addExerciseToWorkout(workoutId, pickedExerciseId)
+    mobileStore.workouts.addExercise(workoutId, pickedExerciseId)
       .then(() => reload())
       .catch(() => {
         Alert.alert('Save failed', 'Could not add exercise.');
@@ -147,7 +138,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }
 
   async function handleAddSet(we: WorkoutExerciseDetail) {
-    const created = await addSet(we.id);
+    const created = await mobileStore.workouts.addSet(we.id);
     patchExercise(we.id, (w) => ({ ...w, sets: [...w.sets, created] }));
   }
 
@@ -222,7 +213,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }
 
   function handleFinish() {
-    if (!detail || !hasCompletedSet(detail.exercises)) {
+    if (!detail || !mobileStore.workouts.hasCompletedSet(detail.exercises)) {
       Alert.alert('No sets completed', 'Complete at least one set before finishing.');
       return;
     }
@@ -231,7 +222,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       {
         text: 'Finish',
         onPress: async () => {
-          await finishWorkout(workoutId);
+          await mobileStore.workouts.finish(workoutId);
           navigation.popToTop();
         },
       },
@@ -530,7 +521,7 @@ function eventSetIds(events: { logged_set_id: string | null }[]): Set<string> {
 }
 
 async function refreshPrSetIds(workoutId: string, setIds: (ids: Set<string>) => void): Promise<void> {
-  setIds(eventSetIds(await getRecordEventsForWorkout(workoutId)));
+  setIds(eventSetIds(await mobileStore.records.getEventsForWorkout(workoutId)));
 }
 
 const styles = StyleSheet.create({

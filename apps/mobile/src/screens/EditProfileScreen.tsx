@@ -7,7 +7,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { getProfile, Sex, updateProfile } from '../db/repositories/profile';
+import { mobileStore, type Sex } from '../db/mobileStore';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
 import {
@@ -51,7 +51,7 @@ export function EditProfileScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       setLoaded(false);
-      getProfile().then((profile) => {
+      mobileStore.profile.get().then((profile) => {
         setName(profile.name);
         setSex(profile.sex);
         setBirthDate(profile.birthDate ? parseIsoDate(profile.birthDate) : null);
@@ -99,7 +99,7 @@ export function EditProfileScreen({ navigation }: Props) {
     if (heightResult.error || bodyweightResult.error) return;
 
     try {
-      await updateProfile({
+      await mobileStore.profile.update({
         name,
         sex,
         birthDate: birthDate ? toIsoDate(birthDate) : null,

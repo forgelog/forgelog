@@ -1,6 +1,6 @@
 import WearSync from 'wear-sync';
 
-import { getSyncSnapshot, ingestWatchWorkout } from '../db/repositories/sync';
+import { mobileStore } from '../db/mobileStore';
 import { validateWatchWorkoutPayload } from './watchWorkoutValidator';
 
 let started = false;
@@ -22,7 +22,7 @@ export function initWearSync(): void {
       return;
     }
     if (!validateWatchWorkoutPayload(raw)) return;
-    await ingestWatchWorkout(raw);
+    await mobileStore.sync.ingestWatchWorkout(raw);
   });
   WearSync.addListener('onSyncRequested', () => {
     publishSyncSnapshot();
@@ -33,7 +33,7 @@ export function initWearSync(): void {
 // start a workout and detect a PR while offline. Best-effort: no paired
 // watch (or no Wearable API on this device) shouldn't be a fatal error.
 export async function publishSyncSnapshot(): Promise<void> {
-  const snapshot = await getSyncSnapshot();
+  const snapshot = await mobileStore.sync.getSnapshot();
   try {
     await WearSync.publishSnapshot(JSON.stringify(snapshot));
   } catch {

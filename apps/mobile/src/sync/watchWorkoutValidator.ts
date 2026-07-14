@@ -1,6 +1,6 @@
 import Ajv from 'ajv';
 
-import type { WatchWorkoutPayload } from '../db/repositories/sync';
+import type { WatchWorkoutPayload } from '../db/mobileStore';
 import { EXERCISE_TYPES } from '../domain/setFields';
 
 const ajv = new Ajv();

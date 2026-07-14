@@ -1,9 +1,9 @@
 import { getDb } from '../db/index';
-import * as exercisesRepository from '../db/repositories/exercises';
+import { mobileStore } from '../db/mobileStore';
 import type { Exercise } from '../db/types';
 
 export async function seededExercise(name: string): Promise<Exercise> {
-  const exercise = (await exercisesRepository.listExercises({ search: name })).find(
+  const exercise = (await mobileStore.exercises.list({ search: name })).find(
     (candidate) => candidate.name === name
   );
   if (!exercise) throw new Error(`Missing seed exercise: ${name}`);

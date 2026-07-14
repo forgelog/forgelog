@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Appearance, type ColorSchemeName } from 'react-native';
 
-import { getThemeMode, setThemeMode as persistThemeMode, type ThemeMode } from '../db/repositories/profile';
+import { mobileStore, type ThemeMode } from '../db/mobileStore';
 import { darkColors, lightColors, type ColorScheme } from './colors';
 
 export type { ThemeMode };
@@ -35,7 +35,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [systemScheme, setSystemScheme] = useState<SystemScheme>(Appearance.getColorScheme());
 
   useEffect(() => {
-    getThemeMode().then(setThemeMode);
+    mobileStore.profile.getThemeMode().then(setThemeMode);
   }, []);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
   const updateThemeMode = useCallback((mode: ThemeMode) => {
     setThemeMode(mode);
-    persistThemeMode(mode).catch((error) => {
+    mobileStore.profile.setThemeMode(mode).catch((error) => {
       console.error('Failed to persist theme mode', error);
     });
   }, []);
