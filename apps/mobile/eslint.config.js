@@ -17,8 +17,25 @@ module.exports = defineConfig([
     ignores: ['dist/*'],
   },
   {
+    files: ['src/application/**/*.{ts,tsx}'],
+    ignores: ['src/**/__tests__/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: persistenceInternals,
+              message:
+                'Use db/mobileStore or an application use case outside the persistence layer.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: [
-      'src/application/**/*.{ts,tsx}',
       'src/screens/**/*.{ts,tsx}',
       'src/theme/**/*.{ts,tsx}',
       'src/sync/**/*.{ts,tsx}',
@@ -28,6 +45,26 @@ module.exports = defineConfig([
       'no-restricted-imports': [
         'error',
         {
+          paths: [
+            {
+              name: '../db/mobileStore',
+              importNames: ['runInMobileStoreTransaction'],
+              message:
+                'UI and transport code must use an invariant-preserving application use case.',
+            },
+            {
+              name: '../../db/mobileStore',
+              importNames: ['runInMobileStoreTransaction'],
+              message:
+                'UI and transport code must use an invariant-preserving application use case.',
+            },
+            {
+              name: '../../../db/mobileStore',
+              importNames: ['runInMobileStoreTransaction'],
+              message:
+                'UI and transport code must use an invariant-preserving application use case.',
+            },
+          ],
           patterns: [
             {
               group: persistenceInternals,

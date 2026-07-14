@@ -1,7 +1,6 @@
 import { getDb, resetDbForTests } from '../../index';
-import { mobileStore } from '../../mobileStore';
 import { backfillPersonalRecordState } from '../../personalRecordState';
-import { seededExercise } from '../../../test-utils/db';
+import { mobileStoreForTests as mobileStore, seededExercise } from '../../../test-utils/db';
 
 const {
   getEventsForExercise: getRecordEventsForExercise,

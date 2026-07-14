@@ -11,7 +11,7 @@ function stripDollar(params) {
   return out;
 }
 
-function makeDb(raw) {
+function makeDb(raw, state) {
   return {
     execAsync: async (sql) => {
       raw.exec(sql);
@@ -41,14 +41,22 @@ function makeDb(raw) {
       }
     },
     withExclusiveTransactionAsync: async (fn) => {
-      raw.exec('BEGIN IMMEDIATE');
-      try {
-        await fn(makeDb(raw));
-        raw.exec('COMMIT');
-      } catch (err) {
-        raw.exec('ROLLBACK');
-        throw err;
-      }
+      const transaction = state.exclusiveTransactionQueue.then(async () => {
+        raw.exec('BEGIN IMMEDIATE');
+        try {
+          const result = await fn(makeDb(raw, state));
+          raw.exec('COMMIT');
+          return result;
+        } catch (err) {
+          raw.exec('ROLLBACK');
+          throw err;
+        }
+      });
+      state.exclusiveTransactionQueue = transaction.then(
+        () => undefined,
+        () => undefined
+      );
+      return transaction;
     },
     prepareAsync: async (sql) => {
       const stmt = raw.prepare(sql);
@@ -65,5 +73,8 @@ function makeDb(raw) {
 }
 
 module.exports = {
-  openDatabaseAsync: async () => makeDb(new BetterSqlite(':memory:')),
+  openDatabaseAsync: async () =>
+    makeDb(new BetterSqlite(':memory:'), {
+      exclusiveTransactionQueue: Promise.resolve(),
+    }),
 };

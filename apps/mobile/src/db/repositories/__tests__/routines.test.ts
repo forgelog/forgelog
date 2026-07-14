@@ -1,6 +1,5 @@
 import { resetDbForTests } from '../../index';
-import { mobileStore } from '../../mobileStore';
-import { seededExercise } from '../../../test-utils/db';
+import { mobileStoreForTests as mobileStore, seededExercise } from '../../../test-utils/db';
 
 const { start: startWorkout, getDetail: getWorkoutDetail } = mobileStore.workouts;
 const {
