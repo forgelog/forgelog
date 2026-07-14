@@ -6,8 +6,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { discardWorkout } from '../application/activeWorkout';
 import { Icon } from '../components/Icon';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { getRecordEventsForWorkout } from '../db/repositories/personalRecords';
-import { getWorkoutDetail } from '../db/repositories/workouts';
+import { mobileStore } from '../db/mobileStore';
 import type { PersonalRecordEvent, WorkoutDetail } from '../db/types';
 import { formatSet } from '../domain/setFields';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -24,8 +23,8 @@ export function WorkoutDetailScreen({ route }: Props) {
 
   useEffect(() => {
     Promise.all([
-      getWorkoutDetail(workoutId),
-      getRecordEventsForWorkout(workoutId).catch(() => []),
+      mobileStore.workouts.getDetail(workoutId),
+      mobileStore.records.getEventsForWorkout(workoutId).catch(() => []),
     ]).then(
       ([workout, events]) => {
         setDetail(workout);

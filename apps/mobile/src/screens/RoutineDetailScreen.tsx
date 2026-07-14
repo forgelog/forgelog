@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenHeader } from '../components/ScreenHeader';
-import { getRoutineDetail } from '../db/repositories/routines';
+import { mobileStore } from '../db/mobileStore';
 import type { RoutineDetail, RoutineSet } from '../db/types';
 import { formatSet, requireExerciseType, resolveRestSeconds } from '../domain/setFields';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -19,7 +19,7 @@ export function RoutineDetailScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     let current = true;
-    getRoutineDetail(routineId)
+    mobileStore.routines.getDetail(routineId)
       .then((routine) => {
         if (!current) return;
         setDetail(routine);

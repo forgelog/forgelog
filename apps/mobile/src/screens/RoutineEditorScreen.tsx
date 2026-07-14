@@ -25,8 +25,7 @@ import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SetFieldInputs } from '../components/SetFieldInputs';
-import { getExercise } from '../db/repositories/exercises';
-import { getRoutineDetail, saveRoutineDraft } from '../db/repositories/routines';
+import { mobileStore } from '../db/mobileStore';
 import {
   addExerciseToDraft,
   addSetToDraft,
@@ -194,7 +193,7 @@ function RoutineDraftProvider({
       setNameError(null);
       setNotesError(null);
       try {
-        const detail = await getRoutineDetail(mode.routineId);
+        const detail = await mobileStore.routines.getDetail(mode.routineId);
         if (!active) return;
         if (!detail) {
           setDraft(null);
@@ -288,7 +287,7 @@ function RoutineDraftProvider({
   const addPickedExercise = useCallback(async (exerciseId: string) => {
     if (submittingRef.current) return;
     try {
-      const exercise = await getExercise(exerciseId);
+      const exercise = await mobileStore.exercises.get(exerciseId);
       if (!exercise) {
         Alert.alert('Save failed', 'Could not add exercise.');
         return;
@@ -376,7 +375,7 @@ function RoutineDraftProvider({
     }
 
     try {
-      await saveRoutineDraft(result.value);
+      await mobileStore.routines.saveDraft(result.value);
       const action = CommonActions.goBack();
       pendingRemovalAction.current = action;
       submittingRef.current = false;

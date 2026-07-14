@@ -8,8 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
-import { deleteRoutine, listRoutineSummaries, RoutineSummary } from '../db/repositories/routines';
-import { getActiveWorkout } from '../db/repositories/workouts';
+import { mobileStore, type RoutineSummary } from '../db/mobileStore';
 import { discardWorkout, startOrResumeWorkout } from '../application/activeWorkout';
 import type { Workout } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -37,7 +36,7 @@ export function HomeScreen() {
     let current = true;
     setLoading(true);
     setLoadFailed(false);
-    Promise.all([getActiveWorkout(), listRoutineSummaries()])
+    Promise.all([mobileStore.workouts.getActive(), mobileStore.routines.listSummaries()])
       .then(([activeWorkout, routineRows]) => {
         if (!current) return;
         setActive(activeWorkout);
@@ -134,7 +133,7 @@ export function HomeScreen() {
   async function handleDeleteRoutine(routine: RoutineSummary) {
     setRoutineSheet({ routine, mode: 'delete', deleting: true });
     try {
-      await deleteRoutine(routine.id);
+      await mobileStore.routines.remove(routine.id);
       setRoutineSheet((current) => (current ? { ...current, deleting: false, closing: true } : null));
       reload();
     } catch {

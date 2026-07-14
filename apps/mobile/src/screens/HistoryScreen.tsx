@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../components/Card';
 import { currentWeekDays, localDateKey, monthLabel } from '../domain/dates';
-import { listWorkouts } from '../db/repositories/workouts';
+import { mobileStore } from '../db/mobileStore';
 import type { Workout } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
@@ -27,7 +27,7 @@ export function HistoryScreen() {
       let current = true;
       setLoading(true);
       setLoadFailed(false);
-      listWorkouts()
+      mobileStore.workouts.list()
         .then((rows) => {
           if (current) setWorkouts(rows);
         })

@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenHeader } from '../components/ScreenHeader';
-import { getExercise } from '../db/repositories/exercises';
-import { ExerciseSession, getSessionsForExercise } from '../db/repositories/workouts';
+import { mobileStore, type ExerciseSession } from '../db/mobileStore';
 import type { Exercise } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
@@ -27,7 +26,7 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     let current = true;
-    getExercise(exerciseId)
+    mobileStore.exercises.get(exerciseId)
       .then((exerciseRow) => {
         if (!current) return;
         setExercise(exerciseRow);
@@ -40,7 +39,7 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
         setLoadError('Could not load exercise.');
         setLoadedExerciseId(exerciseId);
       });
-    getSessionsForExercise(exerciseId)
+    mobileStore.workouts.getSessionsForExercise(exerciseId)
       .then((sessionRows) => {
         if (!current) return;
         setSessions(sessionRows);

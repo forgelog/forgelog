@@ -1,16 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { getDb } from '../db/index';
-import { replaceRecordStateForExercise } from '../db/repositories/personalRecords';
-import {
-  deleteLoggedSet,
-  deleteWorkout,
-  getActiveWorkout,
-  getWorkoutDetail,
-  startWorkout,
-  updateLoggedSet,
-  type LoggedSetUpdate,
-} from '../db/repositories/workouts';
+import { mobileStore, type LoggedSetUpdate } from '../db/mobileStore';
 import type { PersonalRecord, PersonalRecordEvent, RecordType, Workout } from '../db/types';
 
 type LoggedSetRecordContext = {
@@ -31,8 +22,8 @@ export async function completeSet(
     const existingOccurrenceEventTypes = setContext
       ? await getRecordEventTypesForOccurrence(db, setContext.workout_exercise_id)
       : new Set<RecordType>();
-    await updateLoggedSet(setId, { completed: true });
-    const state = await replaceRecordStateForExercise(exerciseId);
+    await mobileStore.workouts.updateSet(setId, { completed: true });
+    const state = await mobileStore.records.replaceForExercise(exerciseId);
     recordEvents = eventsForSetExcludingExistingTypes(
       state.events,
       setId,
@@ -48,8 +39,8 @@ export async function completeSet(
 export async function uncompleteSet(setId: string, exerciseId: string): Promise<void> {
   const db = await getDb();
   await db.withTransactionAsync(async () => {
-    await updateLoggedSet(setId, { completed: false });
-    await replaceRecordStateForExercise(exerciseId);
+    await mobileStore.workouts.updateSet(setId, { completed: false });
+    await mobileStore.records.replaceForExercise(exerciseId);
   });
 }
 
@@ -67,9 +58,9 @@ export async function updateSetAndRecomputeRecords(
     const existingOccurrenceEventTypes = setContext
       ? await getRecordEventTypesForOccurrence(db, setContext.workout_exercise_id)
       : new Set<RecordType>();
-    await updateLoggedSet(setId, fields);
+    await mobileStore.workouts.updateSet(setId, fields);
     if (!shouldRecompute) return;
-    const state = await replaceRecordStateForExercise(exerciseId);
+    const state = await mobileStore.records.replaceForExercise(exerciseId);
     recordEvents = eventsForSetExcludingExistingTypes(
       state.events,
       setId,
@@ -88,8 +79,8 @@ export async function deleteSet(setId: string, exerciseId: string): Promise<void
       'UPDATE personal_records SET logged_set_id = NULL WHERE logged_set_id = $id',
       { $id: setId }
     );
-    await deleteLoggedSet(setId);
-    await replaceRecordStateForExercise(exerciseId);
+    await mobileStore.workouts.removeSet(setId);
+    await mobileStore.records.replaceForExercise(exerciseId);
   });
 }
 
@@ -107,13 +98,13 @@ export async function deleteExerciseFromWorkout(
       { $id: workoutExerciseId }
     );
     await db.runAsync('DELETE FROM workout_exercises WHERE id = $id', { $id: workoutExerciseId });
-    await replaceRecordStateForExercise(exerciseId);
+    await mobileStore.records.replaceForExercise(exerciseId);
   });
 }
 
 export async function discardWorkout(workoutId: string): Promise<void> {
   const db = await getDb();
-  const detail = await getWorkoutDetail(workoutId);
+  const detail = await mobileStore.workouts.getDetail(workoutId);
   const exerciseIds = [...new Set((detail?.exercises ?? []).map((we) => we.exercise_id))];
 
   await db.withTransactionAsync(async () => {
@@ -127,9 +118,9 @@ export async function discardWorkout(workoutId: string): Promise<void> {
        )`,
       { $workoutId: workoutId }
     );
-    await deleteWorkout(workoutId);
+    await mobileStore.workouts.remove(workoutId);
     for (const exerciseId of exerciseIds) {
-      await replaceRecordStateForExercise(exerciseId);
+      await mobileStore.records.replaceForExercise(exerciseId);
     }
   });
 }
@@ -137,11 +128,11 @@ export async function discardWorkout(workoutId: string): Promise<void> {
 export async function startOrResumeWorkout(
   routineId?: string
 ): Promise<{ workout: Workout; resumed: boolean }> {
-  const existing = await getActiveWorkout();
+  const existing = await mobileStore.workouts.getActive();
   if (existing) {
     return { workout: existing, resumed: true };
   }
-  const workout = await startWorkout({ routineId });
+  const workout = await mobileStore.workouts.start({ routineId });
   return { workout, resumed: false };
 }
 
