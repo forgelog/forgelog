@@ -22,14 +22,14 @@ Wear OS persistence is intentionally out of scope. Complete items in order unles
 - [x] Move the remaining raw SQL in `src/application/activeWorkout.ts` into the owning repository modules.
 - [x] Decide and document which layers may import `db/index`, repository modules, and `mobileStore`.
 - [x] Add an ESLint restriction or architecture test that prevents screens, theme code, and sync transport from bypassing the approved entry point.
-- [ ] Curate the public facade so invariant-breaking primitives are not available to UI callers.
-- [ ] Keep safe use cases such as completing a set, deleting a set, and discarding a workout as the public mutation API.
+- [x] Curate the public facade so invariant-breaking primitives are not available to UI callers.
+- [x] Keep safe use cases such as completing a set, deleting a set, and discarding a workout as the public mutation API.
 
 ### Acceptance checks
 
 - [x] No production code outside the approved persistence layer imports `db/index` or `db/repositories/*`.
 - [x] No transaction callback calls a repository that silently reacquires the global database.
-- [ ] Concurrent transaction tests demonstrate isolation and rollback behavior.
+- [x] Concurrent transaction tests demonstrate isolation and rollback behavior.
 
 ## 2. Make migrations release-safe
 

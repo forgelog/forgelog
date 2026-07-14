@@ -1,6 +1,6 @@
 import { getDb, resetDbForTests } from '../../db/index';
 import { id } from '../../db/id';
-import { mobileStore } from '../../db/mobileStore';
+import { mobileStoreForTests as mobileStore } from '../../test-utils/db';
 import {
   completeSet,
   deleteExerciseFromWorkout,

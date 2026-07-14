@@ -1,9 +1,12 @@
 import { cleanup, fireEvent, waitFor } from '@testing-library/react-native';
 
 import { getDb, resetDbForTests } from '../../db/index';
-import { mobileStore } from '../../db/mobileStore';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
-import { seededExercise, setWorkoutTimestamps } from '../../test-utils/db';
+import {
+  mobileStoreForTests as mobileStore,
+  seededExercise,
+  setWorkoutTimestamps,
+} from '../../test-utils/db';
 import { renderWithStack } from '../../test-utils/render';
 import { ExerciseDetailScreen } from '../ExerciseDetailScreen';
 

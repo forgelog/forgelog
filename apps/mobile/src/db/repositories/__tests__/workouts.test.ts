@@ -1,6 +1,9 @@
 import { getDb, resetDbForTests } from '../../index';
-import { mobileStore } from '../../mobileStore';
-import { seededExercise, setWorkoutTimestamps } from '../../../test-utils/db';
+import {
+  mobileStoreForTests as mobileStore,
+  seededExercise,
+  setWorkoutTimestamps,
+} from '../../../test-utils/db';
 import type { LoggedSet } from '../../types';
 
 const {

@@ -2,10 +2,9 @@ import { act, cleanup, fireEvent, waitFor } from '@testing-library/react-native'
 import { Alert } from 'react-native';
 
 import { getDb, resetDbForTests } from '../../db/index';
-import { mobileStore } from '../../db/mobileStore';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { latestAlertButtons } from '../../test-utils/async';
-import { seededExercise } from '../../test-utils/db';
+import { mobileStoreForTests as mobileStore, seededExercise } from '../../test-utils/db';
 import { renderWithStack } from '../../test-utils/render';
 import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 import { ExerciseDetailScreen } from '../ExerciseDetailScreen';

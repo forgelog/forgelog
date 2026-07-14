@@ -150,16 +150,43 @@ async function runDefaultTransaction<Result>(
 const defaultStore = createBoundMobileStore(getDb, runDefaultTransaction);
 
 export const mobileStore = {
-  ...defaultStore,
-  transaction: <Result>(
-    operation: (store: TransactionBoundMobileStore) => Promise<Result>
-  ): Promise<Result> =>
-    runDefaultTransaction((transaction) =>
-      operation(
-        createBoundMobileStore(
-          async () => transaction,
-          (nestedOperation) => nestedOperation(transaction)
-        )
-      )
-    ),
+  exercises: defaultStore.exercises,
+  routines: defaultStore.routines,
+  workouts: {
+    getActive: defaultStore.workouts.getActive,
+    getDetail: defaultStore.workouts.getDetail,
+    getPreviousSessionSets: defaultStore.workouts.getPreviousSessionSets,
+    getSessionsForExercise: defaultStore.workouts.getSessionsForExercise,
+    addExercise: defaultStore.workouts.addExercise,
+    addSet: defaultStore.workouts.addSet,
+    finish: defaultStore.workouts.finish,
+    list: defaultStore.workouts.list,
+    getProfileStats: defaultStore.workouts.getProfileStats,
+    hasCompletedSet: defaultStore.workouts.hasCompletedSet,
+  },
+  records: {
+    getForExercise: defaultStore.records.getForExercise,
+    getEventsForExercise: defaultStore.records.getEventsForExercise,
+    getEventsForWorkout: defaultStore.records.getEventsForWorkout,
+    listAll: defaultStore.records.listAll,
+  },
+  profile: defaultStore.profile,
+  sync: defaultStore.sync,
 } as const;
+
+/**
+ * Application-only entry point for atomic, multi-repository use cases.
+ * UI and transport code must call an invariant-preserving application use case instead.
+ */
+export function runInMobileStoreTransaction<Result>(
+  operation: (store: TransactionBoundMobileStore) => Promise<Result>
+): Promise<Result> {
+  return runDefaultTransaction((transaction) =>
+    operation(
+      createBoundMobileStore(
+        async () => transaction,
+        (nestedOperation) => nestedOperation(transaction)
+      )
+    )
+  );
+}
