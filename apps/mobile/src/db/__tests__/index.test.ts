@@ -1,5 +1,7 @@
 import { getDb, resetDbForTests } from '../index';
-import { startWorkout, getActiveWorkout } from '../repositories/workouts';
+import { mobileStore } from '../mobileStore';
+
+const { start: startWorkout, getActive: getActiveWorkout } = mobileStore.workouts;
 
 beforeEach(() => {
   resetDbForTests();

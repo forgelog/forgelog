@@ -1,24 +1,26 @@
 import { getDb, resetDbForTests } from '../../index';
+import { mobileStore } from '../../mobileStore';
 import { seededExercise, setWorkoutTimestamps } from '../../../test-utils/db';
 import type { LoggedSet } from '../../types';
-import {
-  addExerciseToRoutine,
-  addRoutineSet,
-  createRoutine,
-  updateRoutineExercise,
-} from '../routines';
-import {
-  addExerciseToWorkout,
+
+const {
+  addExercise: addExerciseToRoutine,
+  addSet: addRoutineSet,
+  create: createRoutine,
+  updateExercise: updateRoutineExercise,
+} = mobileStore.routines;
+const {
+  addExercise: addExerciseToWorkout,
   addSet,
-  finishWorkout,
+  finish: finishWorkout,
   getPreviousSessionSets,
   getProfileStats,
   getSessionsForExercise,
-  getWorkoutDetail,
+  getDetail: getWorkoutDetail,
   hasCompletedSet,
-  startWorkout,
-  updateLoggedSet,
-} from '../workouts';
+  start: startWorkout,
+  updateSet: updateLoggedSet,
+} = mobileStore.workouts;
 
 beforeEach(() => {
   resetDbForTests();
@@ -42,10 +44,7 @@ test('hasCompletedSet is false for a workout with no exercises', () => {
 
 test('hasCompletedSet is false when no set is completed', () => {
   expect(
-    hasCompletedSet([
-      { sets: [{ completed: false }, { completed: false }] },
-      { sets: [] },
-    ])
+    hasCompletedSet([{ sets: [{ completed: false }, { completed: false }] }, { sets: [] }])
   ).toBe(false);
 });
 

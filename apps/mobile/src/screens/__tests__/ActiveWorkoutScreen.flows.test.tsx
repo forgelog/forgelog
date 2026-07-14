@@ -2,15 +2,7 @@ import { act, cleanup, fireEvent, waitFor } from '@testing-library/react-native'
 import { Alert } from 'react-native';
 
 import { getDb, resetDbForTests } from '../../db/index';
-import {
-  addExerciseToWorkout,
-  addSet,
-  finishWorkout,
-  getWorkoutDetail,
-  startWorkout,
-  updateLoggedSet,
-} from '../../db/repositories/workouts';
-import * as workoutsRepository from '../../db/repositories/workouts';
+import { mobileStore } from '../../db/mobileStore';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { deferred, latestAlertButtons } from '../../test-utils/async';
 import { seededExercise } from '../../test-utils/db';
@@ -19,6 +11,15 @@ import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 import { ExerciseDetailScreen } from '../ExerciseDetailScreen';
 import { ExerciseLibraryScreen } from '../ExerciseLibraryScreen';
 import { HomeScreen } from '../HomeScreen';
+
+const {
+  addExercise: addExerciseToWorkout,
+  addSet,
+  finish: finishWorkout,
+  getDetail: getWorkoutDetail,
+  start: startWorkout,
+  updateSet: updateLoggedSet,
+} = mobileStore.workouts;
 
 type TestStackParamList = RootStackParamList & {
   Home: undefined;
@@ -33,7 +34,10 @@ afterEach(() => {
   cleanup();
 });
 
-function renderActiveWorkout(workoutId: string, params: Partial<RootStackParamList['ActiveWorkout']> = {}) {
+function renderActiveWorkout(
+  workoutId: string,
+  params: Partial<RootStackParamList['ActiveWorkout']> = {}
+) {
   return renderWithStack<TestStackParamList>(
     [
       { name: 'Home', component: HomeScreen },
@@ -43,10 +47,7 @@ function renderActiveWorkout(workoutId: string, params: Partial<RootStackParamLi
     ],
     {
       index: 1,
-      routes: [
-        { name: 'Home' },
-        { name: 'ActiveWorkout', params: { workoutId, ...params } },
-      ],
+      routes: [{ name: 'Home' }, { name: 'ActiveWorkout', params: { workoutId, ...params } }],
     }
   );
 }
@@ -69,10 +70,10 @@ test('shows a load-error state', async () => {
 test('ignores stale reload responses after a newer reload wins', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const workout = await startWorkout({ name: 'Reload Race' });
-  const stale = deferred<Awaited<ReturnType<typeof workoutsRepository.getWorkoutDetail>>>();
-  const realGetWorkoutDetail = workoutsRepository.getWorkoutDetail;
+  const stale = deferred<Awaited<ReturnType<typeof mobileStore.workouts.getDetail>>>();
+  const realGetWorkoutDetail = mobileStore.workouts.getDetail;
   jest
-    .spyOn(workoutsRepository, 'getWorkoutDetail')
+    .spyOn(mobileStore.workouts, 'getDetail')
     .mockReturnValueOnce(stale.promise)
     .mockImplementation((id) => realGetWorkoutDetail(id));
 
@@ -122,7 +123,9 @@ test('completes PR sets', async () => {
     await Promise.resolve();
   });
 
-  await waitFor(() => expect(alertSpy.mock.calls.some(([title]) => String(title).startsWith('New PR'))).toBe(true));
+  await waitFor(() =>
+    expect(alertSpy.mock.calls.some(([title]) => String(title).startsWith('New PR'))).toBe(true)
+  );
   await waitFor(async () => {
     const detail = await getWorkoutDetail(workout.id);
     expect(detail?.exercises[0].sets[0].completed).toBe(true);
@@ -157,11 +160,15 @@ test('finishes a workout', async () => {
   await act(async () => {
     fireEvent.press(finish.getByText('Finish'));
   });
-  const finishButton = latestAlertButtons(finishAlertSpy).find((button) => button.text === 'Finish');
+  const finishButton = latestAlertButtons(finishAlertSpy).find(
+    (button) => button.text === 'Finish'
+  );
   await act(async () => {
     await finishButton?.onPress?.();
   });
-  await waitFor(async () => expect((await getWorkoutDetail(finishWorkoutRow.id))?.ended_at).not.toBeNull());
+  await waitFor(async () =>
+    expect((await getWorkoutDetail(finishWorkoutRow.id))?.ended_at).not.toBeNull()
+  );
 });
 
 test('discards a workout', async () => {
@@ -176,7 +183,9 @@ test('discards a workout', async () => {
   await act(async () => {
     fireEvent.press(discard.getByLabelText('Discard workout'));
   });
-  const discardButton = latestAlertButtons(discardAlertSpy).find((button) => button.text === 'Discard');
+  const discardButton = latestAlertButtons(discardAlertSpy).find(
+    (button) => button.text === 'Discard'
+  );
   await act(async () => {
     await discardButton?.onPress?.();
   });

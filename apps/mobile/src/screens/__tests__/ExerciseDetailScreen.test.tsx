@@ -1,18 +1,23 @@
 import { cleanup, fireEvent, waitFor } from '@testing-library/react-native';
 
 import { getDb, resetDbForTests } from '../../db/index';
-import { getRecordsForExercise, replaceRecordsForExercise } from '../../db/repositories/personalRecords';
-import {
-  addExerciseToWorkout,
-  addSet,
-  finishWorkout,
-  startWorkout,
-  updateLoggedSet,
-} from '../../db/repositories/workouts';
+import { mobileStore } from '../../db/mobileStore';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { seededExercise, setWorkoutTimestamps } from '../../test-utils/db';
 import { renderWithStack } from '../../test-utils/render';
 import { ExerciseDetailScreen } from '../ExerciseDetailScreen';
+
+const {
+  getForExercise: getRecordsForExercise,
+  replaceCurrentForExercise: replaceRecordsForExercise,
+} = mobileStore.records;
+const {
+  addExercise: addExerciseToWorkout,
+  addSet,
+  finish: finishWorkout,
+  start: startWorkout,
+  updateSet: updateLoggedSet,
+} = mobileStore.workouts;
 
 type TestStackParamList = RootStackParamList;
 
@@ -32,22 +37,14 @@ async function createFinishedBenchWorkout(name = 'Bench PR Day') {
   const baselineSet = await addSet(baselineExercise.id);
   await updateLoggedSet(baselineSet.id, { weight: 100, reps: 5, completed: true });
   await finishWorkout(baseline.id);
-  await setWorkoutTimestamps(
-    baseline.id,
-    '2026-07-04T09:00:00.000Z',
-    '2026-07-04T10:05:00.000Z'
-  );
+  await setWorkoutTimestamps(baseline.id, '2026-07-04T09:00:00.000Z', '2026-07-04T10:05:00.000Z');
 
   const workout = await startWorkout({ name });
   const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
   const set = await addSet(workoutExercise.id);
   await updateLoggedSet(set.id, { weight: 110, reps: 5, completed: true });
   await finishWorkout(workout.id);
-  await setWorkoutTimestamps(
-    workout.id,
-    '2026-07-11T09:00:00.000Z',
-    '2026-07-11T10:05:00.000Z'
-  );
+  await setWorkoutTimestamps(workout.id, '2026-07-11T09:00:00.000Z', '2026-07-11T10:05:00.000Z');
   await replaceRecordsForExercise(bench.id);
   return { bench, workout, set };
 }

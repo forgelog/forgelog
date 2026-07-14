@@ -1,5 +1,3 @@
-import type { SQLiteDatabase } from 'expo-sqlite';
-
 import {
   computeRecordState,
   type ComputedRecord,
@@ -8,6 +6,7 @@ import {
   type RecordSet,
 } from '../domain/personalRecords';
 import { requireExerciseType } from '../domain/setFields';
+import type { DatabaseExecutor } from './executor';
 import { id } from './id';
 import type { PersonalRecord, PersonalRecordEvent, RecordType, SetType } from './types';
 
@@ -37,7 +36,7 @@ export type ReplacedRecordState = {
 // exercise from completed sets. Must run inside the caller's transaction when
 // composed with set/workout mutations. Returns the rows it wrote.
 export async function replaceRecordStateForExerciseInDb(
-  db: SQLiteDatabase,
+  db: DatabaseExecutor,
   exerciseId: string
 ): Promise<ReplacedRecordState> {
   const fallback = new Date().toISOString();
@@ -80,7 +79,9 @@ export async function replaceRecordStateForExerciseInDb(
   const existingIds = new Map(existingRecords.map((record) => [record.record_type, record.id]));
 
   await db.runAsync('DELETE FROM personal_records WHERE exercise_id = $id', { $id: exerciseId });
-  await db.runAsync('DELETE FROM personal_record_events WHERE exercise_id = $id', { $id: exerciseId });
+  await db.runAsync('DELETE FROM personal_record_events WHERE exercise_id = $id', {
+    $id: exerciseId,
+  });
 
   const currentRecords: PersonalRecord[] = [];
   for (const record of state.currentRecords) {
@@ -98,7 +99,7 @@ export async function replaceRecordStateForExerciseInDb(
   return { currentRecords, events };
 }
 
-export async function backfillPersonalRecordState(db: SQLiteDatabase): Promise<void> {
+export async function backfillPersonalRecordState(db: DatabaseExecutor): Promise<void> {
   const exercises = await db.getAllAsync<{ exercise_id: string }>(
     `SELECT DISTINCT we.exercise_id
        FROM workout_exercises we
@@ -146,7 +147,7 @@ function mapRecordSet(row: RecordSourceRow): RecordSet {
 }
 
 async function insertCurrentRecord(
-  db: SQLiteDatabase,
+  db: DatabaseExecutor,
   exerciseId: string,
   record: ComputedRecord,
   existingIds: Map<RecordType, string>
@@ -175,7 +176,7 @@ async function insertCurrentRecord(
 }
 
 async function insertEvent(
-  db: SQLiteDatabase,
+  db: DatabaseExecutor,
   event: ComputedRecordEvent,
   createdAt: string
 ): Promise<PersonalRecordEvent> {

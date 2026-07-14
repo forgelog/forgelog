@@ -219,6 +219,7 @@ test('pressing Save persists the full draft with the trimmed routine name', asyn
 
   await waitFor(() =>
     expect(mockSaveRoutineDraft).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ routineId: 'r1', name: 'Phase Five Workout' })
     )
   );
@@ -376,7 +377,10 @@ test('pending Save blocks close/discard until the save finishes', async () => {
 
   await act(async () => save.resolve(routineDetail));
   await waitFor(() => expect(getByText('Home screen')).toBeTruthy());
-  expect(mockSaveRoutineDraft).toHaveBeenCalledWith(expect.objectContaining({ name: 'Updated' }));
+  expect(mockSaveRoutineDraft).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({ name: 'Updated' })
+  );
 });
 
 test('Save is busy and disabled while submitting', async () => {

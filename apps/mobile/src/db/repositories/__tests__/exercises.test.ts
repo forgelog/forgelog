@@ -1,10 +1,12 @@
 import { resetDbForTests } from '../../index';
-import {
-  createCustomExercise,
+import { mobileStore } from '../../mobileStore';
+
+const {
+  createCustom: createCustomExercise,
   listEquipment,
-  listExercises,
+  list: listExercises,
   listMuscleGroups,
-} from '../exercises';
+} = mobileStore.exercises;
 
 beforeEach(() => {
   resetDbForTests();
@@ -12,7 +14,9 @@ beforeEach(() => {
 
 test('searches, filters, and creates custom exercises on real SQL', async () => {
   const benchResults = await listExercises({ search: 'barbell bench press' });
-  expect(benchResults.map((exercise) => exercise.name)).toContain('Barbell Bench Press - Medium Grip');
+  expect(benchResults.map((exercise) => exercise.name)).toContain(
+    'Barbell Bench Press - Medium Grip'
+  );
 
   const chestBarbellResults = await listExercises({
     muscleGroup: 'chest',

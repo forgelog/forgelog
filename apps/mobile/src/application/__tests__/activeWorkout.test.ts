@@ -1,11 +1,6 @@
 import { getDb, resetDbForTests } from '../../db/index';
 import { id } from '../../db/id';
-import {
-  getRecordEventsForExercise,
-  getRecordsForExercise,
-  replaceRecordStateForExercise,
-} from '../../db/repositories/personalRecords';
-import { addSet, startWorkout, updateLoggedSet } from '../../db/repositories/workouts';
+import { mobileStore } from '../../db/mobileStore';
 import {
   completeSet,
   deleteExerciseFromWorkout,
@@ -15,6 +10,13 @@ import {
   uncompleteSet,
   updateSetAndRecomputeRecords,
 } from '../activeWorkout';
+
+const {
+  getEventsForExercise: getRecordEventsForExercise,
+  getForExercise: getRecordsForExercise,
+  replaceForExercise: replaceRecordStateForExercise,
+} = mobileStore.records;
+const { addSet, start: startWorkout, updateSet: updateLoggedSet } = mobileStore.workouts;
 
 async function insertExercise(exerciseId = 'ex1') {
   const db = await getDb();
@@ -163,8 +165,16 @@ test('completeSet reports each PR type at most once per exercise occurrence', as
   expect(second.improvedRecords).toEqual([]);
   expect(await getRecordEventsForExercise('ex1')).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ record_type: 'max_weight', value: 120, logged_set_id: laterSet.id }),
-      expect.objectContaining({ record_type: 'max_volume', value: 600, logged_set_id: laterSet.id }),
+      expect.objectContaining({
+        record_type: 'max_weight',
+        value: 120,
+        logged_set_id: laterSet.id,
+      }),
+      expect.objectContaining({
+        record_type: 'max_volume',
+        value: 600,
+        logged_set_id: laterSet.id,
+      }),
     ])
   );
 });
@@ -175,12 +185,16 @@ test('uncompleteSet removes provisional events from an active workout', async ()
   const set = await addSet(weId);
   await updateLoggedSet(set.id, { weight: 110, reps: 5 });
   await completeSet(set.id, 'ex1');
-  expect((await getRecordEventsForExercise('ex1')).some((event) => event.logged_set_id === set.id)).toBe(true);
+  expect(
+    (await getRecordEventsForExercise('ex1')).some((event) => event.logged_set_id === set.id)
+  ).toBe(true);
 
   await uncompleteSet(set.id, 'ex1');
 
   expect(await getRecordEventsForExercise('ex1')).toEqual([]);
-  expect((await getRecordsForExercise('ex1')).find((r) => r.record_type === 'max_weight')?.value).toBe(100);
+  expect(
+    (await getRecordsForExercise('ex1')).find((r) => r.record_type === 'max_weight')?.value
+  ).toBe(100);
 });
 
 test('updating a completed set recomputes and removes stale events', async () => {
@@ -193,7 +207,9 @@ test('updating a completed set recomputes and removes stale events', async () =>
   await updateSetAndRecomputeRecords(set.id, 'ex1', { weight: 90 });
 
   expect(await getRecordEventsForExercise('ex1')).toEqual([]);
-  expect((await getRecordsForExercise('ex1')).find((r) => r.record_type === 'max_weight')?.value).toBe(100);
+  expect(
+    (await getRecordsForExercise('ex1')).find((r) => r.record_type === 'max_weight')?.value
+  ).toBe(100);
 });
 
 test('updating an incomplete set persists values without recomputing PR state', async () => {
@@ -210,7 +226,9 @@ test('updating an incomplete set persists values without recomputing PR state', 
     { $id: set.id }
   );
   expect(row).toEqual({ weight: 130, completed: 0 });
-  expect((await getRecordsForExercise('ex1')).find((r) => r.record_type === 'max_weight')?.value).toBe(100);
+  expect(
+    (await getRecordsForExercise('ex1')).find((r) => r.record_type === 'max_weight')?.value
+  ).toBe(100);
 });
 
 test('updateSetAndRecomputeRecords can complete a set and report new events', async () => {
@@ -251,7 +269,9 @@ test('deleting a completed exercise removes its provisional contribution', async
   await deleteExerciseFromWorkout(weId, 'ex1');
 
   expect(await getRecordEventsForExercise('ex1')).toEqual([]);
-  expect((await getRecordsForExercise('ex1')).find((r) => r.record_type === 'max_weight')?.value).toBe(100);
+  expect(
+    (await getRecordsForExercise('ex1')).find((r) => r.record_type === 'max_weight')?.value
+  ).toBe(100);
 });
 
 test('discarding an active workout removes provisional record events', async () => {
@@ -264,7 +284,9 @@ test('discarding an active workout removes provisional record events', async () 
   await discardWorkout(workout.id);
 
   expect(await getRecordEventsForExercise('ex1')).toEqual([]);
-  expect((await getRecordsForExercise('ex1')).find((r) => r.record_type === 'max_weight')?.value).toBe(100);
+  expect(
+    (await getRecordsForExercise('ex1')).find((r) => r.record_type === 'max_weight')?.value
+  ).toBe(100);
 });
 
 test('discarding a missing workout is a no-op', async () => {

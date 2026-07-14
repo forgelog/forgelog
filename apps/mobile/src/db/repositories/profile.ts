@@ -1,4 +1,4 @@
-import { getDb } from '../index';
+import type { DatabaseExecutor } from '../executor';
 import {
   BODYWEIGHT_MAX_KG,
   BODYWEIGHT_MIN_KG,
@@ -38,8 +38,7 @@ type ProfileRow = {
   bodyweight_kg: number | null;
 };
 
-export async function getProfile(): Promise<Profile> {
-  const db = await getDb();
+export async function getProfile(db: DatabaseExecutor): Promise<Profile> {
   const row = await db.getFirstAsync<ProfileRow>(
     'SELECT name, theme_mode, sex, birth_date, height_cm, bodyweight_kg FROM profile WHERE id = 0'
   );
@@ -53,7 +52,7 @@ export async function getProfile(): Promise<Profile> {
   };
 }
 
-export async function updateProfile(patch: ProfileUpdate): Promise<void> {
+export async function updateProfile(db: DatabaseExecutor, patch: ProfileUpdate): Promise<void> {
   const sets: string[] = [];
   const params: Record<string, string | number | null> = {};
 
@@ -103,29 +102,25 @@ export async function updateProfile(patch: ProfileUpdate): Promise<void> {
 
   if (sets.length === 0) return;
 
-  const db = await getDb();
   await db.runAsync(`UPDATE profile SET ${sets.join(', ')} WHERE id = 0`, params);
 }
 
-export async function setProfileName(name: string): Promise<void> {
+export async function setProfileName(db: DatabaseExecutor, name: string): Promise<void> {
   const { value, error } = validateText(name, {
     maxLength: NAME_MAX_LENGTH,
     fieldLabel: 'Name',
   });
   if (error) throw new Error(error);
-  const db = await getDb();
   await db.runAsync('UPDATE profile SET name = $name WHERE id = 0', { $name: value });
 }
 
-export async function getThemeMode(): Promise<ThemeMode> {
-  const db = await getDb();
+export async function getThemeMode(db: DatabaseExecutor): Promise<ThemeMode> {
   const row = await db.getFirstAsync<{ theme_mode: ThemeMode }>(
     'SELECT theme_mode FROM profile WHERE id = 0'
   );
   return row?.theme_mode ?? 'system';
 }
 
-export async function setThemeMode(mode: ThemeMode): Promise<void> {
-  const db = await getDb();
+export async function setThemeMode(db: DatabaseExecutor, mode: ThemeMode): Promise<void> {
   await db.runAsync('UPDATE profile SET theme_mode = $mode WHERE id = 0', { $mode: mode });
 }

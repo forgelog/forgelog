@@ -1,19 +1,21 @@
 import { getDb, resetDbForTests } from '../../index';
+import { mobileStore } from '../../mobileStore';
 import { backfillPersonalRecordState } from '../../personalRecordState';
 import { seededExercise } from '../../../test-utils/db';
-import {
-  getRecordEventsForExercise,
-  getRecordsForExercise,
-  replaceRecordStateForExercise,
-  replaceRecordsForExercise,
-} from '../personalRecords';
-import {
-  addExerciseToWorkout,
+
+const {
+  getEventsForExercise: getRecordEventsForExercise,
+  getForExercise: getRecordsForExercise,
+  replaceForExercise: replaceRecordStateForExercise,
+  replaceCurrentForExercise: replaceRecordsForExercise,
+} = mobileStore.records;
+const {
+  addExercise: addExerciseToWorkout,
   addSet,
-  finishWorkout,
-  startWorkout,
-  updateLoggedSet,
-} from '../workouts';
+  finish: finishWorkout,
+  start: startWorkout,
+  updateSet: updateLoggedSet,
+} = mobileStore.workouts;
 
 beforeEach(() => {
   resetDbForTests();
@@ -63,8 +65,16 @@ test('replacement uses completed sets and earliest timing tie-breaks', async () 
   expect(records.every((record) => record.logged_set_id === earlierTie.id)).toBe(true);
   await expect(getRecordsForExercise(bench.id)).resolves.toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ record_type: 'max_weight', value: 100, logged_set_id: earlierTie.id }),
-      expect.objectContaining({ record_type: 'max_volume', value: 500, logged_set_id: earlierTie.id }),
+      expect.objectContaining({
+        record_type: 'max_weight',
+        value: 100,
+        logged_set_id: earlierTie.id,
+      }),
+      expect.objectContaining({
+        record_type: 'max_volume',
+        value: 500,
+        logged_set_id: earlierTie.id,
+      }),
     ])
   );
 });
@@ -83,8 +93,16 @@ test('replacement keeps completed sets eligible when completed_at is missing', a
 
   expect(records).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ record_type: 'max_weight', value: 100, logged_set_id: legacyCompleted.id }),
-      expect.objectContaining({ record_type: 'max_volume', value: 500, logged_set_id: legacyCompleted.id }),
+      expect.objectContaining({
+        record_type: 'max_weight',
+        value: 100,
+        logged_set_id: legacyCompleted.id,
+      }),
+      expect.objectContaining({
+        record_type: 'max_volume',
+        value: 500,
+        logged_set_id: legacyCompleted.id,
+      }),
     ])
   );
 });
@@ -149,7 +167,9 @@ test('personal record backfill rebuilds current records and historical events', 
 
   const db = await getDb();
   await db.runAsync('DELETE FROM personal_records WHERE exercise_id = $id', { $id: bench.id });
-  await db.runAsync('DELETE FROM personal_record_events WHERE exercise_id = $id', { $id: bench.id });
+  await db.runAsync('DELETE FROM personal_record_events WHERE exercise_id = $id', {
+    $id: bench.id,
+  });
 
   await backfillPersonalRecordState(db);
 
@@ -186,9 +206,9 @@ test('record state removes or moves events after completed set edits', async () 
   await setCompletedAt(top.id, '2026-07-08T10:05:00.000Z');
 
   await replaceRecordStateForExercise(bench.id);
-  expect((await getRecordEventsForExercise(bench.id)).some((event) => event.logged_set_id === top.id)).toBe(
-    true
-  );
+  expect(
+    (await getRecordEventsForExercise(bench.id)).some((event) => event.logged_set_id === top.id)
+  ).toBe(true);
 
   await updateLoggedSet(top.id, { weight: 90, reps: 5 });
   await replaceRecordStateForExercise(bench.id);
@@ -196,7 +216,11 @@ test('record state removes or moves events after completed set edits', async () 
   expect(await getRecordEventsForExercise(bench.id)).toEqual([]);
   await expect(getRecordsForExercise(bench.id)).resolves.toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ record_type: 'max_weight', value: 100, logged_set_id: firstSet.id }),
+      expect.objectContaining({
+        record_type: 'max_weight',
+        value: 100,
+        logged_set_id: firstSet.id,
+      }),
     ])
   );
 });

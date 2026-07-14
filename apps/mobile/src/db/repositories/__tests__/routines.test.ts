@@ -1,21 +1,23 @@
 import { resetDbForTests } from '../../index';
+import { mobileStore } from '../../mobileStore';
 import { seededExercise } from '../../../test-utils/db';
-import { startWorkout, getWorkoutDetail } from '../workouts';
-import {
-  addExerciseToRoutine,
-  addRoutineSet,
-  createRoutine,
-  deleteRoutine,
-  deleteRoutineSet,
-  getRoutineDetail,
-  listRoutineSummaries,
-  removeRoutineExercise,
-  reorderRoutineExercises,
-  saveRoutineDraft,
-  updateRoutine,
-  updateRoutineExercise,
-  updateRoutineSet,
-} from '../routines';
+
+const { start: startWorkout, getDetail: getWorkoutDetail } = mobileStore.workouts;
+const {
+  addExercise: addExerciseToRoutine,
+  addSet: addRoutineSet,
+  create: createRoutine,
+  remove: deleteRoutine,
+  removeSet: deleteRoutineSet,
+  getDetail: getRoutineDetail,
+  listSummaries: listRoutineSummaries,
+  removeExercise: removeRoutineExercise,
+  reorderExercises: reorderRoutineExercises,
+  saveDraft: saveRoutineDraft,
+  update: updateRoutine,
+  updateExercise: updateRoutineExercise,
+  updateSet: updateRoutineSet,
+} = mobileStore.routines;
 
 beforeEach(() => {
   resetDbForTests();
@@ -66,13 +68,24 @@ test('persists CRUD, reorder, and target-set edits on real SQL', async () => {
   });
   expect(detail?.exercises[1].sets).toEqual([
     expect.objectContaining({ id: workSet.id, position: 0, target_weight: 100, target_reps: 5 }),
-    expect.objectContaining({ id: warmupSet.id, position: 1, set_type: 'dropset', target_weight: 70, target_reps: 8 }),
+    expect.objectContaining({
+      id: warmupSet.id,
+      position: 1,
+      set_type: 'dropset',
+      target_weight: 70,
+      target_reps: 8,
+    }),
   ]);
 
   await deleteRoutineSet(workSet.id);
   await removeRoutineExercise(squatEntry.id);
   await expect(getRoutineDetail(routine.id)).resolves.toMatchObject({
-    exercises: [expect.objectContaining({ id: benchEntry.id, sets: [expect.objectContaining({ id: warmupSet.id })] })],
+    exercises: [
+      expect.objectContaining({
+        id: benchEntry.id,
+        sets: [expect.objectContaining({ id: warmupSet.id })],
+      }),
+    ],
   });
   await expect(listRoutineSummaries()).resolves.toEqual([
     expect.objectContaining({ id: routine.id, exerciseCount: 1, muscles: ['chest'] }),
@@ -141,7 +154,12 @@ test('saveRoutineDraft creates a complete routine atomically', async () => {
     ],
   });
   expect(saved.exercises[0].sets).toEqual([
-    expect.objectContaining({ position: 0, set_type: 'normal', target_weight: 100, target_reps: 5 }),
+    expect.objectContaining({
+      position: 0,
+      set_type: 'normal',
+      target_weight: 100,
+      target_reps: 5,
+    }),
     expect.objectContaining({ position: 1, set_type: 'warmup', target_weight: 60, target_reps: 8 }),
   ]);
 });
@@ -255,7 +273,15 @@ test('saveRoutineDraft rejects invalid name and notes with existing validation m
     saveRoutineDraft({
       name: '   ',
       notes: null,
-      exercises: [{ exercise_id: bench.id, rest_seconds: null, exercise_type: 'weight_reps', notes: null, sets: [] }],
+      exercises: [
+        {
+          exercise_id: bench.id,
+          rest_seconds: null,
+          exercise_type: 'weight_reps',
+          notes: null,
+          sets: [],
+        },
+      ],
     })
   ).rejects.toThrow('Routine name is required.');
 
@@ -263,7 +289,15 @@ test('saveRoutineDraft rejects invalid name and notes with existing validation m
     saveRoutineDraft({
       name: 'Valid',
       notes: 'x'.repeat(1001),
-      exercises: [{ exercise_id: bench.id, rest_seconds: null, exercise_type: 'weight_reps', notes: null, sets: [] }],
+      exercises: [
+        {
+          exercise_id: bench.id,
+          rest_seconds: null,
+          exercise_type: 'weight_reps',
+          notes: null,
+          sets: [],
+        },
+      ],
     })
   ).rejects.toThrow('Notes must be 1000 characters or fewer.');
 

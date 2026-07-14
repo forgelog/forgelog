@@ -1,8 +1,7 @@
 import WearSync from 'wear-sync';
 
-import { getSyncSnapshot, ingestWatchWorkout } from '../../db/repositories/sync';
+import { mobileStore, type WatchWorkoutPayload } from '../../db/mobileStore';
 import { initWearSync, publishSyncSnapshot } from '../wearSync';
-import type { WatchWorkoutPayload } from '../../db/repositories/sync';
 
 jest.mock('wear-sync', () => ({
   __esModule: true,
@@ -11,12 +10,11 @@ jest.mock('wear-sync', () => ({
     publishSnapshot: jest.fn(),
   },
 }));
-jest.mock('../../db/repositories/sync');
 
 const mockAddListener = WearSync.addListener as jest.Mock;
 const mockPublishSnapshot = WearSync.publishSnapshot as jest.Mock;
-const mockGetSyncSnapshot = getSyncSnapshot as jest.MockedFunction<typeof getSyncSnapshot>;
-const mockIngestWatchWorkout = ingestWatchWorkout as jest.MockedFunction<typeof ingestWatchWorkout>;
+const mockGetSyncSnapshot = jest.spyOn(mobileStore.sync, 'getSnapshot');
+const mockIngestWatchWorkout = jest.spyOn(mobileStore.sync, 'ingestWatchWorkout');
 
 const watchPayloadFixture = require('../../../../../data/contracts/fixtures/watch-workout-payload.json') as WatchWorkoutPayload;
 const malformedPayloadFixture = require('../../../../../data/contracts/fixtures/malformed-watch-workout-payload.json');

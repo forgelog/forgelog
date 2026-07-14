@@ -76,6 +76,7 @@ test('saving persists the edited fields and navigates back', async () => {
 
   await waitFor(() =>
     expect(mockUpdateProfile).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ name: 'Jamie R. Lee', heightCm: 170, bodyweightKg: 65 })
     )
   );
@@ -98,7 +99,12 @@ test('selecting a sex option persists it when saving', async () => {
   await act(async () => fireEvent.press(getByLabelText('Select Female sex')));
   await act(async () => fireEvent.press(getByLabelText('Save profile')));
 
-  await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledWith(expect.objectContaining({ sex: 'female' })));
+  await waitFor(() =>
+    expect(mockUpdateProfile).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ sex: 'female' })
+    )
+  );
 });
 
 test('rejects an out-of-range height and does not save', async () => {
