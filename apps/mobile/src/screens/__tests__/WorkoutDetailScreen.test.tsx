@@ -2,14 +2,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { render, waitFor } from '@testing-library/react-native';
 
+import { getRecordEventsForWorkout } from '../../db/repositories/personalRecords';
+import { getWorkoutDetail } from '../../db/repositories/workouts';
 import type { WorkoutDetail } from '../../db/types';
 import { WorkoutDetailScreen } from '../WorkoutDetailScreen';
 
 jest.mock('../../db/repositories/workouts');
 jest.mock('../../db/repositories/personalRecords');
-
-import { getRecordEventsForWorkout } from '../../db/repositories/personalRecords';
-import { getWorkoutDetail } from '../../db/repositories/workouts';
 
 const mockGetWorkoutDetail = getWorkoutDetail as jest.MockedFunction<typeof getWorkoutDetail>;
 const mockGetRecordEventsForWorkout = getRecordEventsForWorkout as jest.MockedFunction<
@@ -67,7 +66,10 @@ const workoutDetail: WorkoutDetail = {
   started_at: new Date().toISOString(),
   ended_at: new Date().toISOString(),
   notes: null,
-  exercises: [makeExercise('we1', 'Bench Press', 'g1'), makeExercise('we2', 'Overhead Press', 'g1')],
+  exercises: [
+    makeExercise('we1', 'Bench Press', 'g1'),
+    makeExercise('we2', 'Overhead Press', 'g1'),
+  ],
 };
 
 beforeEach(() => {

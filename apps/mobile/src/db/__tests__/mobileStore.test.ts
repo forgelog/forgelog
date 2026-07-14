@@ -24,3 +24,26 @@ test('mobileStore exposes feature operations through one persistence entry point
     exercises: [expect.objectContaining({ exercise_id: bench?.id })],
   });
 });
+
+test('transaction supplies a bound store and returns its result', async () => {
+  const result = await mobileStore.transaction(async (store) => {
+    const routine = await store.routines.create('Transactional routine');
+    return routine.name;
+  });
+
+  expect(result).toBe('Transactional routine');
+  await expect(mobileStore.routines.list()).resolves.toEqual([
+    expect.objectContaining({ name: 'Transactional routine' }),
+  ]);
+});
+
+test('transaction-bound atomic operations do not nest and roll back together', async () => {
+  await expect(
+    mobileStore.transaction(async (store) => {
+      await store.workouts.start({ name: 'Rolled back workout' });
+      throw new Error('abort transaction');
+    })
+  ).rejects.toThrow('abort transaction');
+
+  await expect(mobileStore.workouts.getActive()).resolves.toBeNull();
+});

@@ -18,6 +18,7 @@ module.exports = defineConfig([
   },
   {
     files: [
+      'src/application/**/*.{ts,tsx}',
       'src/screens/**/*.{ts,tsx}',
       'src/theme/**/*.{ts,tsx}',
       'src/sync/**/*.{ts,tsx}',
@@ -30,7 +31,8 @@ module.exports = defineConfig([
           patterns: [
             {
               group: persistenceInternals,
-              message: 'Use db/mobileStore or an application use case outside the persistence layer.',
+              message:
+                'Use db/mobileStore or an application use case outside the persistence layer.',
             },
           ],
         },
