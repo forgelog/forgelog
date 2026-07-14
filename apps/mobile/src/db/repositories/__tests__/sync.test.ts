@@ -1,10 +1,17 @@
 import Ajv from 'ajv';
 
 import { getDb, resetDbForTests } from '../../index';
+import { mobileStore, type WatchWorkoutPayload } from '../../mobileStore';
 import { seededExercise } from '../../../test-utils/db';
-import { addExerciseToRoutine, addRoutineSet, createRoutine, updateRoutineExercise } from '../routines';
-import { getSyncSnapshot, ingestWatchWorkout, type WatchWorkoutPayload } from '../sync';
-import { getWorkoutDetail } from '../workouts';
+
+const {
+  addExercise: addExerciseToRoutine,
+  addSet: addRoutineSet,
+  create: createRoutine,
+  updateExercise: updateRoutineExercise,
+} = mobileStore.routines;
+const { getSnapshot: getSyncSnapshot, ingestWatchWorkout } = mobileStore.sync;
+const { getDetail: getWorkoutDetail } = mobileStore.workouts;
 
 const contractSchema = require('../../../../../../data/contracts/sync.schema.json');
 

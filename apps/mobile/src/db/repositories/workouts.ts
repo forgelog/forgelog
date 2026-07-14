@@ -1,6 +1,6 @@
 import { computeStreakDays, localDateKey } from '../../domain/dates';
 import { requireExerciseType } from '../../domain/setFields';
-import { getDb } from '../index';
+import type { DatabaseExecutor } from '../executor';
 import { id } from '../id';
 import type {
   LoggedSet,
@@ -26,70 +26,70 @@ type ExerciseRow = {
   created_at: string;
 };
 
-export async function startWorkout(options: {
-  routineId?: string;
-  name?: string;
-} = {}): Promise<Workout> {
-  const db = await getDb();
+export async function startWorkout(
+  db: DatabaseExecutor,
+  options: {
+    routineId?: string;
+    name?: string;
+  } = {}
+): Promise<Workout> {
   const workoutId = id();
   const startedAt = new Date().toISOString();
 
   let name = options.name ?? 'Workout';
   if (options.routineId) {
-    const routine = await getRoutineDetail(options.routineId);
+    const routine = await getRoutineDetail(db, options.routineId);
     if (routine) name = options.name ?? routine.name;
   }
 
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      `INSERT INTO workouts (id, routine_id, name, started_at)
+  await db.runAsync(
+    `INSERT INTO workouts (id, routine_id, name, started_at)
        VALUES ($id, $routine_id, $name, $started_at)`,
-      { $id: workoutId, $routine_id: options.routineId ?? null, $name: name, $started_at: startedAt }
-    );
+    { $id: workoutId, $routine_id: options.routineId ?? null, $name: name, $started_at: startedAt }
+  );
 
-    if (options.routineId) {
-      const routine = await getRoutineDetail(options.routineId);
-      if (routine) {
-        for (const re of routine.exercises) {
-          const weId = id();
-          await db.runAsync(
-            `INSERT INTO workout_exercises
+  if (options.routineId) {
+    const routine = await getRoutineDetail(db, options.routineId);
+    if (routine) {
+      for (const re of routine.exercises) {
+        const weId = id();
+        await db.runAsync(
+          `INSERT INTO workout_exercises
                (id, workout_id, exercise_id, position, superset_group_id, exercise_type, rest_seconds, notes)
              VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $exercise_type, $rest_seconds, $notes)`,
-            {
-              $id: weId,
-              $workout_id: workoutId,
-              $exercise_id: re.exercise_id,
-              $position: re.position,
-              $superset_group_id: re.superset_group_id,
-              // Snapshot the routine exercise type so later routine/catalog edits
-              // never rewrites this logged workout.
-              $exercise_type: requireExerciseType(re.exercise_type),
-              $rest_seconds: re.rest_seconds,
-              $notes: re.notes,
-            }
-          );
-          for (const s of re.sets) {
-            await db.runAsync(
-              `INSERT INTO logged_sets
+          {
+            $id: weId,
+            $workout_id: workoutId,
+            $exercise_id: re.exercise_id,
+            $position: re.position,
+            $superset_group_id: re.superset_group_id,
+            // Snapshot the routine exercise type so later routine/catalog edits
+            // never rewrites this logged workout.
+            $exercise_type: requireExerciseType(re.exercise_type),
+            $rest_seconds: re.rest_seconds,
+            $notes: re.notes,
+          }
+        );
+        for (const s of re.sets) {
+          await db.runAsync(
+            `INSERT INTO logged_sets
                  (id, workout_exercise_id, position, set_type, weight, reps, duration_seconds, distance_meters, completed)
                VALUES ($id, $we, $position, $set_type, $weight, $reps, $duration, $distance, 0)`,
-              {
-                $id: id(),
-                $we: weId,
-                $position: s.position,
-                $set_type: s.set_type,
-                $weight: s.target_weight,
-                $reps: s.target_reps,
-                $duration: s.target_duration_seconds,
-                $distance: s.target_distance_meters,
-              }
-            );
-          }
+            {
+              $id: id(),
+              $we: weId,
+              $position: s.position,
+              $set_type: s.set_type,
+              $weight: s.target_weight,
+              $reps: s.target_reps,
+              $duration: s.target_duration_seconds,
+              $distance: s.target_distance_meters,
+            }
+          );
         }
       }
     }
-  });
+  }
 
   const created = await db.getFirstAsync<Workout>('SELECT * FROM workouts WHERE id = $id', {
     $id: workoutId,
@@ -98,16 +98,17 @@ export async function startWorkout(options: {
   return created;
 }
 
-export async function getActiveWorkout(): Promise<Workout | null> {
-  const db = await getDb();
+export async function getActiveWorkout(db: DatabaseExecutor): Promise<Workout | null> {
   const row = await db.getFirstAsync<Workout>(
     'SELECT * FROM workouts WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1'
   );
   return row ?? null;
 }
 
-export async function getWorkoutDetail(workoutId: string): Promise<WorkoutDetail | null> {
-  const db = await getDb();
+export async function getWorkoutDetail(
+  db: DatabaseExecutor,
+  workoutId: string
+): Promise<WorkoutDetail | null> {
   const workout = await db.getFirstAsync<Workout>('SELECT * FROM workouts WHERE id = $id', {
     $id: workoutId,
   });
@@ -154,10 +155,10 @@ export async function getWorkoutDetail(workoutId: string): Promise<WorkoutDetail
 // Sets from the most recent other completed workout that logged this
 // exercise — used to show "PREV" reference values while actively logging.
 export async function getPreviousSessionSets(
+  db: DatabaseExecutor,
   exerciseId: string,
   excludeWorkoutId: string
 ): Promise<LoggedSet[]> {
-  const db = await getDb();
   const we = await db.getFirstAsync<{ we_id: string }>(
     `SELECT we.id AS we_id
        FROM workout_exercises we
@@ -189,10 +190,10 @@ export type ExerciseSession = {
 // same exercise more than once (e.g. two separate blocks) folds into a
 // single session with all of its sets combined.
 export async function getSessionsForExercise(
+  db: DatabaseExecutor,
   exerciseId: string,
   limit = 20
 ): Promise<ExerciseSession[]> {
-  const db = await getDb();
   const workoutExercises = await db.getAllAsync<{
     we_id: string;
     workout_id: string;
@@ -244,10 +245,10 @@ export async function getSessionsForExercise(
 }
 
 export async function addExerciseToWorkout(
+  db: DatabaseExecutor,
   workoutId: string,
   exerciseId: string
 ): Promise<WorkoutExercise> {
-  const db = await getDb();
   const newId = id();
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM workout_exercises WHERE workout_id = $id',
@@ -278,10 +279,10 @@ export async function addExerciseToWorkout(
 }
 
 export async function updateWorkoutExercise(
+  db: DatabaseExecutor,
   workoutExerciseId: string,
   fields: { superset_group_id?: string | null; notes?: string | null }
 ): Promise<void> {
-  const db = await getDb();
   const sets: string[] = [];
   const params: Record<string, string | null> = { $id: workoutExerciseId };
   if (fields.superset_group_id !== undefined) {
@@ -296,8 +297,11 @@ export async function updateWorkoutExercise(
   await db.runAsync(`UPDATE workout_exercises SET ${sets.join(', ')} WHERE id = $id`, params);
 }
 
-export async function addSet(workoutExerciseId: string, setType: SetType = 'normal'): Promise<LoggedSet> {
-  const db = await getDb();
+export async function addSet(
+  db: DatabaseExecutor,
+  workoutExerciseId: string,
+  setType: SetType = 'normal'
+): Promise<LoggedSet> {
   const newId = id();
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM logged_sets WHERE workout_exercise_id = $id',
@@ -326,10 +330,10 @@ export type LoggedSetUpdate = {
 };
 
 export async function updateLoggedSet(
+  db: DatabaseExecutor,
   loggedSetId: string,
   fields: LoggedSetUpdate
 ): Promise<void> {
-  const db = await getDb();
   const sets: string[] = [];
   const params: Record<string, string | number | null> = { $id: loggedSetId };
 
@@ -355,8 +359,7 @@ export async function updateLoggedSet(
   await db.runAsync(`UPDATE logged_sets SET ${sets.join(', ')} WHERE id = $id`, params);
 }
 
-export async function deleteLoggedSet(loggedSetId: string): Promise<void> {
-  const db = await getDb();
+export async function deleteLoggedSet(db: DatabaseExecutor, loggedSetId: string): Promise<void> {
   await db.runAsync('DELETE FROM logged_sets WHERE id = $id', { $id: loggedSetId });
 }
 
@@ -364,21 +367,18 @@ export function hasCompletedSet(exercises: { sets: { completed: boolean }[] }[])
   return exercises.some((we) => we.sets.some((s) => s.completed));
 }
 
-export async function finishWorkout(workoutId: string): Promise<void> {
-  const db = await getDb();
+export async function finishWorkout(db: DatabaseExecutor, workoutId: string): Promise<void> {
   await db.runAsync('UPDATE workouts SET ended_at = $ended WHERE id = $id', {
     $ended: new Date().toISOString(),
     $id: workoutId,
   });
 }
 
-export async function deleteWorkout(workoutId: string): Promise<void> {
-  const db = await getDb();
+export async function deleteWorkout(db: DatabaseExecutor, workoutId: string): Promise<void> {
   await db.runAsync('DELETE FROM workouts WHERE id = $id', { $id: workoutId });
 }
 
-export async function listWorkouts(): Promise<Workout[]> {
-  const db = await getDb();
+export async function listWorkouts(db: DatabaseExecutor): Promise<Workout[]> {
   return db.getAllAsync<Workout>(
     'SELECT * FROM workouts WHERE ended_at IS NOT NULL ORDER BY started_at DESC'
   );
@@ -390,9 +390,7 @@ export type ProfileStats = {
   streakDays: number;
 };
 
-export async function getProfileStats(): Promise<ProfileStats> {
-  const db = await getDb();
-
+export async function getProfileStats(db: DatabaseExecutor): Promise<ProfileStats> {
   const countRow = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) AS count FROM workouts WHERE ended_at IS NOT NULL'
   );
@@ -413,7 +411,10 @@ export async function getProfileStats(): Promise<ProfileStats> {
   return {
     workoutCount: countRow?.count ?? 0,
     totalVolume: volumeRow?.volume ?? 0,
-    streakDays: computeStreakDays(dateRows.map((r) => r.day), localDateKey(new Date())),
+    streakDays: computeStreakDays(
+      dateRows.map((r) => r.day),
+      localDateKey(new Date())
+    ),
   };
 }
 

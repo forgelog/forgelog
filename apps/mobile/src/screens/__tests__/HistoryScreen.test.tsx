@@ -2,19 +2,21 @@ import { cleanup, fireEvent, waitFor } from '@testing-library/react-native';
 
 import { currentWeekDays, monthLabel } from '../../domain/dates';
 import { getDb, resetDbForTests } from '../../db/index';
-import { replaceRecordsForExercise } from '../../db/repositories/personalRecords';
-import {
-  addExerciseToWorkout,
-  addSet,
-  finishWorkout,
-  startWorkout,
-  updateLoggedSet,
-} from '../../db/repositories/workouts';
+import { mobileStore } from '../../db/mobileStore';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { seededExercise, setWorkoutTimestamps } from '../../test-utils/db';
 import { renderWithStack } from '../../test-utils/render';
 import { HistoryScreen } from '../HistoryScreen';
 import { WorkoutDetailScreen } from '../WorkoutDetailScreen';
+
+const { replaceCurrentForExercise: replaceRecordsForExercise } = mobileStore.records;
+const {
+  addExercise: addExerciseToWorkout,
+  addSet,
+  finish: finishWorkout,
+  start: startWorkout,
+  updateSet: updateLoggedSet,
+} = mobileStore.workouts;
 
 type TestStackParamList = RootStackParamList & {
   History: undefined;
@@ -36,11 +38,7 @@ async function createFinishedBenchWorkout(name = 'Phase Six Push') {
   const set = await addSet(workoutExercise.id);
   await updateLoggedSet(set.id, { weight: 100, reps: 5, completed: true });
   await finishWorkout(workout.id);
-  await setWorkoutTimestamps(
-    workout.id,
-    '2026-07-11T09:00:00.000Z',
-    '2026-07-11T10:05:00.000Z'
-  );
+  await setWorkoutTimestamps(workout.id, '2026-07-11T09:00:00.000Z', '2026-07-11T10:05:00.000Z');
   await replaceRecordsForExercise(bench.id);
   return { bench, workout, set };
 }
@@ -66,7 +64,9 @@ test('groups finished workouts by month and opens workout detail', async () => {
   await createFinishedBenchWorkout('Phase Six Push');
   const { getByLabelText, getByText } = await renderHistoryStack();
 
-  await waitFor(() => expect(getByText(monthLabel(new Date('2026-07-11T09:00:00.000Z')))).toBeTruthy());
+  await waitFor(() =>
+    expect(getByText(monthLabel(new Date('2026-07-11T09:00:00.000Z')))).toBeTruthy()
+  );
   fireEvent.press(getByLabelText('Open workout Phase Six Push'));
 
   await waitFor(() => expect(getByText('100 kg × 5 reps')).toBeTruthy());

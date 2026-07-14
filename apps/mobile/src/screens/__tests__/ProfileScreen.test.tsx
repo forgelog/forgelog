@@ -68,7 +68,7 @@ test('selecting Dark persists the preference via the profile repository', async 
   await waitFor(() =>
     expect(getByLabelText('Use Dark theme').props.accessibilityState).toEqual({ selected: true })
   );
-  await waitFor(() => expect(mockSetThemeMode).toHaveBeenCalledWith('dark'));
+  await waitFor(() => expect(mockSetThemeMode).toHaveBeenCalledWith(expect.anything(), 'dark'));
 });
 
 test('loads the previously persisted preference on mount', async () => {
@@ -89,7 +89,7 @@ test('clearing the name persists an empty string, no placeholder fallback', asyn
   await act(async () => fireEvent.changeText(nameInput, '   '));
   await act(async () => fireEvent(nameInput, 'blur'));
 
-  await waitFor(() => expect(mockSetProfileName).toHaveBeenCalledWith(''));
+  await waitFor(() => expect(mockSetProfileName).toHaveBeenCalledWith(expect.anything(), ''));
   expect(getByDisplayValue('')).toBeTruthy();
   expect(queryByText('AR')).toBeNull();
 });
@@ -119,5 +119,7 @@ test('trims whitespace before saving a new name', async () => {
   await act(async () => fireEvent.changeText(nameInput, '  Jamie Lee  '));
   await act(async () => fireEvent(nameInput, 'blur'));
 
-  await waitFor(() => expect(mockSetProfileName).toHaveBeenCalledWith('Jamie Lee'));
+  await waitFor(() =>
+    expect(mockSetProfileName).toHaveBeenCalledWith(expect.anything(), 'Jamie Lee')
+  );
 });

@@ -1,5 +1,5 @@
-import { getDb } from '../index';
 import { requireExerciseType } from '../../domain/setFields';
+import type { DatabaseExecutor } from '../executor';
 import type { LoggedSet, PersonalRecord, RoutineDetail, SetType } from '../types';
 import { listRoutines, getRoutineDetail } from './routines';
 import { getRecordsForExercise, replaceRecordsForExercise } from './personalRecords';
@@ -13,13 +13,13 @@ export type SyncSnapshot = {
   personalRecords: PersonalRecord[];
 };
 
-export async function getSyncSnapshot(): Promise<SyncSnapshot> {
-  const routines = await listRoutines();
+export async function getSyncSnapshot(db: DatabaseExecutor): Promise<SyncSnapshot> {
+  const routines = await listRoutines(db);
   const details: RoutineDetail[] = [];
   const exerciseIds = new Set<string>();
 
   for (const routine of routines) {
-    const detail = await getRoutineDetail(routine.id);
+    const detail = await getRoutineDetail(db, routine.id);
     if (!detail) continue;
     details.push(detail);
     for (const re of detail.exercises) exerciseIds.add(re.exercise_id);
@@ -27,7 +27,7 @@ export async function getSyncSnapshot(): Promise<SyncSnapshot> {
 
   const personalRecords: PersonalRecord[] = [];
   for (const exerciseId of exerciseIds) {
-    personalRecords.push(...(await getRecordsForExercise(exerciseId)));
+    personalRecords.push(...(await getRecordsForExercise(db, exerciseId)));
   }
 
   return { routines: details, personalRecords };
@@ -60,12 +60,12 @@ export type WatchWorkoutExercisePayload = {
 
 export type WatchLoggedSetPayload = Omit<LoggedSet, 'set_type'> & { set_type: SetType };
 
-export async function ingestWatchWorkout(payload: WatchWorkoutPayload): Promise<void> {
-  const db = await getDb();
-
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      `INSERT INTO workouts (id, routine_id, name, started_at, ended_at, notes)
+export async function ingestWatchWorkout(
+  db: DatabaseExecutor,
+  payload: WatchWorkoutPayload
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO workouts (id, routine_id, name, started_at, ended_at, notes)
        VALUES ($id, $routine_id, $name, $started_at, $ended_at, $notes)
        ON CONFLICT(id) DO UPDATE SET
          routine_id = excluded.routine_id,
@@ -73,19 +73,19 @@ export async function ingestWatchWorkout(payload: WatchWorkoutPayload): Promise<
          started_at = excluded.started_at,
          ended_at = excluded.ended_at,
          notes = excluded.notes`,
-      {
-        $id: payload.id,
-        $routine_id: payload.routine_id,
-        $name: payload.name,
-        $started_at: payload.started_at,
-        $ended_at: payload.ended_at,
-        $notes: payload.notes,
-      }
-    );
+    {
+      $id: payload.id,
+      $routine_id: payload.routine_id,
+      $name: payload.name,
+      $started_at: payload.started_at,
+      $ended_at: payload.ended_at,
+      $notes: payload.notes,
+    }
+  );
 
-    for (const we of payload.exercises) {
-      await db.runAsync(
-        `INSERT INTO workout_exercises
+  for (const we of payload.exercises) {
+    await db.runAsync(
+      `INSERT INTO workout_exercises
            (id, workout_id, exercise_id, position, superset_group_id, exercise_type, rest_seconds, notes)
          VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $exercise_type, $rest_seconds, $notes)
          ON CONFLICT(id) DO UPDATE SET
@@ -95,21 +95,21 @@ export async function ingestWatchWorkout(payload: WatchWorkoutPayload): Promise<
            exercise_type = excluded.exercise_type,
            rest_seconds = excluded.rest_seconds,
            notes = excluded.notes`,
-        {
-          $id: we.id,
-          $workout_id: payload.id,
-          $exercise_id: we.exercise_id,
-          $position: we.position,
-          $superset_group_id: we.superset_group_id,
-          $exercise_type: requireExerciseType(we.exercise_type),
-          $rest_seconds: we.rest_seconds,
-          $notes: we.notes,
-        }
-      );
+      {
+        $id: we.id,
+        $workout_id: payload.id,
+        $exercise_id: we.exercise_id,
+        $position: we.position,
+        $superset_group_id: we.superset_group_id,
+        $exercise_type: requireExerciseType(we.exercise_type),
+        $rest_seconds: we.rest_seconds,
+        $notes: we.notes,
+      }
+    );
 
-      for (const s of we.sets) {
-        await db.runAsync(
-          `INSERT INTO logged_sets
+    for (const s of we.sets) {
+      await db.runAsync(
+        `INSERT INTO logged_sets
              (id, workout_exercise_id, position, set_type, weight, reps, duration_seconds, distance_meters, rpe, completed, completed_at)
            VALUES ($id, $we, $position, $set_type, $weight, $reps, $duration, $distance, $rpe, $completed, $completed_at)
            ON CONFLICT(id) DO UPDATE SET
@@ -122,26 +122,25 @@ export async function ingestWatchWorkout(payload: WatchWorkoutPayload): Promise<
              rpe = excluded.rpe,
              completed = excluded.completed,
              completed_at = excluded.completed_at`,
-          {
-            $id: s.id,
-            $we: we.id,
-            $position: s.position,
-            $set_type: s.set_type,
-            $weight: s.weight,
-            $reps: s.reps,
-            $duration: s.duration_seconds,
-            $distance: s.distance_meters,
-            $rpe: s.rpe,
-            $completed: s.completed ? 1 : 0,
-            $completed_at: s.completed_at,
-          }
-        );
-      }
+        {
+          $id: s.id,
+          $we: we.id,
+          $position: s.position,
+          $set_type: s.set_type,
+          $weight: s.weight,
+          $reps: s.reps,
+          $duration: s.duration_seconds,
+          $distance: s.distance_meters,
+          $rpe: s.rpe,
+          $completed: s.completed ? 1 : 0,
+          $completed_at: s.completed_at,
+        }
+      );
     }
+  }
 
-    const touchedExerciseIds = new Set(payload.exercises.map((we) => we.exercise_id));
-    for (const exerciseId of touchedExerciseIds) {
-      await replaceRecordsForExercise(exerciseId);
-    }
-  });
+  const touchedExerciseIds = new Set(payload.exercises.map((we) => we.exercise_id));
+  for (const exerciseId of touchedExerciseIds) {
+    await replaceRecordsForExercise(db, exerciseId);
+  }
 }

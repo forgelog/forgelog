@@ -1,6 +1,6 @@
-import { getDb } from '../index';
 import { id } from '../id';
 import { requireExerciseType } from '../../domain/setFields';
+import type { DatabaseExecutor } from '../executor';
 import type { Exercise } from '../types';
 
 type ExerciseRow = {
@@ -37,8 +37,10 @@ export type ExerciseFilters = {
   search?: string;
 };
 
-export async function listExercises(filters: ExerciseFilters = {}): Promise<Exercise[]> {
-  const db = await getDb();
+export async function listExercises(
+  db: DatabaseExecutor,
+  filters: ExerciseFilters = {}
+): Promise<Exercise[]> {
   const where: string[] = [];
   const params: Record<string, string> = {};
 
@@ -63,8 +65,10 @@ export async function listExercises(filters: ExerciseFilters = {}): Promise<Exer
   return rows.map(mapExercise);
 }
 
-export async function getExercise(exerciseId: string): Promise<Exercise | null> {
-  const db = await getDb();
+export async function getExercise(
+  db: DatabaseExecutor,
+  exerciseId: string
+): Promise<Exercise | null> {
   const row = await db.getFirstAsync<ExerciseRow>('SELECT * FROM exercises WHERE id = $id', {
     $id: exerciseId,
   });
@@ -79,8 +83,10 @@ export type NewCustomExercise = {
   instructions?: string[];
 };
 
-export async function createCustomExercise(input: NewCustomExercise): Promise<Exercise> {
-  const db = await getDb();
+export async function createCustomExercise(
+  db: DatabaseExecutor,
+  input: NewCustomExercise
+): Promise<Exercise> {
   const newId = id();
   await db.runAsync(
     `INSERT INTO exercises
@@ -96,32 +102,30 @@ export async function createCustomExercise(input: NewCustomExercise): Promise<Ex
       $images: JSON.stringify([]),
     }
   );
-  const created = await getExercise(newId);
+  const created = await getExercise(db, newId);
   if (!created) throw new Error('Failed to create custom exercise');
   return created;
 }
 
 export async function setExerciseType(
+  db: DatabaseExecutor,
   exerciseId: string,
   exerciseType: string
 ): Promise<void> {
-  const db = await getDb();
   await db.runAsync('UPDATE exercises SET exercise_type = $t WHERE id = $id', {
     $t: requireExerciseType(exerciseType),
     $id: exerciseId,
   });
 }
 
-export async function listMuscleGroups(): Promise<string[]> {
-  const db = await getDb();
+export async function listMuscleGroups(db: DatabaseExecutor): Promise<string[]> {
   const rows = await db.getAllAsync<{ muscle_group: string }>(
     'SELECT DISTINCT muscle_group FROM exercises ORDER BY muscle_group'
   );
   return rows.map((r) => r.muscle_group);
 }
 
-export async function listEquipment(): Promise<string[]> {
-  const db = await getDb();
+export async function listEquipment(db: DatabaseExecutor): Promise<string[]> {
   const rows = await db.getAllAsync<{ equipment: string }>(
     'SELECT DISTINCT equipment FROM exercises ORDER BY equipment'
   );

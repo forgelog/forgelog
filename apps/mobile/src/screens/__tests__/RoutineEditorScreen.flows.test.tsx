@@ -5,15 +5,17 @@ import type { ComponentProps } from 'react';
 import { Alert, Text } from 'react-native';
 
 import { getDb, resetDbForTests } from '../../db/index';
-import {
-  addExerciseToRoutine,
-  addRoutineSet,
-  createRoutine,
-  getRoutineDetail,
-} from '../../db/repositories/routines';
+import { mobileStore } from '../../db/mobileStore';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { latestAlertButtons } from '../../test-utils/async';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
+
+const {
+  addExercise: addExerciseToRoutine,
+  addSet: addRoutineSet,
+  create: createRoutine,
+  getDetail: getRoutineDetail,
+} = mobileStore.routines;
 
 type TestParamList = RootStackParamList & {
   Home: undefined;
@@ -103,7 +105,9 @@ test('new routine with a picked exercise saves the routine and children', async 
   const editor = await renderEditor({ pickedExerciseId: 'ex1' });
 
   await waitFor(() => expect(editor.getByText('Bench Press')).toBeTruthy());
-  await act(async () => fireEvent.changeText(editor.getByLabelText('Routine name'), '  Push Day  '));
+  await act(async () =>
+    fireEvent.changeText(editor.getByLabelText('Routine name'), '  Push Day  ')
+  );
   await act(async () => fireEvent.press(editor.getByLabelText('Add set to Bench Press')));
   await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-weight'), '80'));
   await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-reps'), '8'));
@@ -156,9 +160,13 @@ test('existing routine Save persists the full draft', async () => {
 
   await waitFor(() => expect(editor.getByDisplayValue('Original')).toBeTruthy());
   await act(async () => fireEvent.changeText(editor.getByDisplayValue('Original'), '  Edited  '));
-  await act(async () => fireEvent.changeText(editor.getByLabelText('Routine notes'), '  Keep this  '));
+  await act(async () =>
+    fireEvent.changeText(editor.getByLabelText('Routine notes'), '  Keep this  ')
+  );
   await act(async () => fireEvent.press(editor.getByLabelText('Remove Bench Press')));
-  await act(async () => fireEvent.changeText(editor.getByLabelText('Rest seconds for Squat'), '120'));
+  await act(async () =>
+    fireEvent.changeText(editor.getByLabelText('Rest seconds for Squat'), '120')
+  );
   await act(async () => fireEvent.press(editor.getByLabelText('Add set to Squat')));
   await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-weight'), '140'));
   await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-reps'), '5'));

@@ -2,8 +2,7 @@ import { act, cleanup, fireEvent, waitFor } from '@testing-library/react-native'
 import { Alert } from 'react-native';
 
 import { getDb, resetDbForTests } from '../../db/index';
-import { addExerciseToRoutine, addRoutineSet, createRoutine, updateRoutineExercise } from '../../db/repositories/routines';
-import { getActiveWorkout, getWorkoutDetail, startWorkout } from '../../db/repositories/workouts';
+import { mobileStore } from '../../db/mobileStore';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { latestAlertButtons } from '../../test-utils/async';
 import { seededExercise } from '../../test-utils/db';
@@ -14,6 +13,18 @@ import { ExerciseLibraryScreen } from '../ExerciseLibraryScreen';
 import { HomeScreen } from '../HomeScreen';
 import { RoutineDetailScreen } from '../RoutineDetailScreen';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
+
+const {
+  addExercise: addExerciseToRoutine,
+  addSet: addRoutineSet,
+  create: createRoutine,
+  updateExercise: updateRoutineExercise,
+} = mobileStore.routines;
+const {
+  getActive: getActiveWorkout,
+  getDetail: getWorkoutDetail,
+  start: startWorkout,
+} = mobileStore.workouts;
 
 jest.mock('@expo/ui/community/bottom-sheet');
 
@@ -77,9 +88,13 @@ test('starts a workout from a routine', async () => {
   await createRoutineWithBench('Routine Launch');
   const routineLaunch = await renderHomeStack();
 
-  await waitFor(() => expect(routineLaunch.getByLabelText('Start routine Routine Launch')).toBeTruthy());
+  await waitFor(() =>
+    expect(routineLaunch.getByLabelText('Start routine Routine Launch')).toBeTruthy()
+  );
   fireEvent.press(routineLaunch.getByLabelText('Start routine Routine Launch'));
-  await waitFor(() => expect(routineLaunch.getByText('Barbell Bench Press - Medium Grip')).toBeTruthy());
+  await waitFor(() =>
+    expect(routineLaunch.getByText('Barbell Bench Press - Medium Grip')).toBeTruthy()
+  );
   expect(routineLaunch.getByTestId('workout-set-0-0-weight').props.value).toBe('100');
 });
 
@@ -87,10 +102,14 @@ test('opens a routine in read-only detail mode from the routine row', async () =
   await createRoutineWithBench('Read Only Push');
   const routineDetail = await renderHomeStack();
 
-  await waitFor(() => expect(routineDetail.getByLabelText('View routine Read Only Push')).toBeTruthy());
+  await waitFor(() =>
+    expect(routineDetail.getByLabelText('View routine Read Only Push')).toBeTruthy()
+  );
   fireEvent.press(routineDetail.getByLabelText('View routine Read Only Push'));
 
-  await waitFor(() => expect(routineDetail.getByText('Barbell Bench Press - Medium Grip')).toBeTruthy());
+  await waitFor(() =>
+    expect(routineDetail.getByText('Barbell Bench Press - Medium Grip')).toBeTruthy()
+  );
   expect(routineDetail.getByText('100 kg × 5 reps')).toBeTruthy();
   expect(routineDetail.queryByLabelText('Routine name')).toBeNull();
   expect(routineDetail.queryByLabelText('Add Exercise')).toBeNull();
@@ -138,10 +157,16 @@ test('guards active-workout conflicts when starting a routine', async () => {
   await waitFor(() => expect(guard.getByLabelText('Start routine Guarded Routine')).toBeTruthy());
   fireEvent.press(guard.getByLabelText('Start routine Guarded Routine'));
   await waitFor(() =>
-    expect(alertSpy).toHaveBeenCalledWith('Workout in progress', expect.any(String), expect.any(Array))
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Workout in progress',
+      expect.any(String),
+      expect.any(Array)
+    )
   );
 
-  const discardButton = latestAlertButtons(alertSpy).find((button) => button.text === 'Discard & start');
+  const discardButton = latestAlertButtons(alertSpy).find(
+    (button) => button.text === 'Discard & start'
+  );
   await act(async () => {
     await discardButton?.onPress?.();
   });
