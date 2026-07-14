@@ -20,8 +20,8 @@ Wear OS persistence is intentionally out of scope. Complete items in order unles
 - [ ] Add a transaction API that supplies a transaction-bound facade/store to its callback.
 - [ ] Use Expo's exclusive transaction handle for application writes that must be isolated.
 - [ ] Move the remaining raw SQL in `src/application/activeWorkout.ts` into the owning repository modules.
-- [ ] Decide and document which layers may import `db/index`, repository modules, and `mobileStore`.
-- [ ] Add an ESLint restriction or architecture test that prevents screens, theme code, and sync transport from bypassing the approved entry point.
+- [x] Decide and document which layers may import `db/index`, repository modules, and `mobileStore`.
+- [x] Add an ESLint restriction or architecture test that prevents screens, theme code, and sync transport from bypassing the approved entry point.
 - [ ] Curate the public facade so invariant-breaking primitives are not available to UI callers.
 - [ ] Keep safe use cases such as completing a set, deleting a set, and discarding a workout as the public mutation API.
 
