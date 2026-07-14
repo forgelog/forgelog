@@ -17,9 +17,9 @@ Wear OS persistence is intentionally out of scope. Complete items in order unles
 
 - [x] Define a minimal database executor interface shared by the database connection and transaction handles.
 - [x] Make repository operations accept an executor instead of reacquiring the global database internally.
-- [ ] Add a transaction API that supplies a transaction-bound facade/store to its callback.
-- [ ] Use Expo's exclusive transaction handle for application writes that must be isolated.
-- [ ] Move the remaining raw SQL in `src/application/activeWorkout.ts` into the owning repository modules.
+- [x] Add a transaction API that supplies a transaction-bound facade/store to its callback.
+- [x] Use Expo's exclusive transaction handle for application writes that must be isolated.
+- [x] Move the remaining raw SQL in `src/application/activeWorkout.ts` into the owning repository modules.
 - [x] Decide and document which layers may import `db/index`, repository modules, and `mobileStore`.
 - [x] Add an ESLint restriction or architecture test that prevents screens, theme code, and sync transport from bypassing the approved entry point.
 - [ ] Curate the public facade so invariant-breaking primitives are not available to UI callers.
@@ -27,8 +27,8 @@ Wear OS persistence is intentionally out of scope. Complete items in order unles
 
 ### Acceptance checks
 
-- [ ] No production code outside the approved persistence layer imports `db/index` or `db/repositories/*`.
-- [ ] No transaction callback calls a repository that silently reacquires the global database.
+- [x] No production code outside the approved persistence layer imports `db/index` or `db/repositories/*`.
+- [x] No transaction callback calls a repository that silently reacquires the global database.
 - [ ] Concurrent transaction tests demonstrate isolation and rollback behavior.
 
 ## 2. Make migrations release-safe

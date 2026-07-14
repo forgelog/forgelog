@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 import * as exercises from './repositories/exercises';
 import * as personalRecords from './repositories/personalRecords';
 import * as profile from './repositories/profile';
@@ -35,84 +37,129 @@ type RepositoryOperation<Args extends unknown[], Result> = (
   ...args: Args
 ) => Promise<Result>;
 
-function bind<Args extends unknown[], Result>(
-  operation: RepositoryOperation<Args, Result>
-): (...args: Args) => Promise<Result> {
-  return async (...args) => operation(await getDb(), ...args);
+type ExecutorProvider = () => Promise<DatabaseExecutor>;
+type TransactionRunner = <Result>(
+  operation: (db: DatabaseExecutor) => Promise<Result>
+) => Promise<Result>;
+
+function createBoundMobileStore(
+  getExecutor: ExecutorProvider,
+  runInTransaction: TransactionRunner
+) {
+  const bind =
+    <Args extends unknown[], Result>(operation: RepositoryOperation<Args, Result>) =>
+    async (...args: Args): Promise<Result> =>
+      operation(await getExecutor(), ...args);
+
+  const bindTransaction =
+    <Args extends unknown[], Result>(operation: RepositoryOperation<Args, Result>) =>
+    async (...args: Args): Promise<Result> =>
+      runInTransaction((db) => operation(db, ...args));
+
+  return {
+    exercises: {
+      list: bind(exercises.listExercises),
+      get: bind(exercises.getExercise),
+      createCustom: bind(exercises.createCustomExercise),
+      setType: bind(exercises.setExerciseType),
+      listMuscleGroups: bind(exercises.listMuscleGroups),
+      listEquipment: bind(exercises.listEquipment),
+    },
+    routines: {
+      list: bind(routines.listRoutines),
+      getDetail: bind(routines.getRoutineDetail),
+      listSummaries: bind(routines.listRoutineSummaries),
+      create: bind(routines.createRoutine),
+      update: bind(routines.updateRoutine),
+      remove: bind(routines.deleteRoutine),
+      addExercise: bind(routines.addExerciseToRoutine),
+      removeExercise: bind(routines.removeRoutineExercise),
+      updateExercise: bind(routines.updateRoutineExercise),
+      reorderExercises: bindTransaction(routines.reorderRoutineExercises),
+      saveDraft: bindTransaction(routines.saveRoutineDraft),
+      addSet: bind(routines.addRoutineSet),
+      updateSet: bind(routines.updateRoutineSet),
+      removeSet: bind(routines.deleteRoutineSet),
+    },
+    workouts: {
+      start: bindTransaction(workouts.startWorkout),
+      getActive: bind(workouts.getActiveWorkout),
+      getDetail: bind(workouts.getWorkoutDetail),
+      getPreviousSessionSets: bind(workouts.getPreviousSessionSets),
+      getSessionsForExercise: bind(workouts.getSessionsForExercise),
+      getSetRecordContext: bind(workouts.getLoggedSetRecordContext),
+      addExercise: bind(workouts.addExerciseToWorkout),
+      updateExercise: bind(workouts.updateWorkoutExercise),
+      removeExercise: bind(workouts.deleteWorkoutExercise),
+      addSet: bind(workouts.addSet),
+      updateSet: bind(workouts.updateLoggedSet),
+      removeSet: bind(workouts.deleteLoggedSet),
+      finish: bind(workouts.finishWorkout),
+      remove: bind(workouts.deleteWorkout),
+      list: bind(workouts.listWorkouts),
+      getProfileStats: bind(workouts.getProfileStats),
+      hasCompletedSet: workouts.hasCompletedSet,
+    },
+    records: {
+      getForExercise: bind(personalRecords.getRecordsForExercise),
+      getEventsForExercise: bind(personalRecords.getRecordEventsForExercise),
+      getEventsForWorkout: bind(personalRecords.getRecordEventsForWorkout),
+      getEventTypesForOccurrence: bind(personalRecords.getRecordEventTypesForOccurrence),
+      listAll: bind(personalRecords.listAllRecords),
+      replaceForExercise: bind(personalRecords.replaceRecordStateForExercise),
+      replaceCurrentForExercise: bind(personalRecords.replaceRecordsForExercise),
+      clearSetReference: bind(personalRecords.clearSetReference),
+      clearSetReferencesForWorkoutExercise: bind(
+        personalRecords.clearSetReferencesForWorkoutExercise
+      ),
+      clearSetReferencesForWorkout: bind(personalRecords.clearSetReferencesForWorkout),
+    },
+    profile: {
+      get: bind(profile.getProfile),
+      update: bind(profile.updateProfile),
+      setName: bind(profile.setProfileName),
+      getThemeMode: bind(profile.getThemeMode),
+      setThemeMode: bind(profile.setThemeMode),
+    },
+    sync: {
+      getSnapshot: bind(sync.getSyncSnapshot),
+      ingestWatchWorkout: bindTransaction(sync.ingestWatchWorkout),
+    },
+  } as const;
 }
 
-function bindTransaction<Args extends unknown[], Result>(
-  operation: RepositoryOperation<Args, Result>
-): (...args: Args) => Promise<Result> {
-  return async (...args) => {
-    const db = await getDb();
-    let result!: Result;
+export type TransactionBoundMobileStore = ReturnType<typeof createBoundMobileStore>;
+
+async function runDefaultTransaction<Result>(
+  operation: (db: DatabaseExecutor) => Promise<Result>
+): Promise<Result> {
+  const db = await getDb();
+  let result!: Result;
+  if (Platform.OS === 'web') {
     await db.withTransactionAsync(async () => {
-      result = await operation(db, ...args);
+      result = await operation(db);
     });
     return result;
-  };
+  }
+  await db.withExclusiveTransactionAsync(async (transaction) => {
+    result = await operation(transaction);
+  });
+  return result;
 }
 
+const defaultStore = createBoundMobileStore(getDb, runDefaultTransaction);
+
 export const mobileStore = {
-  exercises: {
-    list: bind(exercises.listExercises),
-    get: bind(exercises.getExercise),
-    createCustom: bind(exercises.createCustomExercise),
-    setType: bind(exercises.setExerciseType),
-    listMuscleGroups: bind(exercises.listMuscleGroups),
-    listEquipment: bind(exercises.listEquipment),
-  },
-  routines: {
-    list: bind(routines.listRoutines),
-    getDetail: bind(routines.getRoutineDetail),
-    listSummaries: bind(routines.listRoutineSummaries),
-    create: bind(routines.createRoutine),
-    update: bind(routines.updateRoutine),
-    remove: bind(routines.deleteRoutine),
-    addExercise: bind(routines.addExerciseToRoutine),
-    removeExercise: bind(routines.removeRoutineExercise),
-    updateExercise: bind(routines.updateRoutineExercise),
-    reorderExercises: bindTransaction(routines.reorderRoutineExercises),
-    saveDraft: bindTransaction(routines.saveRoutineDraft),
-    addSet: bind(routines.addRoutineSet),
-    updateSet: bind(routines.updateRoutineSet),
-    removeSet: bind(routines.deleteRoutineSet),
-  },
-  workouts: {
-    start: bindTransaction(workouts.startWorkout),
-    getActive: bind(workouts.getActiveWorkout),
-    getDetail: bind(workouts.getWorkoutDetail),
-    getPreviousSessionSets: bind(workouts.getPreviousSessionSets),
-    getSessionsForExercise: bind(workouts.getSessionsForExercise),
-    addExercise: bind(workouts.addExerciseToWorkout),
-    updateExercise: bind(workouts.updateWorkoutExercise),
-    addSet: bind(workouts.addSet),
-    updateSet: bind(workouts.updateLoggedSet),
-    removeSet: bind(workouts.deleteLoggedSet),
-    finish: bind(workouts.finishWorkout),
-    remove: bind(workouts.deleteWorkout),
-    list: bind(workouts.listWorkouts),
-    getProfileStats: bind(workouts.getProfileStats),
-    hasCompletedSet: workouts.hasCompletedSet,
-  },
-  records: {
-    getForExercise: bind(personalRecords.getRecordsForExercise),
-    getEventsForExercise: bind(personalRecords.getRecordEventsForExercise),
-    getEventsForWorkout: bind(personalRecords.getRecordEventsForWorkout),
-    listAll: bind(personalRecords.listAllRecords),
-    replaceForExercise: bind(personalRecords.replaceRecordStateForExercise),
-    replaceCurrentForExercise: bind(personalRecords.replaceRecordsForExercise),
-  },
-  profile: {
-    get: bind(profile.getProfile),
-    update: bind(profile.updateProfile),
-    setName: bind(profile.setProfileName),
-    getThemeMode: bind(profile.getThemeMode),
-    setThemeMode: bind(profile.setThemeMode),
-  },
-  sync: {
-    getSnapshot: bind(sync.getSyncSnapshot),
-    ingestWatchWorkout: bindTransaction(sync.ingestWatchWorkout),
-  },
+  ...defaultStore,
+  transaction: <Result>(
+    operation: (store: TransactionBoundMobileStore) => Promise<Result>
+  ): Promise<Result> =>
+    runDefaultTransaction((transaction) =>
+      operation(
+        createBoundMobileStore(
+          async () => transaction,
+          (nestedOperation) => nestedOperation(transaction)
+        )
+      )
+    ),
 } as const;

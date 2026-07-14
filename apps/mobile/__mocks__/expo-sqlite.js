@@ -40,6 +40,16 @@ function makeDb(raw) {
         throw err;
       }
     },
+    withExclusiveTransactionAsync: async (fn) => {
+      raw.exec('BEGIN IMMEDIATE');
+      try {
+        await fn(makeDb(raw));
+        raw.exec('COMMIT');
+      } catch (err) {
+        raw.exec('ROLLBACK');
+        throw err;
+      }
+    },
     prepareAsync: async (sql) => {
       const stmt = raw.prepare(sql);
       return {

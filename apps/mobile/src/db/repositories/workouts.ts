@@ -329,6 +329,23 @@ export type LoggedSetUpdate = {
   completed?: boolean;
 };
 
+export type LoggedSetRecordContext = {
+  workout_exercise_id: string;
+  completed: number;
+};
+
+export async function getLoggedSetRecordContext(
+  db: DatabaseExecutor,
+  loggedSetId: string
+): Promise<LoggedSetRecordContext | null> {
+  return db.getFirstAsync<LoggedSetRecordContext>(
+    `SELECT workout_exercise_id, completed
+       FROM logged_sets
+      WHERE id = $id`,
+    { $id: loggedSetId }
+  );
+}
+
 export async function updateLoggedSet(
   db: DatabaseExecutor,
   loggedSetId: string,
@@ -361,6 +378,13 @@ export async function updateLoggedSet(
 
 export async function deleteLoggedSet(db: DatabaseExecutor, loggedSetId: string): Promise<void> {
   await db.runAsync('DELETE FROM logged_sets WHERE id = $id', { $id: loggedSetId });
+}
+
+export async function deleteWorkoutExercise(
+  db: DatabaseExecutor,
+  workoutExerciseId: string
+): Promise<void> {
+  await db.runAsync('DELETE FROM workout_exercises WHERE id = $id', { $id: workoutExerciseId });
 }
 
 export function hasCompletedSet(exercises: { sets: { completed: boolean }[] }[]): boolean {

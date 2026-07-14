@@ -3,12 +3,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 
-import { EditProfileScreen } from '../EditProfileScreen';
+import { getProfile, getThemeMode, updateProfile } from '../../db/repositories/profile';
 import { ThemeProvider } from '../../theme/ThemeContext';
+import { EditProfileScreen } from '../EditProfileScreen';
 
 jest.mock('../../db/repositories/profile');
-
-import { getProfile, getThemeMode, updateProfile } from '../../db/repositories/profile';
 
 const mockGetProfile = getProfile as jest.MockedFunction<typeof getProfile>;
 const mockUpdateProfile = updateProfile as jest.MockedFunction<typeof updateProfile>;

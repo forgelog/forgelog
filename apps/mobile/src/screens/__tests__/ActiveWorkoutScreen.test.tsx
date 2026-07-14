@@ -2,14 +2,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { render, waitFor } from '@testing-library/react-native';
 
+import { getRecordEventsForWorkout } from '../../db/repositories/personalRecords';
+import { getPreviousSessionSets, getWorkoutDetail } from '../../db/repositories/workouts';
 import type { WorkoutDetail } from '../../db/types';
 import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 
 jest.mock('../../db/repositories/personalRecords');
 jest.mock('../../db/repositories/workouts');
-
-import { getRecordEventsForWorkout } from '../../db/repositories/personalRecords';
-import { getPreviousSessionSets, getWorkoutDetail } from '../../db/repositories/workouts';
 
 const mockGetWorkoutDetail = getWorkoutDetail as jest.MockedFunction<typeof getWorkoutDetail>;
 const mockGetPreviousSessionSets = getPreviousSessionSets as jest.MockedFunction<

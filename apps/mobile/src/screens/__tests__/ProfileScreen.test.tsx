@@ -2,16 +2,20 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
+import { listAllRecords } from '../../db/repositories/personalRecords';
+import {
+  getProfile,
+  getThemeMode,
+  setProfileName,
+  setThemeMode,
+} from '../../db/repositories/profile';
+import { getProfileStats } from '../../db/repositories/workouts';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { ProfileScreen } from '../ProfileScreen';
 
 jest.mock('../../db/repositories/personalRecords');
 jest.mock('../../db/repositories/workouts');
 jest.mock('../../db/repositories/profile');
-
-import { listAllRecords } from '../../db/repositories/personalRecords';
-import { getProfile, getThemeMode, setProfileName, setThemeMode } from '../../db/repositories/profile';
-import { getProfileStats } from '../../db/repositories/workouts';
 
 const mockListAllRecords = listAllRecords as jest.MockedFunction<typeof listAllRecords>;
 const mockGetProfileStats = getProfileStats as jest.MockedFunction<typeof getProfileStats>;
