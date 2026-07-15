@@ -40,7 +40,6 @@
         "position": { "type": "integer" },
         "superset_group_id": { "type": ["string", "null"] },
         "exercise_type": { "$ref": "#/definitions/ExerciseType" },
-        "rest_seconds": { "type": ["integer", "null"] },
         "notes": { "type": ["string", "null"] },
         "sets": {
           "type": "array",
@@ -97,7 +96,6 @@
         "exercise_id": { "type": "string" },
         "position": { "type": "integer" },
         "superset_group_id": { "type": ["string", "null"] },
-        "rest_seconds": { "type": ["integer", "null"] },
         "exercise_type": { "$ref": "#/definitions/ExerciseType" },
         "exercise": { "$ref": "#/definitions/ExerciseDto" },
         "sets": {

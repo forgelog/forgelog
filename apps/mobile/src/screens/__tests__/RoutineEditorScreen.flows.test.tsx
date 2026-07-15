@@ -164,9 +164,6 @@ test('existing routine Save persists the full draft', async () => {
     fireEvent.changeText(editor.getByLabelText('Routine notes'), '  Keep this  ')
   );
   await act(async () => fireEvent.press(editor.getByLabelText('Remove Bench Press')));
-  await act(async () =>
-    fireEvent.changeText(editor.getByLabelText('Rest seconds for Squat'), '120')
-  );
   await act(async () => fireEvent.press(editor.getByLabelText('Add set to Squat')));
   await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-weight'), '140'));
   await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-reps'), '5'));
@@ -180,7 +177,6 @@ test('existing routine Save persists the full draft', async () => {
     exercises: [
       expect.objectContaining({
         exercise_id: 'ex2',
-        rest_seconds: 120,
         position: 0,
         sets: [expect.objectContaining({ target_weight: 140, target_reps: 5 })],
       }),

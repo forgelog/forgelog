@@ -35,7 +35,6 @@ class SyncRepository(
                     exerciseId = re.exerciseId,
                     position = re.position,
                     supersetGroupId = re.supersetGroupId,
-                    restSeconds = re.restSeconds,
                     exerciseType = re.exerciseType,
                 )
                 for (s in re.sets) {
@@ -72,7 +71,6 @@ class SyncRepository(
                 position = we.position,
                 supersetGroupId = we.supersetGroupId,
                 exerciseType = we.exerciseType,
-                restSeconds = we.restSeconds,
                 sets = workoutDao.loggedSets(we.id).map { s ->
                     LoggedSetPayloadDto(
                         id = s.id,

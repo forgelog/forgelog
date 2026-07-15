@@ -22,7 +22,6 @@ import {
   hasLoggedValue,
   parseSetFieldValue,
   requireExerciseType,
-  resolveRestSeconds,
   type ExerciseType,
   type ExerciseTypeFieldDescriptor,
   type SetFieldKey,
@@ -43,7 +42,6 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const { workoutId, pickedExerciseId } = route.params;
   const c = useTheme();
   const [detail, setDetail] = useState<WorkoutDetail | null>(null);
-  const [restRemaining, setRestRemaining] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [prSetIds, setPrSetIds] = useState<Set<string>>(new Set());
   const [prevSets, setPrevSets] = useState<Record<string, LoggedSet[]>>({});
@@ -118,15 +116,6 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     return () => clearInterval(handle);
   }, [startedAt]);
 
-  useEffect(() => {
-    if (restRemaining == null || restRemaining <= 0) return;
-    const handle = setTimeout(
-      () => setRestRemaining((r) => (r == null || r <= 1 ? null : r - 1)),
-      1000
-    );
-    return () => clearTimeout(handle);
-  }, [restRemaining]);
-
   function patchExercise(weId: string, fn: (we: WorkoutExerciseDetail) => WorkoutExerciseDetail) {
     setDetail((prev) =>
       prev ? { ...prev, exercises: prev.exercises.map((w) => (w.id === weId ? fn(w) : w)) } : prev
@@ -181,7 +170,6 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     try {
       if (completed) {
         const { recordEvents } = await completeSet(setId, we.exercise.id);
-        setRestRemaining(resolveRestSeconds(we.rest_seconds));
         await refreshPrSetIds(workoutId, setPrSetIds);
         if (recordEvents.length > 0) {
           Alert.alert(
@@ -309,19 +297,6 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           />
         }
       />
-      {restRemaining != null && restRemaining > 0 ? (
-        <View style={[styles.restBar, { backgroundColor: c.fg }]}>
-          <Text style={[styles.restText, { color: c.bg }]}>Rest {formatTime(restRemaining)}</Text>
-          <View style={styles.restActions}>
-            <Pressable onPress={() => setRestRemaining((r) => (r ?? 0) + 15)}>
-              <Text style={[styles.restAction, { color: c.accent }]}>+15s</Text>
-            </Pressable>
-            <Pressable onPress={() => setRestRemaining(null)}>
-              <Text style={[styles.restAction, { color: c.accent }]}>Skip</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -558,19 +533,4 @@ const styles = StyleSheet.create({
   addSet: { marginTop: 10 },
   addSetText: { fontSize: 14, fontWeight: '600' },
   addExercise: { margin: 16, marginBottom: 8 },
-  restBar: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  restText: { fontSize: 16, fontWeight: '700' },
-  restActions: { flexDirection: 'row', gap: 16 },
-  restAction: { fontSize: 14, fontWeight: '700' },
 });

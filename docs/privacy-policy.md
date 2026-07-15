@@ -24,7 +24,7 @@ ForgeLog does not share any data with third parties, because it does not collect
 
 ## Permissions
 
-The Wear OS app requests the vibration permission, used only for local haptic feedback (e.g. rest-timer countdown, personal record alerts). This permission does not involve any data collection.
+The Wear OS app requests the vibration permission, used only for local haptic feedback such as personal record alerts. This permission does not involve any data collection.
 
 ## Changes to this policy
 

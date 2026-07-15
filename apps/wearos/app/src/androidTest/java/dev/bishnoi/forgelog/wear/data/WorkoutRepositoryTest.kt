@@ -39,9 +39,7 @@ class WorkoutRepositoryTest {
         dao.insertWorkout(
             WorkoutEntity("w1", routineId = null, name = "Test", startedAt = "t0", endedAt = null),
         )
-        dao.insertWorkoutExercise(
-            WorkoutExerciseEntity("we1", "w1", "ex1", 0, null, "weight_reps", 90),
-        )
+        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", "w1", "ex1", 0, null, "weight_reps"))
         dao.insertLoggedSet(
             LoggedSetEntity("s1", "we1", 0, "normal", 40.0, 10, null, null, null, false, null),
         )
@@ -68,7 +66,6 @@ class WorkoutRepositoryTest {
                     exerciseId = "ex1",
                     position = 0,
                     supersetGroupId = "sg1",
-                    restSeconds = 75,
                     exerciseType = "reps_only",
                 ),
                 RoutineExerciseEntity(
@@ -77,7 +74,6 @@ class WorkoutRepositoryTest {
                     exerciseId = "ex2",
                     position = 1,
                     supersetGroupId = null,
-                    restSeconds = 30,
                     exerciseType = "duration",
                 ),
             ),
@@ -147,11 +143,9 @@ class WorkoutRepositoryTest {
         assertEquals("ex1", bench.exerciseId)
         assertEquals("sg1", bench.supersetGroupId)
         assertEquals("reps_only", bench.exerciseType)
-        assertEquals(75, bench.restSeconds)
 
         val plank = workoutExercises[1]
         assertEquals("duration", plank.exerciseType)
-        assertEquals(30, plank.restSeconds)
 
         val benchSets = db.workoutDao().loggedSets(bench.id)
         assertEquals(2, benchSets.size)
@@ -162,12 +156,11 @@ class WorkoutRepositoryTest {
 
         db.referenceDao().upsertRoutineExercises(
             listOf(
-                RoutineExerciseEntity("re1", "r1", "ex1", 0, null, 10, "duration"),
+                RoutineExerciseEntity("re1", "r1", "ex1", 0, null, "duration"),
             ),
         )
 
         assertEquals("reps_only", db.workoutDao().getWorkoutExercise(bench.id)?.exerciseType)
-        assertEquals(75, db.workoutDao().getWorkoutExercise(bench.id)?.restSeconds)
     }
 
     @Test
@@ -183,7 +176,6 @@ class WorkoutRepositoryTest {
                     exerciseId = "ex1",
                     position = 0,
                     supersetGroupId = null,
-                    restSeconds = 60,
                     exerciseType = "bad_type",
                 ),
             ),

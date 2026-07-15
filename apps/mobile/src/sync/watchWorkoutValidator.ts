@@ -33,7 +33,6 @@ export const WORKOUT_EXERCISE_PAYLOAD_SCHEMA = {
     position: { type: 'integer' },
     superset_group_id: { type: ['string', 'null'] },
     exercise_type: { type: 'string', enum: [...EXERCISE_TYPES] },
-    rest_seconds: { type: ['integer', 'null'] },
     notes: { type: ['string', 'null'] },
     sets: { type: 'array', items: LOGGED_SET_PAYLOAD_SCHEMA },
   },

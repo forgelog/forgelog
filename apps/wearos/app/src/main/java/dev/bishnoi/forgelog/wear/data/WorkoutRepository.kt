@@ -8,8 +8,8 @@ import java.time.Instant
 /**
  * Ports apps/mobile/src/db/repositories/workouts.ts startWorkout: copies a
  * routine's exercises/sets into a new session, snapshotting the routine
- * exercise_type and rest_seconds so later routine edits never rewrite a
- * logged workout. Writes to Room instead of SQLite — the watch's local WAL.
+ * exercise_type so later routine edits never rewrite a logged workout. Writes
+ * to Room instead of SQLite — the watch's local WAL.
  */
 class WorkoutRepository(
     private val workoutDao: WorkoutDao,
@@ -51,7 +51,6 @@ class WorkoutRepository(
                 position = re.position,
                 supersetGroupId = re.supersetGroupId,
                 exerciseType = exerciseType.value,
-                restSeconds = re.restSeconds,
             ) to loggedSets
         }
 

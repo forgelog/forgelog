@@ -45,14 +45,14 @@ class FinishWorkoutTest {
 
     private suspend fun seedActiveWorkout(id: String = "w1"): String {
         dao.insertWorkout(WorkoutEntity(id, null, "Test", "2026-01-01T09:00:00Z", null, false))
-        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", id, "ex1", 0, null, "weight_reps", 60))
+        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", id, "ex1", 0, null, "weight_reps"))
         dao.insertLoggedSet(LoggedSetEntity("s1", "we1", 0, "normal", 60.0, 5, null, null, null, true, "2026-01-01T09:30:00Z"))
         return id
     }
 
     private suspend fun seedFinishedUnsynced(id: String = "w1"): String {
         dao.insertWorkout(WorkoutEntity(id, null, "Test", "2026-01-01T09:00:00Z", "2026-01-01T10:00:00Z", false))
-        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", id, "ex1", 0, null, "weight_reps", 60))
+        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", id, "ex1", 0, null, "weight_reps"))
         dao.insertLoggedSet(LoggedSetEntity("s1", "we1", 0, "normal", 60.0, 5, null, null, null, true, "2026-01-01T09:30:00Z"))
         return id
     }

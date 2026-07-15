@@ -28,7 +28,6 @@ data class RoutineExerciseEntity(
     val exerciseId: String,
     val position: Int,
     val supersetGroupId: String?,
-    val restSeconds: Int?,
     val exerciseType: String,
 )
 
@@ -74,7 +73,6 @@ data class WorkoutExerciseEntity(
     val position: Int,
     val supersetGroupId: String?,
     val exerciseType: String,
-    val restSeconds: Int?,
 )
 
 @Entity(tableName = "logged_sets")

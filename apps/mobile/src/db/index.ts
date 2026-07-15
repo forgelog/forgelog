@@ -8,7 +8,7 @@ const DB_NAME = 'forgelog.db';
 
 // Bump this and add an `if (currentVersion < N)` branch below whenever the
 // schema changes, so existing installs migrate instead of losing data.
-const LATEST_SCHEMA_VERSION = 8;
+const LATEST_SCHEMA_VERSION = 9;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -32,10 +32,6 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
     // Fresh install: SCHEMA_SQL is always the current full schema.
     await db.execAsync(SCHEMA_SQL);
   } else {
-    if (currentVersion < 2) {
-      // v2: watch sync needs a per-session rest_seconds snapshot.
-      await db.execAsync('ALTER TABLE workout_exercises ADD COLUMN rest_seconds INTEGER;');
-    }
     if (currentVersion < 3) {
       // v3: exercise detail screen needs secondary muscles alongside the primary one.
       await db.execAsync('ALTER TABLE exercises ADD COLUMN secondary_muscles TEXT;');
@@ -99,6 +95,9 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
         await backfillPersonalRecordState(db);
       });
     }
+    if (currentVersion < 9) {
+      await rebuildExerciseTablesWithoutTimerMetadata(db);
+    }
   }
 
   if (currentVersion < LATEST_SCHEMA_VERSION) {
@@ -109,6 +108,78 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   await seedExercises(db);
 
   return db;
+}
+
+async function rebuildExerciseTablesWithoutTimerMetadata(db: SQLite.SQLiteDatabase): Promise<void> {
+  await db.execAsync('PRAGMA foreign_keys = OFF;');
+  try {
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(`
+        CREATE TABLE routine_exercises_next (
+          id                TEXT PRIMARY KEY,
+          routine_id        TEXT NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
+          exercise_id       TEXT NOT NULL REFERENCES exercises(id),
+          position          INTEGER NOT NULL,
+          superset_group_id TEXT,
+          exercise_type     TEXT NOT NULL CHECK (
+            exercise_type IN (
+              'weight_reps',
+              'reps_only',
+              'weighted_bodyweight',
+              'assisted_bodyweight',
+              'duration',
+              'duration_weight',
+              'distance_duration',
+              'weight_distance'
+            )
+          ),
+          notes             TEXT
+        );
+
+        INSERT INTO routine_exercises_next
+          (id, routine_id, exercise_id, position, superset_group_id, exercise_type, notes)
+        SELECT id, routine_id, exercise_id, position, superset_group_id, exercise_type, notes
+          FROM routine_exercises;
+
+        DROP TABLE routine_exercises;
+        ALTER TABLE routine_exercises_next RENAME TO routine_exercises;
+        CREATE INDEX idx_routine_exercises_routine ON routine_exercises(routine_id);
+
+        CREATE TABLE workout_exercises_next (
+          id                TEXT PRIMARY KEY,
+          workout_id        TEXT NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+          exercise_id       TEXT NOT NULL REFERENCES exercises(id),
+          position          INTEGER NOT NULL,
+          superset_group_id TEXT,
+          exercise_type     TEXT NOT NULL CHECK (
+            exercise_type IN (
+              'weight_reps',
+              'reps_only',
+              'weighted_bodyweight',
+              'assisted_bodyweight',
+              'duration',
+              'duration_weight',
+              'distance_duration',
+              'weight_distance'
+            )
+          ),
+          notes             TEXT
+        );
+
+        INSERT INTO workout_exercises_next
+          (id, workout_id, exercise_id, position, superset_group_id, exercise_type, notes)
+        SELECT id, workout_id, exercise_id, position, superset_group_id, exercise_type, notes
+          FROM workout_exercises;
+
+        DROP TABLE workout_exercises;
+        ALTER TABLE workout_exercises_next RENAME TO workout_exercises;
+        CREATE INDEX idx_workout_exercises_workout ON workout_exercises(workout_id);
+        CREATE INDEX idx_workout_exercises_exercise ON workout_exercises(exercise_id);
+      `);
+    });
+  } finally {
+    await db.execAsync('PRAGMA foreign_keys = ON;');
+  }
 }
 
 async function rebuildDevSchema(db: SQLite.SQLiteDatabase): Promise<void> {

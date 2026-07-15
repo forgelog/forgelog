@@ -28,7 +28,6 @@ data class RoutineExerciseDetailDto(
     @SerialName("exercise_id") val exerciseId: String,
     val position: Int,
     @SerialName("superset_group_id") val supersetGroupId: String? = null,
-    @SerialName("rest_seconds") val restSeconds: Int? = null,
     @SerialName("exercise_type") val exerciseType: String,
     val exercise: ExerciseDto,
     val sets: List<RoutineSetDto> = emptyList(),
@@ -83,7 +82,6 @@ data class WorkoutExercisePayloadDto(
     val position: Int,
     @SerialName("superset_group_id") val supersetGroupId: String? = null,
     @SerialName("exercise_type") val exerciseType: String,
-    @SerialName("rest_seconds") val restSeconds: Int? = null,
     val notes: String? = null,
     val sets: List<LoggedSetPayloadDto>,
 )

@@ -10,9 +10,6 @@ import dev.bishnoi.forgelog.wear.data.WorkoutRepository
 import dev.bishnoi.forgelog.wear.logic.RecordType
 import dev.bishnoi.forgelog.wear.logic.SetPerformance
 import dev.bishnoi.forgelog.wear.logic.ExerciseType
-import dev.bishnoi.forgelog.wear.logic.resolveRestSeconds
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -39,13 +36,11 @@ data class ExerciseDetailUiState(
     val exerciseType: ExerciseType = ExerciseType.WEIGHT_REPS,
     val sets: List<SetRow> = emptyList(),
     val currentIndex: Int = 0,
-    val restRemaining: Int? = null,
 )
 
 /**
  * Screens 2/3 per docs/wearos-scope.md: an exercise's own page, showing one
- * set at a time, with add/remove-set actions and the rest timer as a
- * transient state on this same screen (not a separate destination).
+ * set at a time, with add/remove-set actions.
  */
 class ExerciseDetailViewModel(
     private val workoutDao: WorkoutDao,
@@ -55,8 +50,6 @@ class ExerciseDetailViewModel(
     private val workoutExerciseId: String,
 ) : ViewModel() {
     private val currentIndex = MutableStateFlow(0)
-    private val restRemaining = MutableStateFlow<Int?>(null)
-    private var restJob: Job? = null
     private var latestSets: List<LoggedSetEntity> = emptyList()
 
     private val prEvents = MutableSharedFlow<List<RecordType>>(extraBufferCapacity = 1)
@@ -73,15 +66,13 @@ class ExerciseDetailViewModel(
         setsFlow,
         exerciseNameFlow,
         currentIndex,
-        restRemaining,
-    ) { we, sets, name, index, rest ->
+    ) { we, sets, name, index ->
         latestSets = sets
         ExerciseDetailUiState(
             exerciseName = name,
             exerciseType = we?.let { ExerciseType.fromValue(it.exerciseType) } ?: ExerciseType.WEIGHT_REPS,
             sets = sets.map { it.toSetRow() },
             currentIndex = index.coerceIn(0, (sets.size - 1).coerceAtLeast(0)),
-            restRemaining = rest,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ExerciseDetailUiState())
 
@@ -121,8 +112,6 @@ class ExerciseDetailViewModel(
                 SetPerformance(completedSet.weight, completedSet.reps, exerciseType, completedSet.setType),
             )
             if (improved.isNotEmpty()) prEvents.tryEmit(improved)
-
-            startRest(resolveRestSeconds(we.restSeconds))
         }
     }
 
@@ -146,24 +135,6 @@ class ExerciseDetailViewModel(
         }
     }
 
-    fun skipRest() {
-        restJob?.cancel()
-        restRemaining.value = null
-    }
-
-    private fun startRest(seconds: Int) {
-        restJob?.cancel()
-        restRemaining.value = seconds
-        restJob = viewModelScope.launch {
-            var remaining = seconds
-            while (remaining > 0) {
-                delay(1000)
-                remaining -= 1
-                restRemaining.value = remaining
-            }
-            restRemaining.value = null
-        }
-    }
 }
 
 private fun LoggedSetEntity.toSetRow() = SetRow(

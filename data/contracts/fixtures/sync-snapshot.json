@@ -11,7 +11,6 @@
           "exercise_id": "ex1",
           "position": 0,
           "superset_group_id": null,
-          "rest_seconds": 90,
           "exercise_type": "weight_reps",
           "exercise": { "id": "ex1", "name": "Bench Press", "exercise_type": "weight_reps" },
           "sets": [

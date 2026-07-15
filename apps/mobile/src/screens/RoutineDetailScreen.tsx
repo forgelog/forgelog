@@ -5,7 +5,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { mobileStore } from '../db/mobileStore';
 import type { RoutineDetail, RoutineSet } from '../db/types';
-import { formatSet, requireExerciseType, resolveRestSeconds } from '../domain/setFields';
+import { formatSet, requireExerciseType } from '../domain/setFields';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -72,9 +72,6 @@ export function RoutineDetailScreen({ route, navigation }: Props) {
                   >
                     {routineExercise.exercise.name}
                   </Text>
-                  <Text style={[styles.restText, { color: c.sub }]}>
-                    {resolveRestSeconds(routineExercise.rest_seconds)}s rest
-                  </Text>
                 </View>
                 {routineExercise.sets.length === 0 ? (
                   <Text style={[styles.emptySet, { color: c.sub }]}>No target sets</Text>
@@ -116,7 +113,6 @@ const styles = StyleSheet.create({
   exercise: { paddingVertical: 14, borderTopWidth: 1 },
   exerciseHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   exerciseName: { flex: 1, minWidth: 0, fontSize: 16, fontWeight: '700' },
-  restText: { fontSize: 12 },
   trackingText: { marginTop: 4, fontSize: 12 },
   emptySet: { marginTop: 8, fontSize: 13 },
   setRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 },

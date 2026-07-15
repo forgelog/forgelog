@@ -202,18 +202,13 @@ export async function updateRoutineExercise(
   db: DatabaseExecutor,
   routineExerciseId: string,
   fields: {
-    rest_seconds?: number | null;
     superset_group_id?: string | null;
     notes?: string | null;
   }
 ): Promise<void> {
   const sets: string[] = [];
-  type RoutineExerciseUpdateValue = string | number | null;
+  type RoutineExerciseUpdateValue = string | null;
   const params: Record<string, RoutineExerciseUpdateValue> = { $id: routineExerciseId };
-  if (fields.rest_seconds !== undefined) {
-    sets.push('rest_seconds = $rest');
-    params.$rest = fields.rest_seconds;
-  }
   if (fields.superset_group_id !== undefined) {
     sets.push('superset_group_id = $superset');
     params.$superset = fields.superset_group_id;
@@ -253,7 +248,6 @@ export type SaveRoutineDraftInput = {
   exercises: {
     exercise_id: string;
     superset_group_id?: string | null;
-    rest_seconds: number | null;
     exercise_type: string;
     notes: string | null;
     sets: {
@@ -304,15 +298,14 @@ export async function saveRoutineDraft(
     const routineExerciseId = id();
     await db.runAsync(
       `INSERT INTO routine_exercises
-           (id, routine_id, exercise_id, position, superset_group_id, rest_seconds, exercise_type, notes)
-         VALUES ($id, $routine_id, $exercise_id, $position, $superset_group_id, $rest_seconds, $exercise_type, $notes)`,
+           (id, routine_id, exercise_id, position, superset_group_id, exercise_type, notes)
+         VALUES ($id, $routine_id, $exercise_id, $position, $superset_group_id, $exercise_type, $notes)`,
       {
         $id: routineExerciseId,
         $routine_id: routineId,
         $exercise_id: exercise.exercise_id,
         $position: exerciseIndex,
         $superset_group_id: exercise.superset_group_id ?? null,
-        $rest_seconds: exercise.rest_seconds,
         $exercise_type: exerciseType,
         $notes: exercise.notes,
       }

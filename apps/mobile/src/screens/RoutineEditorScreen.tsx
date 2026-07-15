@@ -36,7 +36,6 @@ import {
   routineDetailToDraft,
   updateDraftName,
   updateDraftNotes,
-  updateDraftRest,
   updateDraftSetField,
   validateRoutineDraft,
   type RoutineDraft,
@@ -76,7 +75,6 @@ type RoutineDraftController = {
     removeSet(exerciseLocalId: string, setLocalId: string): void;
     removeExercise(exerciseLocalId: string): void;
     moveExercise(index: number, delta: number): void;
-    updateRest(exerciseLocalId: string, raw: string): void;
     updateSetField(
       exerciseLocalId: string,
       setLocalId: string,
@@ -342,10 +340,6 @@ function RoutineDraftProvider({
     updateDraft((current) => moveExerciseInDraft(current, index, delta));
   }, [updateDraft]);
 
-  const updateRest = useCallback((exerciseLocalId: string, raw: string) => {
-    updateDraft((current) => updateDraftRest(current, exerciseLocalId, raw));
-  }, [updateDraft]);
-
   const updateSetField = useCallback(
     (exerciseLocalId: string, setLocalId: string, field: ExerciseTypeFieldDescriptor, raw: string) => {
       updateDraft((current) => updateDraftSetField(current, exerciseLocalId, setLocalId, field, raw));
@@ -410,7 +404,6 @@ function RoutineDraftProvider({
         removeSet,
         removeExercise,
         moveExercise,
-        updateRest,
         updateSetField,
         save,
         close,
@@ -436,7 +429,6 @@ function RoutineDraftProvider({
       submitting,
       updateName,
       updateNotes,
-      updateRest,
       updateSetField,
       moveExercise,
     ]
@@ -614,25 +606,6 @@ function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps
           </Pressable>
         </View>
       </View>
-
-      <View style={styles.metaRow}>
-        <View style={styles.restBox}>
-          <Text style={[styles.restLabel, { color: c.sub }]}>Rest</Text>
-          <TextInput
-            style={[styles.restInput, { backgroundColor: c.fill, color: c.fg }]}
-            value={item.rest_seconds?.toString() ?? ''}
-            onChangeText={(text) => actions.updateRest(item.localId, text)}
-            placeholder="sec"
-            placeholderTextColor={c.sub}
-            keyboardType="numeric"
-            editable={!submitting}
-            accessibilityState={submitting ? { disabled: true } : undefined}
-            accessibilityLabel={`Rest seconds for ${item.exercise.name}`}
-            testID={`routine-exercise-${index}-rest`}
-          />
-        </View>
-      </View>
-
       {item.sets.map((set, setIndex) => (
         <RoutineSetDraftRow
           key={set.localId}
@@ -734,10 +707,6 @@ const styles = StyleSheet.create({
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseName: { fontSize: 16, fontWeight: '700', flex: 1, minWidth: 0 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' },
-  restBox: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 'auto' },
-  restLabel: { fontSize: 12 },
-  restInput: { width: 52, height: 32, borderRadius: 8, textAlign: 'center', fontSize: 14 },
   setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
   setIndex: { width: 20, fontSize: 13 },
   setInput: { width: 72, height: 36, borderRadius: 8, textAlign: 'center', fontSize: 15 },
