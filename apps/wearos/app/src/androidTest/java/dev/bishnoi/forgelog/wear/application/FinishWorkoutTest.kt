@@ -66,15 +66,21 @@ class FinishWorkoutTest {
         }
     }
 
+    private suspend fun finishWorkout(
+        workoutId: String,
+        publish: suspend (WorkoutPayloadDto) -> Unit,
+    ) {
+        FinishWorkout(workoutRepo, syncRepo, dao, publish).invoke(workoutId)
+    }
+
     @Test
     fun invokeFinishesPublishesAndMarksSynced() = runBlocking {
         seedActiveWorkout()
         val published = mutableListOf<String>()
-        val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { payload ->
+
+        finishWorkout("w1") { payload ->
             published += payload.id
         }
-
-        finishWorkout("w1")
 
         val workout = dao.getWorkout("w1")
         assertNotNull(workout?.endedAt)
@@ -85,11 +91,10 @@ class FinishWorkoutTest {
     @Test
     fun invokePublishFailureStillFinishesButStaysUnsynced() = runBlocking {
         seedActiveWorkout()
-        val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { _ ->
+
+        finishWorkout("w1") { _ ->
             throw RuntimeException("network down")
         }
-
-        finishWorkout("w1")
 
         val workout = dao.getWorkout("w1")
         assertNotNull(workout?.endedAt)
@@ -99,11 +104,12 @@ class FinishWorkoutTest {
     @Test
     fun invokePublishCancellationPropagates() = runBlocking {
         seedActiveWorkout()
-        val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { _ ->
-            throw CancellationException("cancelled")
-        }
 
-        assertCancellation { finishWorkout("w1") }
+        assertCancellation {
+            finishWorkout("w1") { _ ->
+                throw CancellationException("cancelled")
+            }
+        }
     }
 
     @Test
