@@ -1,4 +1,5 @@
-import { resetDbForTests } from '../../index';
+import { getDb, resetDbForTests } from '../../index';
+import { getRoutinesWithSummaries } from '../routines';
 import { mobileStoreForTests as mobileStore, seededExercise } from '../../../test-utils/db';
 
 const { start: startWorkout, getDetail: getWorkoutDetail } = mobileStore.workouts;
@@ -9,7 +10,7 @@ const {
   remove: deleteRoutine,
   removeSet: deleteRoutineSet,
   getDetail: getRoutineDetail,
-  listSummaries: listRoutineSummaries,
+  getWithSummaries: getRoutinesWithSummariesFromStore,
   removeExercise: removeRoutineExercise,
   reorderExercises: reorderRoutineExercises,
   saveDraft: saveRoutineDraft,
@@ -84,8 +85,12 @@ test('persists CRUD, reorder, and target-set edits on real SQL', async () => {
       }),
     ],
   });
-  await expect(listRoutineSummaries()).resolves.toEqual([
-    expect.objectContaining({ id: routine.id, exerciseCount: 1, muscles: ['chest'] }),
+  await expect(getRoutinesWithSummariesFromStore()).resolves.toEqual([
+    expect.objectContaining({
+      id: routine.id,
+      exerciseCount: 1,
+      exerciseNames: ['Barbell Bench Press - Medium Grip'],
+    }),
   ]);
 
   await deleteRoutine(routine.id);
@@ -298,8 +303,36 @@ test('saveRoutineDraft rejects invalid name and notes with existing validation m
   ).rejects.toThrow('Add at least one exercise before saving.');
 });
 
+test('getRoutinesWithSummaries returns all summaries in one aggregate query', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const squat = await seededExercise('Barbell Squat');
+  const routine = await createRoutine('Strength');
+  await addExerciseToRoutine(routine.id, bench.id);
+  await addExerciseToRoutine(routine.id, bench.id);
+  await addExerciseToRoutine(routine.id, squat.id);
+  const emptyRoutine = await createRoutine('Empty');
+
+  const db = await getDb();
+  const prepareSync = jest.spyOn(db, 'prepareSync');
+
+  await expect(getRoutinesWithSummaries(db)).resolves.toEqual([
+    expect.objectContaining({
+      id: routine.id,
+      exerciseCount: 3,
+      exerciseNames: ['Barbell Bench Press - Medium Grip', 'Barbell Squat'],
+    }),
+    expect.objectContaining({
+      id: emptyRoutine.id,
+      exerciseCount: 0,
+      exerciseNames: [],
+    }),
+  ]);
+  expect(prepareSync).toHaveBeenCalledTimes(1);
+  prepareSync.mockRestore();
+});
+
 test('saveRoutineDraft rolls back when child insert fails', async () => {
-  const before = await listRoutineSummaries();
+  const before = await getRoutinesWithSummariesFromStore();
 
   await expect(
     saveRoutineDraft({
@@ -317,7 +350,7 @@ test('saveRoutineDraft rolls back when child insert fails', async () => {
     })
   ).rejects.toThrow();
 
-  await expect(listRoutineSummaries()).resolves.toEqual(before);
+  await expect(getRoutinesWithSummariesFromStore()).resolves.toEqual(before);
 });
 
 test('saveRoutineDraft keeps existing workout history attached to the same routine id', async () => {

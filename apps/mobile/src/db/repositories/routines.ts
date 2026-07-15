@@ -1,7 +1,11 @@
-import { id } from '../id';
+import { asc, count, eq, getTableColumns, max, sql, type SQL } from 'drizzle-orm';
+import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
+
 import { requireExerciseType } from '../../domain/setFields';
 import { NAME_MAX_LENGTH, NOTES_MAX_LENGTH, validateText } from '../../validation/textInput';
 import type { DatabaseExecutor } from '../executor';
+import { id } from '../id';
+import { exercises, getOrm, routineExercises, routineSets, routines } from '../orm';
 import type {
   Routine,
   RoutineDetail,
@@ -11,85 +15,77 @@ import type {
   SetType,
 } from '../types';
 
-type ExerciseRow = {
-  id: string;
-  name: string;
-  muscle_group: string;
-  equipment: string;
-  exercise_type: string;
-  is_custom: number;
-  instructions: string | null;
-  images: string | null;
-  secondary_muscles: string | null;
-  created_at: string;
-};
-
 export async function listRoutines(db: DatabaseExecutor): Promise<Routine[]> {
-  return db.getAllAsync<Routine>('SELECT * FROM routines ORDER BY position, created_at');
+  return getOrm(db)
+    .select()
+    .from(routines)
+    .orderBy(asc(routines.position), asc(routines.created_at))
+    .all();
 }
 
 export async function getRoutineDetail(
   db: DatabaseExecutor,
   routineId: string
 ): Promise<RoutineDetail | null> {
-  const routine = await db.getFirstAsync<Routine>('SELECT * FROM routines WHERE id = $id', {
-    $id: routineId,
-  });
+  const orm = getOrm(db);
+  const routine = orm.select().from(routines).where(eq(routines.id, routineId)).get();
   if (!routine) return null;
 
-  const routineExercises = await db.getAllAsync<RoutineExercise>(
-    'SELECT * FROM routine_exercises WHERE routine_id = $id ORDER BY position',
-    { $id: routineId }
-  );
+  const rows = orm
+    .select({
+      routineExercise: routineExercises,
+      exercise: exercises,
+      set: routineSets,
+    })
+    .from(routineExercises)
+    .innerJoin(exercises, eq(routineExercises.exercise_id, exercises.id))
+    .leftJoin(routineSets, eq(routineSets.routine_exercise_id, routineExercises.id))
+    .where(eq(routineExercises.routine_id, routineId))
+    .orderBy(asc(routineExercises.position), asc(routineSets.position))
+    .all();
 
-  const exercises: RoutineExerciseDetail[] = [];
-  for (const re of routineExercises) {
-    const exRow = await db.getFirstAsync<ExerciseRow>('SELECT * FROM exercises WHERE id = $id', {
-      $id: re.exercise_id,
-    });
-    const sets = await db.getAllAsync<RoutineSet>(
-      'SELECT * FROM routine_sets WHERE routine_exercise_id = $id ORDER BY position',
-      { $id: re.id }
-    );
-    if (!exRow) continue;
-    exercises.push({
-      ...re,
-      exercise: {
-        id: exRow.id,
-        name: exRow.name,
-        muscle_group: exRow.muscle_group,
-        equipment: exRow.equipment,
-        exercise_type: requireExerciseType(exRow.exercise_type),
-        is_custom: exRow.is_custom === 1,
-        instructions: exRow.instructions ? (JSON.parse(exRow.instructions) as string[]) : [],
-        images: exRow.images ? (JSON.parse(exRow.images) as string[]) : [],
-        secondary_muscles: exRow.secondary_muscles
-          ? (JSON.parse(exRow.secondary_muscles) as string[])
-          : [],
-        created_at: exRow.created_at,
-      },
-      sets,
-    });
+  const detailById = new Map<string, RoutineExerciseDetail>();
+  for (const row of rows) {
+    let detail = detailById.get(row.routineExercise.id);
+    if (!detail) {
+      detail = {
+        ...row.routineExercise,
+        exercise: {
+          ...row.exercise,
+          exercise_type: requireExerciseType(row.exercise.exercise_type),
+          instructions: row.exercise.instructions ?? [],
+          images: row.exercise.images ?? [],
+          secondary_muscles: row.exercise.secondary_muscles ?? [],
+        },
+        sets: [],
+      };
+      detailById.set(detail.id, detail);
+    }
+    if (row.set) detail.sets.push(row.set);
   }
 
-  return { ...routine, exercises };
+  return { ...routine, exercises: [...detailById.values()] };
 }
 
-export type RoutineSummary = Routine & { exerciseCount: number; muscles: string[] };
+export type RoutineSummary = Routine & { exerciseCount: number; exerciseNames: string[] };
 
-export async function listRoutineSummaries(db: DatabaseExecutor): Promise<RoutineSummary[]> {
-  const routines = await listRoutines(db);
-  const summaries: RoutineSummary[] = [];
-  for (const routine of routines) {
-    const detail = await getRoutineDetail(db, routine.id);
-    const muscles = [...new Set((detail?.exercises ?? []).map((e) => e.exercise.muscle_group))];
-    summaries.push({
-      ...routine,
-      exerciseCount: detail?.exercises.length ?? 0,
-      muscles,
-    });
-  }
-  return summaries;
+export async function getRoutinesWithSummaries(db: DatabaseExecutor): Promise<RoutineSummary[]> {
+  return getOrm(db)
+    .select({
+      ...getTableColumns(routines),
+      exerciseCount: count(routineExercises.id),
+      exerciseNames: sql<string>`coalesce(
+        json_group_array(distinct ${exercises.name})
+          filter (where ${exercises.id} is not null),
+        json('[]')
+      )`.mapWith((value) => JSON.parse(value) as string[]),
+    })
+    .from(routines)
+    .leftJoin(routineExercises, eq(routineExercises.routine_id, routines.id))
+    .leftJoin(exercises, eq(exercises.id, routineExercises.exercise_id))
+    .groupBy(routines.id)
+    .orderBy(asc(routines.position), asc(routines.created_at))
+    .all();
 }
 
 function validateRoutineName(name: string): string {
@@ -121,14 +117,11 @@ export async function createRoutine(
   const validName = validateRoutineName(name);
   const validNotes = validateRoutineNotes(notes);
   const newId = id();
-  const position = await nextRoutinePosition(db);
-  await db.runAsync(
-    'INSERT INTO routines (id, name, notes, position) VALUES ($id, $name, $notes, $position)',
-    { $id: newId, $name: validName, $notes: validNotes, $position: position }
-  );
-  const created = await db.getFirstAsync<Routine>('SELECT * FROM routines WHERE id = $id', {
-    $id: newId,
-  });
+  const orm = getOrm(db);
+  const position = nextRoutinePosition(db);
+
+  orm.insert(routines).values({ id: newId, name: validName, notes: validNotes, position }).run();
+  const created = orm.select().from(routines).where(eq(routines.id, newId)).get();
   if (!created) throw new Error('Failed to create routine');
   return created;
 }
@@ -138,23 +131,19 @@ export async function updateRoutine(
   routineId: string,
   fields: { name?: string; notes?: string | null }
 ): Promise<void> {
-  const sets: string[] = [];
-  const params: Record<string, string | null> = { $id: routineId };
-  if (fields.name !== undefined) {
-    sets.push('name = $name');
-    params.$name = validateRoutineName(fields.name);
-  }
-  if (fields.notes !== undefined) {
-    sets.push('notes = $notes');
-    params.$notes = validateRoutineNotes(fields.notes);
-  }
-  if (!sets.length) return;
-  sets.push("updated_at = datetime('now')");
-  await db.runAsync(`UPDATE routines SET ${sets.join(', ')} WHERE id = $id`, params);
+  if (fields.name === undefined && fields.notes === undefined) return;
+
+  const updates: { name?: string; notes?: string | null; updated_at: SQL } = {
+    updated_at: sql`datetime('now')`,
+  };
+  if (fields.name !== undefined) updates.name = validateRoutineName(fields.name);
+  if (fields.notes !== undefined) updates.notes = validateRoutineNotes(fields.notes);
+
+  getOrm(db).update(routines).set(updates).where(eq(routines.id, routineId)).run();
 }
 
 export async function deleteRoutine(db: DatabaseExecutor, routineId: string): Promise<void> {
-  await db.runAsync('DELETE FROM routines WHERE id = $id', { $id: routineId });
+  getOrm(db).delete(routines).where(eq(routines.id, routineId)).run();
 }
 
 export async function addExerciseToRoutine(
@@ -162,31 +151,31 @@ export async function addExerciseToRoutine(
   routineId: string,
   exerciseId: string
 ): Promise<RoutineExercise> {
-  const newId = id();
-  const row = await db.getFirstAsync<{ next: number }>(
-    'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM routine_exercises WHERE routine_id = $id',
-    { $id: routineId }
-  );
-  const exercise = await db.getFirstAsync<{ exercise_type: string }>(
-    'SELECT exercise_type FROM exercises WHERE id = $id',
-    { $id: exerciseId }
-  );
+  const orm = getOrm(db);
+  const exercise = orm
+    .select({ exercise_type: exercises.exercise_type })
+    .from(exercises)
+    .where(eq(exercises.id, exerciseId))
+    .get();
   if (!exercise) throw new Error('Exercise not found');
-  await db.runAsync(
-    `INSERT INTO routine_exercises (id, routine_id, exercise_id, position, exercise_type)
-     VALUES ($id, $routine_id, $exercise_id, $position, $exercise_type)`,
-    {
-      $id: newId,
-      $routine_id: routineId,
-      $exercise_id: exerciseId,
-      $position: row?.next ?? 0,
-      $exercise_type: requireExerciseType(exercise.exercise_type),
-    }
-  );
-  const created = await db.getFirstAsync<RoutineExercise>(
-    'SELECT * FROM routine_exercises WHERE id = $id',
-    { $id: newId }
-  );
+
+  const newId = id();
+  const position = nextPosition(db, routineExercises.position, routineExercises, {
+    column: routineExercises.routine_id,
+    value: routineId,
+  });
+  orm
+    .insert(routineExercises)
+    .values({
+      id: newId,
+      routine_id: routineId,
+      exercise_id: exerciseId,
+      position,
+      exercise_type: requireExerciseType(exercise.exercise_type),
+    })
+    .run();
+
+  const created = orm.select().from(routineExercises).where(eq(routineExercises.id, newId)).get();
   if (!created) throw new Error('Failed to add exercise to routine');
   return created;
 }
@@ -195,41 +184,39 @@ export async function removeRoutineExercise(
   db: DatabaseExecutor,
   routineExerciseId: string
 ): Promise<void> {
-  await db.runAsync('DELETE FROM routine_exercises WHERE id = $id', { $id: routineExerciseId });
+  getOrm(db).delete(routineExercises).where(eq(routineExercises.id, routineExerciseId)).run();
 }
 
 export async function updateRoutineExercise(
   db: DatabaseExecutor,
   routineExerciseId: string,
-  fields: {
-    superset_group_id?: string | null;
-    notes?: string | null;
-  }
+  fields: { superset_group_id?: string | null; notes?: string | null }
 ): Promise<void> {
-  const sets: string[] = [];
-  type RoutineExerciseUpdateValue = string | null;
-  const params: Record<string, RoutineExerciseUpdateValue> = { $id: routineExerciseId };
+  const updates: { superset_group_id?: string | null; notes?: string | null } = {};
   if (fields.superset_group_id !== undefined) {
-    sets.push('superset_group_id = $superset');
-    params.$superset = fields.superset_group_id;
+    updates.superset_group_id = fields.superset_group_id;
   }
-  if (fields.notes !== undefined) {
-    sets.push('notes = $notes');
-    params.$notes = fields.notes;
-  }
-  if (!sets.length) return;
-  await db.runAsync(`UPDATE routine_exercises SET ${sets.join(', ')} WHERE id = $id`, params);
+  if (fields.notes !== undefined) updates.notes = fields.notes;
+  if (!Object.keys(updates).length) return;
+
+  getOrm(db)
+    .update(routineExercises)
+    .set(updates)
+    .where(eq(routineExercises.id, routineExerciseId))
+    .run();
 }
 
 export async function reorderRoutineExercises(
   db: DatabaseExecutor,
   orderedIds: string[]
 ): Promise<void> {
-  for (let i = 0; i < orderedIds.length; i++) {
-    await db.runAsync('UPDATE routine_exercises SET position = $pos WHERE id = $id', {
-      $pos: i,
-      $id: orderedIds[i],
-    });
+  const orm = getOrm(db);
+  for (let position = 0; position < orderedIds.length; position++) {
+    orm
+      .update(routineExercises)
+      .set({ position })
+      .where(eq(routineExercises.id, orderedIds[position]))
+      .run();
   }
 }
 
@@ -269,67 +256,62 @@ export async function saveRoutineDraft(
   if (input.exercises.length === 0) {
     throw new Error('Add at least one exercise before saving.');
   }
-  const routineId = input.routineId ?? id();
 
+  const orm = getOrm(db);
+  const routineId = input.routineId ?? id();
   if (input.routineId) {
-    await db.runAsync(
-      "UPDATE routines SET name = $name, notes = $notes, updated_at = datetime('now') WHERE id = $id",
-      { $id: routineId, $name: validName, $notes: validNotes }
-    );
-    await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = $id', {
-      $id: routineId,
-    });
+    orm
+      .update(routines)
+      .set({ name: validName, notes: validNotes, updated_at: sql`datetime('now')` })
+      .where(eq(routines.id, routineId))
+      .run();
+    orm.delete(routineExercises).where(eq(routineExercises.routine_id, routineId)).run();
   } else {
-    const position = await nextRoutinePosition(db);
-    await db.runAsync(
-      'INSERT INTO routines (id, name, notes, position) VALUES ($id, $name, $notes, $position)',
-      { $id: routineId, $name: validName, $notes: validNotes, $position: position }
-    );
+    orm
+      .insert(routines)
+      .values({
+        id: routineId,
+        name: validName,
+        notes: validNotes,
+        position: nextRoutinePosition(db),
+      })
+      .run();
   }
 
-  for (let exerciseIndex = 0; exerciseIndex < input.exercises.length; exerciseIndex++) {
-    const exercise = input.exercises[exerciseIndex];
-    const exerciseExists = await db.getFirstAsync<{ id: string; exercise_type: string }>(
-      'SELECT id, exercise_type FROM exercises WHERE id = $id',
-      { $id: exercise.exercise_id }
-    );
+  for (const [exerciseIndex, exercise] of input.exercises.entries()) {
+    const exerciseExists = orm
+      .select({ id: exercises.id })
+      .from(exercises)
+      .where(eq(exercises.id, exercise.exercise_id))
+      .get();
     if (!exerciseExists) throw new Error('Exercise not found');
-    const exerciseType = requireExerciseType(exercise.exercise_type);
-    const routineExerciseId = id();
-    await db.runAsync(
-      `INSERT INTO routine_exercises
-           (id, routine_id, exercise_id, position, superset_group_id, exercise_type, notes)
-         VALUES ($id, $routine_id, $exercise_id, $position, $superset_group_id, $exercise_type, $notes)`,
-      {
-        $id: routineExerciseId,
-        $routine_id: routineId,
-        $exercise_id: exercise.exercise_id,
-        $position: exerciseIndex,
-        $superset_group_id: exercise.superset_group_id ?? null,
-        $exercise_type: exerciseType,
-        $notes: exercise.notes,
-      }
-    );
 
-    for (let setIndex = 0; setIndex < exercise.sets.length; setIndex++) {
-      const set = exercise.sets[setIndex];
-      await db.runAsync(
-        `INSERT INTO routine_sets
-             (id, routine_exercise_id, position, set_type,
-              target_weight, target_reps, target_duration_seconds, target_distance_meters)
-           VALUES ($id, $routine_exercise_id, $position, $set_type,
-              $target_weight, $target_reps, $target_duration_seconds, $target_distance_meters)`,
-        {
-          $id: id(),
-          $routine_exercise_id: routineExerciseId,
-          $position: setIndex,
-          $set_type: set.set_type,
-          $target_weight: set.target_weight,
-          $target_reps: set.target_reps,
-          $target_duration_seconds: set.target_duration_seconds,
-          $target_distance_meters: set.target_distance_meters,
-        }
-      );
+    const routineExerciseId = id();
+    orm
+      .insert(routineExercises)
+      .values({
+        id: routineExerciseId,
+        routine_id: routineId,
+        exercise_id: exercise.exercise_id,
+        position: exerciseIndex,
+        superset_group_id: exercise.superset_group_id ?? null,
+        exercise_type: requireExerciseType(exercise.exercise_type),
+        notes: exercise.notes,
+      })
+      .run();
+
+    if (exercise.sets.length) {
+      orm
+        .insert(routineSets)
+        .values(
+          exercise.sets.map((set, position) => ({
+            id: id(),
+            routine_exercise_id: routineExerciseId,
+            position,
+            ...set,
+          }))
+        )
+        .run();
     }
   }
 
@@ -343,31 +325,27 @@ export async function addRoutineSet(
   routineExerciseId: string,
   input: RoutineSetInput = {}
 ): Promise<RoutineSet> {
+  const orm = getOrm(db);
   const newId = id();
-  const row = await db.getFirstAsync<{ next: number }>(
-    'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM routine_sets WHERE routine_exercise_id = $id',
-    { $id: routineExerciseId }
-  );
-  await db.runAsync(
-    `INSERT INTO routine_sets
-       (id, routine_exercise_id, position, set_type,
-        target_weight, target_reps, target_duration_seconds, target_distance_meters)
-     VALUES ($id, $rex, $position, $set_type,
-        $target_weight, $target_reps, $target_duration_seconds, $target_distance_meters)`,
-    {
-      $id: newId,
-      $rex: routineExerciseId,
-      $position: row?.next ?? 0,
-      $set_type: input.set_type ?? 'normal',
-      $target_weight: input.target_weight ?? null,
-      $target_reps: input.target_reps ?? null,
-      $target_duration_seconds: input.target_duration_seconds ?? null,
-      $target_distance_meters: input.target_distance_meters ?? null,
-    }
-  );
-  const created = await db.getFirstAsync<RoutineSet>('SELECT * FROM routine_sets WHERE id = $id', {
-    $id: newId,
+  const position = nextPosition(db, routineSets.position, routineSets, {
+    column: routineSets.routine_exercise_id,
+    value: routineExerciseId,
   });
+  orm
+    .insert(routineSets)
+    .values({
+      id: newId,
+      routine_exercise_id: routineExerciseId,
+      position,
+      set_type: input.set_type ?? 'normal',
+      target_weight: input.target_weight ?? null,
+      target_reps: input.target_reps ?? null,
+      target_duration_seconds: input.target_duration_seconds ?? null,
+      target_distance_meters: input.target_distance_meters ?? null,
+    })
+    .run();
+
+  const created = orm.select().from(routineSets).where(eq(routineSets.id, newId)).get();
   if (!created) throw new Error('Failed to add routine set');
   return created;
 }
@@ -377,30 +355,45 @@ export async function updateRoutineSet(
   setId: string,
   fields: RoutineSetInput
 ): Promise<void> {
-  const sets: string[] = [];
-  const params: Record<string, string | number | null> = { $id: setId };
-  const assign = (col: string, key: string, value: string | number | null) => {
-    sets.push(`${col} = ${key}`);
-    params[key] = value;
-  };
-  if (fields.set_type !== undefined) assign('set_type', '$set_type', fields.set_type);
-  if (fields.target_weight !== undefined) assign('target_weight', '$weight', fields.target_weight);
-  if (fields.target_reps !== undefined) assign('target_reps', '$reps', fields.target_reps);
-  if (fields.target_duration_seconds !== undefined)
-    assign('target_duration_seconds', '$duration', fields.target_duration_seconds);
-  if (fields.target_distance_meters !== undefined)
-    assign('target_distance_meters', '$distance', fields.target_distance_meters);
-  if (!sets.length) return;
-  await db.runAsync(`UPDATE routine_sets SET ${sets.join(', ')} WHERE id = $id`, params);
+  const updates: RoutineSetInput = {};
+  if (fields.set_type !== undefined) updates.set_type = fields.set_type;
+  if (fields.target_weight !== undefined) updates.target_weight = fields.target_weight;
+  if (fields.target_reps !== undefined) updates.target_reps = fields.target_reps;
+  if (fields.target_duration_seconds !== undefined) {
+    updates.target_duration_seconds = fields.target_duration_seconds;
+  }
+  if (fields.target_distance_meters !== undefined) {
+    updates.target_distance_meters = fields.target_distance_meters;
+  }
+  if (!Object.keys(updates).length) return;
+
+  getOrm(db).update(routineSets).set(updates).where(eq(routineSets.id, setId)).run();
 }
 
 export async function deleteRoutineSet(db: DatabaseExecutor, setId: string): Promise<void> {
-  await db.runAsync('DELETE FROM routine_sets WHERE id = $id', { $id: setId });
+  getOrm(db).delete(routineSets).where(eq(routineSets.id, setId)).run();
 }
 
-async function nextRoutinePosition(db: DatabaseExecutor): Promise<number> {
-  const row = await db.getFirstAsync<{ next: number }>(
-    'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM routines'
-  );
-  return row?.next ?? 0;
+function nextRoutinePosition(db: DatabaseExecutor): number {
+  const row = getOrm(db)
+    .select({ value: max(routines.position) })
+    .from(routines)
+    .get();
+  return (row?.value ?? -1) + 1;
+}
+
+type PositionTable = typeof routineExercises | typeof routineSets;
+
+function nextPosition(
+  db: DatabaseExecutor,
+  positionColumn: AnySQLiteColumn<{ data: number }>,
+  table: PositionTable,
+  scope: { column: AnySQLiteColumn<{ data: string }>; value: string }
+): number {
+  const row = getOrm(db)
+    .select({ value: max(positionColumn) })
+    .from(table)
+    .where(eq(scope.column, scope.value))
+    .get();
+  return (row?.value ?? -1) + 1;
 }

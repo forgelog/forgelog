@@ -5,7 +5,7 @@ import { Text } from 'react-native';
 
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import type { RoutineSummary } from '../../db/repositories/routines';
-import { listRoutineSummaries } from '../../db/repositories/routines';
+import { getRoutinesWithSummaries } from '../../db/repositories/routines';
 import { getActiveWorkout } from '../../db/repositories/workouts';
 import { HomeScreen } from '../HomeScreen';
 
@@ -13,8 +13,8 @@ jest.mock('@expo/ui/community/bottom-sheet');
 jest.mock('../../db/repositories/routines');
 jest.mock('../../db/repositories/workouts');
 
-const mockListRoutineSummaries = listRoutineSummaries as jest.MockedFunction<
-  typeof listRoutineSummaries
+const mockGetRoutinesWithSummaries = getRoutinesWithSummaries as jest.MockedFunction<
+  typeof getRoutinesWithSummaries
 >;
 const mockGetActiveWorkout = getActiveWorkout as jest.MockedFunction<typeof getActiveWorkout>;
 
@@ -42,7 +42,7 @@ function renderHome() {
 
 beforeEach(() => {
   mockGetActiveWorkout.mockResolvedValue(null);
-  mockListRoutineSummaries.mockResolvedValue([]);
+  mockGetRoutinesWithSummaries.mockResolvedValue([]);
 });
 
 test('renders the Home screen with a start action', async () => {
@@ -70,9 +70,9 @@ test('truncates a long routine name instead of pushing the Start button off-scre
     created_at: '2026-01-01',
     updated_at: '2026-01-01',
     exerciseCount: 6,
-    muscles: ['chest', 'shoulders'],
+    exerciseNames: ['Bench Press', 'Shoulder Press'],
   };
-  mockListRoutineSummaries.mockResolvedValue([longRoutine]);
+  mockGetRoutinesWithSummaries.mockResolvedValue([longRoutine]);
 
   const { getByLabelText, getByText } = await renderHome();
   const nameNode = await waitFor(() => getByText(LONG_ROUTINE_NAME));

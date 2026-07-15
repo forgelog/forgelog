@@ -68,7 +68,7 @@ function createBoundMobileStore(
     routines: {
       list: bind(routines.listRoutines),
       getDetail: bind(routines.getRoutineDetail),
-      listSummaries: bind(routines.listRoutineSummaries),
+      getWithSummaries: bind(routines.getRoutinesWithSummaries),
       create: bind(routines.createRoutine),
       update: bind(routines.updateRoutine),
       remove: bind(routines.deleteRoutine),

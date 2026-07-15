@@ -1,4 +1,6 @@
 import type { DatabaseExecutor } from '../../executor';
+import { resetDbForTests } from '../../index';
+import { mobileStoreForTests as mobileStore } from '../../../test-utils/db';
 import { createRoutine, updateRoutine } from '../routines';
 
 function makeFakeDb() {
@@ -14,6 +16,10 @@ function makeFakeDb() {
   return { runAsync, getFirstAsync } as unknown as DatabaseExecutor;
 }
 
+beforeEach(() => {
+  resetDbForTests();
+});
+
 test('createRoutine rejects an empty name without touching the db', async () => {
   await expect(createRoutine(makeFakeDb(), '   ')).rejects.toThrow('Routine name is required.');
 });
@@ -24,12 +30,8 @@ test('createRoutine rejects a name over the max length', async () => {
 });
 
 test('createRoutine trims whitespace and strips control chars from a valid name', async () => {
-  const db = makeFakeDb();
-  await createRoutine(db, '  Push\x00Day  ');
-  expect(db.runAsync).toHaveBeenCalledWith(
-    expect.any(String),
-    expect.objectContaining({ $name: 'PushDay' })
-  );
+  const routine = await mobileStore.routines.create('  Push\x00Day  ');
+  expect(routine.name).toBe('PushDay');
 });
 
 test('createRoutine rejects notes over the max length', async () => {
@@ -46,10 +48,7 @@ test('updateRoutine rejects an empty name', async () => {
 });
 
 test('updateRoutine allows clearing notes to null', async () => {
-  const db = makeFakeDb();
-  await updateRoutine(db, 'r1', { notes: null });
-  expect(db.runAsync).toHaveBeenCalledWith(
-    expect.any(String),
-    expect.objectContaining({ $notes: null })
-  );
+  const routine = await mobileStore.routines.create('Push Day', 'Heavy day');
+  await mobileStore.routines.update(routine.id, { notes: null });
+  await expect(mobileStore.routines.getDetail(routine.id)).resolves.toMatchObject({ notes: null });
 });
