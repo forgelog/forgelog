@@ -313,7 +313,7 @@ test('getRoutinesWithSummaries returns all summaries in one aggregate query', as
   const emptyRoutine = await createRoutine('Empty');
 
   const db = await getDb();
-  const prepareSync = jest.spyOn(db, 'prepareSync');
+  const getAllAsync = jest.spyOn(db, 'getAllAsync');
 
   await expect(getRoutinesWithSummaries(db)).resolves.toEqual([
     expect.objectContaining({
@@ -327,8 +327,8 @@ test('getRoutinesWithSummaries returns all summaries in one aggregate query', as
       exerciseNames: [],
     }),
   ]);
-  expect(prepareSync).toHaveBeenCalledTimes(1);
-  prepareSync.mockRestore();
+  expect(getAllAsync).toHaveBeenCalledTimes(1);
+  getAllAsync.mockRestore();
 });
 
 test('saveRoutineDraft rolls back when child insert fails', async () => {

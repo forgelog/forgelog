@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 /**
- * SQLite operations available to repositories and the Drizzle adapter.
+ * SQLite operations available to repositories.
  *
  * Both Expo's database connection and the handle passed to
  * `withExclusiveTransactionAsync` satisfy this type. Connection lifecycle and
@@ -10,5 +10,5 @@ import type { SQLiteDatabase } from 'expo-sqlite';
  */
 export type DatabaseExecutor = Pick<
   SQLiteDatabase,
-  'runAsync' | 'getFirstAsync' | 'getAllAsync' | 'prepareAsync' | 'prepareSync'
+  'runAsync' | 'getFirstAsync' | 'getAllAsync' | 'prepareAsync'
 >;

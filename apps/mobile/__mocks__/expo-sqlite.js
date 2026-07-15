@@ -11,31 +11,6 @@ function stripDollar(params) {
   return out;
 }
 
-function callStatement(statement, method, params) {
-  if (params === undefined) return statement[method]();
-  return statement[method](stripDollar(params));
-}
-
-function executeSync(statement, params, rawRows) {
-  if (statement.reader) {
-    const rows = callStatement(rawRows ? statement.raw(true) : statement, 'all', params);
-    return {
-      changes: 0,
-      lastInsertRowId: 0,
-      getAllSync: () => rows,
-      getFirstSync: () => rows[0] ?? null,
-    };
-  }
-
-  const info = callStatement(statement, 'run', params);
-  return {
-    changes: info.changes,
-    lastInsertRowId: info.lastInsertRowid,
-    getAllSync: () => [],
-    getFirstSync: () => null,
-  };
-}
-
 function makeDb(raw, state) {
   return {
     execAsync: async (sql) => {
@@ -92,14 +67,6 @@ function makeDb(raw, state) {
           return { changes: info.changes, lastInsertRowId: info.lastInsertRowid };
         },
         finalizeAsync: async () => {},
-      };
-    },
-    prepareSync: (sql) => {
-      const stmt = raw.prepare(sql);
-      return {
-        executeSync: (params) => executeSync(stmt, params, false),
-        executeForRawResultSync: (params) => executeSync(stmt, params, true),
-        finalizeSync: () => {},
       };
     },
   };

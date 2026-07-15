@@ -4,19 +4,28 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 
 import type { RootStackParamList } from '../../navigation/RootNavigator';
-import type { RoutineSummary } from '../../db/repositories/routines';
-import { getRoutinesWithSummaries } from '../../db/repositories/routines';
-import { getActiveWorkout } from '../../db/repositories/workouts';
+import { mobileStore, type RoutineSummary } from '../../db/mobileStore';
 import { HomeScreen } from '../HomeScreen';
 
 jest.mock('@expo/ui/community/bottom-sheet');
-jest.mock('../../db/repositories/routines');
-jest.mock('../../db/repositories/workouts');
+jest.mock('../../db/mobileStore', () => ({
+  mobileStore: {
+    routines: {
+      getWithSummaries: jest.fn(),
+      remove: jest.fn(),
+    },
+    workouts: {
+      getActive: jest.fn(),
+    },
+  },
+}));
 
-const mockGetRoutinesWithSummaries = getRoutinesWithSummaries as jest.MockedFunction<
-  typeof getRoutinesWithSummaries
+const mockGetRoutinesWithSummaries = mobileStore.routines.getWithSummaries as jest.MockedFunction<
+  typeof mobileStore.routines.getWithSummaries
 >;
-const mockGetActiveWorkout = getActiveWorkout as jest.MockedFunction<typeof getActiveWorkout>;
+const mockGetActiveWorkout = mobileStore.workouts.getActive as jest.MockedFunction<
+  typeof mobileStore.workouts.getActive
+>;
 
 type TestParamList = RootStackParamList & { Home: undefined };
 
