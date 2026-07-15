@@ -182,8 +182,7 @@ export function parseNonNegativeNumber(raw: string): number | null | undefined {
   return value;
 }
 
-// Same as parseNonNegativeNumber but also rejects decimals — for
-// integer-only fields like reps, duration, and rest seconds.
+// Same as parseNonNegativeNumber but also rejects decimals for integer-only fields.
 export function parseNonNegativeInteger(raw: string): number | null | undefined {
   const value = parseNonNegativeNumber(raw);
   if (value == null) return value;
@@ -204,15 +203,4 @@ const LOGGED_VALUE_FIELD: Record<ExerciseType, keyof SetLike> = {
 export function hasLoggedValue(exerciseType: string | null, set: SetLike): boolean {
   const type = requireExerciseType(exerciseType);
   return (set[LOGGED_VALUE_FIELD[type]] ?? 0) > 0;
-}
-
-export const DEFAULT_REST_SECONDS = 90;
-
-// Per-exercise rest_seconds (snapshotted onto workout_exercises at workout
-// start) wins; null falls back to the default rest duration.
-export function resolveRestSeconds(
-  restSeconds: number | null,
-  defaultSeconds: number = DEFAULT_REST_SECONDS
-): number {
-  return restSeconds ?? defaultSeconds;
 }

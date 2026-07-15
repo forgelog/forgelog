@@ -40,7 +40,6 @@ const workoutDetail: WorkoutDetail = {
       position: 0,
       superset_group_id: null,
       exercise_type: 'weight_reps',
-      rest_seconds: null,
       notes: null,
       exercise: {
         id: 'e1',

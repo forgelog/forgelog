@@ -21,7 +21,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,11 +42,11 @@ class ExerciseDetailViewModelTest {
     @After
     fun tearDown() = db.close()
 
-    private suspend fun seedExercise(restSeconds: Int? = 60) {
+    private suspend fun seedExercise() {
         val dao = db.workoutDao()
         db.referenceDao().upsertExercises(listOf(ExerciseEntity("ex1", "Bench Press", "weight_reps")))
         dao.insertWorkout(WorkoutEntity("w1", null, "Test", "2026-01-01T09:00:00Z", null, false))
-        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", "w1", "ex1", 0, null, "weight_reps", restSeconds))
+        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", "w1", "ex1", 0, null, "weight_reps"))
         dao.insertLoggedSet(
             LoggedSetEntity("s1", "we1", 0, "normal", 75.0, 8, null, null, null, false, null),
         )
@@ -64,15 +63,6 @@ class ExerciseDetailViewModelTest {
             recordsTracker = PersonalRecordsTracker(db.referenceDao()),
             workoutExerciseId = "we1",
         )
-
-    private fun waitUntil(message: String, timeoutMs: Long = 5000, condition: () -> Boolean) {
-        val deadline = System.currentTimeMillis() + timeoutMs
-        while (System.currentTimeMillis() < deadline) {
-            if (condition()) return
-            Thread.sleep(25)
-        }
-        assertTrue(message, condition())
-    }
 
     @Test
     fun uiStateMapsLoggedSetEntityToSetRow() = runBlocking {
@@ -94,7 +84,7 @@ class ExerciseDetailViewModelTest {
     @Test
     fun uiStateFallsBackWhenPersistedExerciseTypeIsInvalid() = runBlocking {
         seedExercise()
-        db.workoutDao().insertWorkoutExercise(WorkoutExerciseEntity("we1", "w1", "ex1", 0, null, "bad_type", 60))
+        db.workoutDao().insertWorkoutExercise(WorkoutExerciseEntity("we1", "w1", "ex1", 0, null, "bad_type"))
         val vm = viewModel()
 
         val state = withTimeout(5000) { vm.uiState.first { it.sets.isNotEmpty() } }
@@ -115,7 +105,6 @@ class ExerciseDetailViewModelTest {
         vm.markDone("s1")
 
         val records = event.await()
-        vm.skipRest()
         val completed = db.workoutDao().loggedSets("we1").first { it.id == "s1" }
         assertEquals(true, completed.completed)
         assertEquals(true, records.contains(RecordType.MAX_WEIGHT))
@@ -141,22 +130,6 @@ class ExerciseDetailViewModelTest {
         assertEquals(true, records.contains(RecordType.MAX_WEIGHT))
         assertEquals(90.0, completed.weight ?: -1.0, 0.0)
         assertEquals(90.0, db.referenceDao().recordsForExercise("ex1").first { it.recordType == "max_weight" }.value, 0.0)
-    }
-
-    @Test
-    fun markDoneStartsRestTimerAndSkipRestClearsIt() = runBlocking {
-        seedExercise(restSeconds = 30)
-        val vm = viewModel()
-        withTimeout(5000) { vm.uiState.first { it.sets.size == 2 } }
-
-        vm.markDone("s1")
-
-        waitUntil("expected rest timer to start") { vm.uiState.value.restRemaining != null }
-        assertTrue(vm.uiState.value.restRemaining in 1..30)
-
-        vm.skipRest()
-
-        waitUntil("expected rest timer to clear") { vm.uiState.value.restRemaining == null }
     }
 
     @Test

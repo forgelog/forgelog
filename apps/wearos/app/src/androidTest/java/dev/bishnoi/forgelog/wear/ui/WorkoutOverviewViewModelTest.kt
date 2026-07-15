@@ -58,8 +58,8 @@ class WorkoutOverviewViewModelTest {
             ),
         )
         db.workoutDao().insertWorkout(WorkoutEntity("w1", null, "Workout", "2026-01-01T09:00:00Z", null, false))
-        db.workoutDao().insertWorkoutExercise(WorkoutExerciseEntity("we1", "w1", "ex1", 0, null, "weight_reps", 60))
-        db.workoutDao().insertWorkoutExercise(WorkoutExerciseEntity("we2", "w1", "ex2", 1, null, "duration", 30))
+        db.workoutDao().insertWorkoutExercise(WorkoutExerciseEntity("we1", "w1", "ex1", 0, null, "weight_reps"))
+        db.workoutDao().insertWorkoutExercise(WorkoutExerciseEntity("we2", "w1", "ex2", 1, null, "duration"))
         db.workoutDao().insertLoggedSet(
             LoggedSetEntity("s1", "we1", 0, "normal", 60.0, 8, null, null, null, true, "2026-01-01T09:10:00Z"),
         )

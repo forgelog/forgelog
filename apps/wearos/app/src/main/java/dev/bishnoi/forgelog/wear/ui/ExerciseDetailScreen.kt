@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.drop
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -46,8 +45,7 @@ import dev.bishnoi.forgelog.wear.logic.setTypeLabel
 
 /**
  * Exercise logging (issue #28 screens 4a/4b): a 2-page pager — set logging with
- * scroll-wheel pickers on page 0, set/exercise options on page 1. The rest
- * timer stays a transient full-screen state on top, not a separate destination.
+ * scroll-wheel pickers on page 0, set/exercise options on page 1.
  */
 @Composable
 fun ExerciseDetailScreen(
@@ -55,34 +53,23 @@ fun ExerciseDetailScreen(
     setActions: ExerciseDetailSetActions,
     navigationActions: ExerciseDetailNavigationActions,
 ) {
-    val context = LocalContext.current
-
-    LaunchedEffect(state.restRemaining) {
-        if (state.restRemaining != null) Haptics.tick(context)
-    }
-
     MaterialTheme {
-        val resting = state.restRemaining
-        if (resting != null) {
-            RestingView(secondsRemaining = resting, onSkip = navigationActions.skipRest)
-        } else {
-            val pagerState = rememberPagerState(pageCount = { 2 })
-            Box(modifier = Modifier.fillMaxSize()) {
-                HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-                    if (page == 0) {
-                        SetEditorPage(state, setActions, navigationActions)
-                    } else {
-                        OptionsPage(state, setActions, navigationActions)
-                    }
+        val pagerState = rememberPagerState(pageCount = { 2 })
+        Box(modifier = Modifier.fillMaxSize()) {
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+                if (page == 0) {
+                    SetEditorPage(state, setActions, navigationActions)
+                } else {
+                    OptionsPage(state, setActions, navigationActions)
                 }
-                PageDots(
-                    count = 2,
-                    selected = pagerState.currentPage,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 4.dp),
-                )
             }
+            PageDots(
+                count = 2,
+                selected = pagerState.currentPage,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 4.dp),
+            )
         }
     }
 }
@@ -100,7 +87,6 @@ data class ExerciseDetailNavigationActions(
     val addSet: () -> Unit,
     val nextSet: () -> Unit,
     val prevSet: () -> Unit,
-    val skipRest: () -> Unit,
     val deleteExercise: () -> Unit,
 )
 
@@ -314,23 +300,5 @@ private fun OptionsPage(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun RestingView(secondsRemaining: Int, onSkip: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text("Resting", style = MaterialTheme.typography.title3)
-        Text("$secondsRemaining s", style = MaterialTheme.typography.display3)
-        Spacer(Modifier.height(8.dp))
-        Chip(
-            label = { Text("Skip") },
-            onClick = onSkip,
-            colors = ChipDefaults.secondaryChipColors(),
-        )
     }
 }

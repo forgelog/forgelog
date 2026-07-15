@@ -8,12 +8,10 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.bishnoi.forgelog.wear.logic.ExerciseType
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -85,42 +83,9 @@ class ExerciseDetailScreenComposeTest {
         compose.onNodeWithText("Delete Exercise").assertIsDisplayed()
     }
 
-    @Test
-    fun restingOverlayCountsDownAndSkipDismissesIt() {
-        var state by mutableStateOf(exerciseState(ExerciseType.WEIGHT_REPS, restRemaining = 45))
-        var skipped = false
-
-        compose.setContent {
-            ExerciseDetailUnderTest(
-                state = state,
-                onSkipRest = {
-                    skipped = true
-                    state = state.copy(restRemaining = null)
-                },
-            )
-        }
-
-        compose.onNodeWithText("Resting").assertIsDisplayed()
-        compose.onNodeWithText("45 s").assertIsDisplayed()
-        compose.assertNoText(BENCH_PRESS)
-        compose.assertNoText("Set 1 of 1")
-
-        compose.runOnIdle { state = state.copy(restRemaining = 44) }
-        compose.onNodeWithText("44 s").assertIsDisplayed()
-        compose.assertNoText("45 s")
-
-        compose.onNodeWithText("Skip").assertIsDisplayed().performClick()
-
-        compose.runOnIdle { assertTrue(skipped) }
-        compose.assertNoText("Resting")
-        compose.assertNoText("44 s")
-    }
 }
 
-private fun exerciseState(
-    exerciseType: ExerciseType,
-    restRemaining: Int? = null,
-) = ExerciseDetailUiState(
+private fun exerciseState(exerciseType: ExerciseType) = ExerciseDetailUiState(
     exerciseName = BENCH_PRESS,
     exerciseType = exerciseType,
     sets = listOf(
@@ -135,16 +100,12 @@ private fun exerciseState(
         ),
     ),
     currentIndex = 0,
-    restRemaining = restRemaining,
 )
 
 private const val BENCH_PRESS = "Bench Press"
 
 @Composable
-private fun ExerciseDetailUnderTest(
-    state: ExerciseDetailUiState,
-    onSkipRest: () -> Unit = {},
-) {
+private fun ExerciseDetailUnderTest(state: ExerciseDetailUiState) {
     ExerciseDetailScreen(
         state = state,
         setActions = ExerciseDetailSetActions(
@@ -159,7 +120,6 @@ private fun ExerciseDetailUnderTest(
             addSet = {},
             nextSet = {},
             prevSet = {},
-            skipRest = onSkipRest,
             deleteExercise = {},
         ),
     )

@@ -8,7 +8,6 @@ const {
   addExercise: addExerciseToRoutine,
   addSet: addRoutineSet,
   create: createRoutine,
-  updateExercise: updateRoutineExercise,
 } = mobileStore.routines;
 const { getSnapshot: getSyncSnapshot, ingestWatchWorkout } = mobileStore.sync;
 const { getDetail: getWorkoutDetail } = mobileStore.workouts;
@@ -58,7 +57,6 @@ test('snapshots validate and duplicate watch deliveries keep row counts stable',
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const routine = await createRoutine('Watch Push');
   const routineExercise = await addExerciseToRoutine(routine.id, bench.id);
-  await updateRoutineExercise(routineExercise.id, { rest_seconds: 90 });
   await addRoutineSet(routineExercise.id, { target_weight: 60, target_reps: 8 });
 
   const db = await getDb();
@@ -87,7 +85,6 @@ test('snapshots validate and duplicate watch deliveries keep row counts stable',
         position: 0,
         superset_group_id: null,
         exercise_type: 'weight_reps',
-        rest_seconds: 90,
         notes: null,
         sets: [
           {

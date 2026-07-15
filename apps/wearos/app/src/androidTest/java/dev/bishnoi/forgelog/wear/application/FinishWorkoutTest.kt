@@ -45,14 +45,14 @@ class FinishWorkoutTest {
 
     private suspend fun seedActiveWorkout(id: String = "w1"): String {
         dao.insertWorkout(WorkoutEntity(id, null, "Test", "2026-01-01T09:00:00Z", null, false))
-        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", id, "ex1", 0, null, "weight_reps", 60))
+        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", id, "ex1", 0, null, "weight_reps"))
         dao.insertLoggedSet(LoggedSetEntity("s1", "we1", 0, "normal", 60.0, 5, null, null, null, true, "2026-01-01T09:30:00Z"))
         return id
     }
 
     private suspend fun seedFinishedUnsynced(id: String = "w1"): String {
         dao.insertWorkout(WorkoutEntity(id, null, "Test", "2026-01-01T09:00:00Z", "2026-01-01T10:00:00Z", false))
-        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", id, "ex1", 0, null, "weight_reps", 60))
+        dao.insertWorkoutExercise(WorkoutExerciseEntity("we1", id, "ex1", 0, null, "weight_reps"))
         dao.insertLoggedSet(LoggedSetEntity("s1", "we1", 0, "normal", 60.0, 5, null, null, null, true, "2026-01-01T09:30:00Z"))
         return id
     }
@@ -66,15 +66,21 @@ class FinishWorkoutTest {
         }
     }
 
+    private suspend fun finishWorkout(
+        workoutId: String,
+        publish: suspend (WorkoutPayloadDto) -> Unit,
+    ) {
+        FinishWorkout(workoutRepo, syncRepo, dao, publish).invoke(workoutId)
+    }
+
     @Test
     fun invokeFinishesPublishesAndMarksSynced() = runBlocking {
         seedActiveWorkout()
         val published = mutableListOf<String>()
-        val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { payload ->
+
+        finishWorkout("w1") { payload ->
             published += payload.id
         }
-
-        finishWorkout("w1")
 
         val workout = dao.getWorkout("w1")
         assertNotNull(workout?.endedAt)
@@ -85,11 +91,10 @@ class FinishWorkoutTest {
     @Test
     fun invokePublishFailureStillFinishesButStaysUnsynced() = runBlocking {
         seedActiveWorkout()
-        val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { _ ->
+
+        finishWorkout("w1") { _ ->
             throw RuntimeException("network down")
         }
-
-        finishWorkout("w1")
 
         val workout = dao.getWorkout("w1")
         assertNotNull(workout?.endedAt)
@@ -99,11 +104,12 @@ class FinishWorkoutTest {
     @Test
     fun invokePublishCancellationPropagates() = runBlocking {
         seedActiveWorkout()
-        val finishWorkout = FinishWorkout(workoutRepo, syncRepo, dao) { _ ->
-            throw CancellationException("cancelled")
-        }
 
-        assertCancellation { finishWorkout("w1") }
+        assertCancellation {
+            finishWorkout("w1") { _ ->
+                throw CancellationException("cancelled")
+            }
+        }
     }
 
     @Test

@@ -54,7 +54,6 @@ CREATE TABLE routine_exercises (
   exercise_id       TEXT NOT NULL REFERENCES exercises(id),
   position          INTEGER NOT NULL,
   superset_group_id TEXT,               -- shared value links exercises into one superset
-  rest_seconds      INTEGER,
   exercise_type     TEXT NOT NULL CHECK (
     exercise_type IN (
       'weight_reps',
@@ -115,7 +114,6 @@ CREATE TABLE workout_exercises (
       'weight_distance'
     )
   ),                                    -- snapshot of routine/catalog exercise_type at log time
-  rest_seconds      INTEGER,            -- snapshot of routine_exercises.rest_seconds at log time; null falls back to a default
   notes             TEXT
 );
 

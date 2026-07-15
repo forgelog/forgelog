@@ -7,7 +7,6 @@ import {
   removeSetFromDraft,
   routineDetailToDraft,
   updateDraftName,
-  updateDraftRest,
   updateDraftSetField,
   validateRoutineDraft,
 } from '../routineDraft';
@@ -54,7 +53,6 @@ const detail = {
       exercise_id: 'bench',
       position: 0,
       superset_group_id: 'group-a',
-      rest_seconds: 90,
       exercise_type: 'weight_reps',
       notes: 'Pause',
       exercise: makeExercise('bench', 'Bench Press'),
@@ -88,7 +86,6 @@ test('converts routine detail to a draft without mutating source objects', () =>
         persistedId: 're-1',
         exercise_id: 'bench',
         superset_group_id: 'group-a',
-        rest_seconds: 90,
         notes: 'Pause',
         sets: [expect.objectContaining({ localId: 'local-1', persistedId: 'rs-1' })],
       }),
@@ -110,7 +107,6 @@ test('adds an exercise with the current empty-set strategy', () => {
       localId: 'local-0',
       exercise_id: 'bench',
       superset_group_id: null,
-      rest_seconds: null,
       exercise_type: 'weight_reps',
       notes: null,
       sets: [],
@@ -151,15 +147,6 @@ test('set field updates affect only the intended set and field', () => {
     expect.objectContaining({ localId: 'local-1', target_reps: null }),
     expect.objectContaining({ localId: 'local-2', target_reps: 5 }),
   ]);
-});
-
-test('rest edits stay local and ignore invalid raw input', () => {
-  const ids = makeLocalId();
-  let draft = addExerciseToDraft(createEmptyRoutineDraft(), makeExercise('bench'), ids);
-  draft = updateDraftRest(draft, 'local-0', '120');
-  draft = updateDraftRest(draft, 'local-0', '-5');
-
-  expect(draft.exercises[0]).toMatchObject({ rest_seconds: 120, exercise_type: 'weight_reps' });
 });
 
 test('validation trims name and notes and rejects missing name or empty exercises', () => {

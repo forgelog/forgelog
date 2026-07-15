@@ -152,7 +152,6 @@ fun ForgeLogNavHost() {
                     addSet = { vm.addSet() },
                     nextSet = { vm.nextSet() },
                     prevSet = { vm.prevSet() },
-                    skipRest = { vm.skipRest() },
                     deleteExercise = { vm.deleteExercise { navController.popBackStack() } },
                 )
             }

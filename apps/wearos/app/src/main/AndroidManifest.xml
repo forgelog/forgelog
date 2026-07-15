@@ -2,7 +2,7 @@
 
     <uses-feature android:name="android.hardware.type.watch" />
 
-    <!-- Rest-timer countdown ticks and the new-PR moment (Haptics.kt). -->
+    <!-- New-PR haptic feedback (Haptics.kt). -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
     <application

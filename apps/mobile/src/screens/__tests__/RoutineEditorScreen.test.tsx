@@ -61,7 +61,6 @@ function makeExercise(id: string, name: string, superset_group_id: string | null
     exercise_id: `${id}-ex`,
     position: 0,
     superset_group_id,
-    rest_seconds: null,
     exercise_type: 'weight_reps',
     notes: null,
     exercise: {

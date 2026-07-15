@@ -43,7 +43,6 @@ class SyncRepositoryTest {
         assertEquals(listOf("ex1"), firstState.exerciseIds)
         assertEquals(listOf("rs1"), firstState.routineSetIds)
         assertEquals(listOf("max_weight"), firstState.personalRecordTypes)
-        assertEquals(listOf(90), firstState.routineExerciseRestSeconds)
         assertEquals(listOf(60.0), firstState.routineSetTargetWeights)
         assertEquals(listOf(62.5), firstState.personalRecordValues)
     }
@@ -61,7 +60,6 @@ class SyncRepositoryTest {
             exerciseIds = exerciseIds,
             routineSetIds = routineSets.map { it.id },
             personalRecordTypes = recordTypes,
-            routineExerciseRestSeconds = routineExercises.map { it.restSeconds },
             routineSetTargetWeights = routineSets.map { it.targetWeight },
             personalRecordValues = referenceDao.recordsForExercise("ex1").map { it.value },
         )
@@ -76,7 +74,6 @@ class SyncRepositoryTest {
         val exerciseIds: List<String>,
         val routineSetIds: List<String>,
         val personalRecordTypes: List<String>,
-        val routineExerciseRestSeconds: List<Int?>,
         val routineSetTargetWeights: List<Double?>,
         val personalRecordValues: List<Double>,
     )

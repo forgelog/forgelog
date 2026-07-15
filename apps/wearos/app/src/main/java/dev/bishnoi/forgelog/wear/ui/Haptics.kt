@@ -6,9 +6,8 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 
-/** Rest-timer countdown ticks and the new-PR moment per docs/wearos-scope.md. */
+/** Haptic feedback for the new-PR moment per docs/wearos-scope.md. */
 object Haptics {
-    fun tick(context: Context) = pulse(context, 40)
     fun confirm(context: Context) = pulse(context, 80)
 
     fun celebrate(context: Context) {

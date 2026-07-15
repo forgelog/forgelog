@@ -31,7 +31,6 @@ test('persists CRUD, reorder, and target-set edits on real SQL', async () => {
   const squatEntry = await addExerciseToRoutine(routine.id, squat.id);
   await updateRoutine(routine.id, { name: 'Upper Lower', notes: 'Updated notes' });
   await updateRoutineExercise(benchEntry.id, {
-    rest_seconds: 120,
     superset_group_id: 'pair-a',
     notes: 'Pause first rep',
   });
@@ -60,7 +59,6 @@ test('persists CRUD, reorder, and target-set edits on real SQL', async () => {
   expect(detail?.exercises[1]).toMatchObject({
     id: benchEntry.id,
     position: 1,
-    rest_seconds: 120,
     superset_group_id: 'pair-a',
     exercise_type: 'weight_reps',
     notes: 'Pause first rep',
@@ -105,7 +103,6 @@ test('saveRoutineDraft creates a complete routine atomically', async () => {
       {
         exercise_id: bench.id,
         superset_group_id: 'pair-a',
-        rest_seconds: 120,
         exercise_type: 'weight_reps',
         notes: 'Pause first rep',
         sets: [
@@ -128,7 +125,6 @@ test('saveRoutineDraft creates a complete routine atomically', async () => {
       {
         exercise_id: squat.id,
         superset_group_id: null,
-        rest_seconds: null,
         exercise_type: 'weight_reps',
         notes: null,
         sets: [],
@@ -145,7 +141,6 @@ test('saveRoutineDraft creates a complete routine atomically', async () => {
         exercise_id: bench.id,
         position: 0,
         superset_group_id: 'pair-a',
-        rest_seconds: 120,
         exercise_type: 'weight_reps',
         notes: 'Pause first rep',
       }),
@@ -180,7 +175,6 @@ test('saveRoutineDraft updates an existing routine and replaces child content', 
       {
         exercise_id: squat.id,
         superset_group_id: 'kept-pair',
-        rest_seconds: 180,
         exercise_type: 'weight_reps',
         notes: null,
         sets: [
@@ -202,7 +196,6 @@ test('saveRoutineDraft updates an existing routine and replaces child content', 
   expect(saved.exercises[0]).toMatchObject({
     position: 0,
     superset_group_id: 'kept-pair',
-    rest_seconds: 180,
   });
   expect(saved.exercises[0].sets).toEqual([
     expect.objectContaining({ position: 0, target_weight: 140, target_reps: 3 }),
@@ -227,7 +220,6 @@ test('saveRoutineDraft persists reordered exercises and sets with contiguous pos
       {
         exercise_id: squat.id,
         superset_group_id: null,
-        rest_seconds: null,
         exercise_type: 'weight_reps',
         notes: null,
         sets: [],
@@ -235,7 +227,6 @@ test('saveRoutineDraft persists reordered exercises and sets with contiguous pos
       {
         exercise_id: bench.id,
         superset_group_id: null,
-        rest_seconds: null,
         exercise_type: 'weight_reps',
         notes: null,
         sets: [
@@ -275,7 +266,6 @@ test('saveRoutineDraft rejects invalid name and notes with existing validation m
       exercises: [
         {
           exercise_id: bench.id,
-          rest_seconds: null,
           exercise_type: 'weight_reps',
           notes: null,
           sets: [],
@@ -291,7 +281,6 @@ test('saveRoutineDraft rejects invalid name and notes with existing validation m
       exercises: [
         {
           exercise_id: bench.id,
-          rest_seconds: null,
           exercise_type: 'weight_reps',
           notes: null,
           sets: [],
@@ -320,7 +309,6 @@ test('saveRoutineDraft rolls back when child insert fails', async () => {
         {
           exercise_id: 'missing-exercise',
           superset_group_id: null,
-          rest_seconds: null,
           exercise_type: 'weight_reps',
           notes: null,
           sets: [],
@@ -337,7 +325,6 @@ test('saveRoutineDraft keeps existing workout history attached to the same routi
   const squat = await seededExercise('Barbell Squat');
   const routine = await createRoutine('Snapshot Source');
   const routineExercise = await addExerciseToRoutine(routine.id, bench.id);
-  await updateRoutineExercise(routineExercise.id, { rest_seconds: 90 });
   await addRoutineSet(routineExercise.id, { target_weight: 100, target_reps: 5 });
   const workout = await startWorkout({ routineId: routine.id });
 
@@ -349,7 +336,6 @@ test('saveRoutineDraft keeps existing workout history attached to the same routi
       {
         exercise_id: squat.id,
         superset_group_id: null,
-        rest_seconds: 180,
         exercise_type: 'weight_reps',
         notes: null,
         sets: [
@@ -370,7 +356,6 @@ test('saveRoutineDraft keeps existing workout history attached to the same routi
     exercises: [
       expect.objectContaining({
         exercise_id: bench.id,
-        rest_seconds: 90,
         sets: [expect.objectContaining({ weight: 100, reps: 5 })],
       }),
     ],

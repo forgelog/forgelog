@@ -10,7 +10,6 @@ const {
   addExercise: addExerciseToRoutine,
   addSet: addRoutineSet,
   create: createRoutine,
-  updateExercise: updateRoutineExercise,
 } = mobileStore.routines;
 const {
   addExercise: addExerciseToWorkout,
@@ -67,10 +66,7 @@ test('starts from routines and reports detail, history, previous sets, and profi
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const routine = await createRoutine('Strength A');
   const routineExercise = await addExerciseToRoutine(routine.id, bench.id);
-  await updateRoutineExercise(routineExercise.id, {
-    rest_seconds: 150,
-    notes: 'Snapshot this',
-  });
+  await mobileStore.routines.updateExercise(routineExercise.id, { notes: 'Snapshot this' });
   await addRoutineSet(routineExercise.id, { target_weight: 100, target_reps: 5 });
 
   const firstWorkout = await startWorkout({ routineId: routine.id });
@@ -83,7 +79,6 @@ test('starts from routines and reports detail, history, previous sets, and profi
     exercises: [
       expect.objectContaining({
         exercise_id: bench.id,
-        rest_seconds: 150,
         exercise_type: 'weight_reps',
         notes: 'Snapshot this',
         sets: [expect.objectContaining({ weight: 100, reps: 5, completed: false })],

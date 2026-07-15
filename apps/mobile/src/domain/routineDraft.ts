@@ -1,9 +1,4 @@
-import {
-  parseNonNegativeInteger,
-  parseSetFieldValue,
-  type ExerciseTypeFieldDescriptor,
-  type SetFieldKey,
-} from './setFields';
+import { parseSetFieldValue, type ExerciseTypeFieldDescriptor, type SetFieldKey } from './setFields';
 import { NAME_MAX_LENGTH, NOTES_MAX_LENGTH, validateText } from '../validation/textInput';
 
 export type SetType = 'normal' | 'warmup' | 'dropset' | 'failure';
@@ -29,7 +24,6 @@ type RoutineDetailSource = {
     id: string;
     exercise_id: string;
     superset_group_id: string | null;
-    rest_seconds: number | null;
     exercise_type: string;
     notes: string | null;
     exercise: DraftExercise;
@@ -57,7 +51,6 @@ export type RoutineExerciseDraft = {
   exercise_id: string;
   superset_group_id: string | null;
   exercise: DraftExercise;
-  rest_seconds: number | null;
   exercise_type: string;
   notes: string | null;
   sets: RoutineSetDraft[];
@@ -80,7 +73,6 @@ export type SaveReadyRoutineDraft = {
   exercises: {
     exercise_id: string;
     superset_group_id: string | null;
-    rest_seconds: number | null;
     exercise_type: string;
     notes: string | null;
     sets: {
@@ -128,7 +120,6 @@ export function routineDetailToDraft(
       exercise_id: exercise.exercise_id,
       superset_group_id: exercise.superset_group_id,
       exercise: { ...exercise.exercise },
-      rest_seconds: exercise.rest_seconds,
       exercise_type: exercise.exercise_type,
       notes: exercise.notes,
       sets: exercise.sets.map((set) => ({
@@ -158,7 +149,6 @@ export function addExerciseToDraft(
         exercise_id: exercise.id,
         superset_group_id: null,
         exercise: { ...exercise },
-        rest_seconds: null,
         exercise_type: exercise.exercise_type,
         notes: null,
         sets: [],
@@ -222,16 +212,6 @@ export function updateDraftNotes(draft: RoutineDraft, notes: string): RoutineDra
   return { ...draft, notes };
 }
 
-export function updateDraftRest(
-  draft: RoutineDraft,
-  exerciseLocalId: string,
-  raw: string
-): RoutineDraft {
-  const value = parseNonNegativeInteger(raw);
-  if (value === undefined) return draft;
-  return updateExercise(draft, exerciseLocalId, (exercise) => ({ ...exercise, rest_seconds: value }));
-}
-
 export function updateDraftSetField(
   draft: RoutineDraft,
   exerciseLocalId: string,
@@ -279,7 +259,6 @@ export function validateRoutineDraft(draft: RoutineDraft): RoutineDraftValidatio
       exercises: draft.exercises.map((exercise) => ({
         exercise_id: exercise.exercise_id,
         superset_group_id: exercise.superset_group_id,
-        rest_seconds: exercise.rest_seconds,
         exercise_type: exercise.exercise_type,
         notes: exercise.notes,
         sets: exercise.sets.map((set) => ({
