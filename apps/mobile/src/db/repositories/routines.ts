@@ -303,7 +303,7 @@ export async function saveRoutineDraft(
       { $id: exercise.exercise_id }
     );
     if (!exerciseExists) throw new Error('Exercise not found');
-    const exerciseType = requireExerciseType(exercise.exercise_type);
+    const exerciseType = requireExerciseType(exerciseExists.exercise_type);
     const routineExerciseId = id();
     await db.runAsync(
       `INSERT INTO routine_exercises
