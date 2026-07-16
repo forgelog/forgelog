@@ -8,7 +8,19 @@ appId: dev.bishnoi.forgelog.mobile
     commands:
       - tapOn: "Close app"
 - runFlow:
-    file: "../maestro-flows/complete-onboarding.yaml"
+    commands:
+      - extendedWaitUntil:
+          visible: "What should we call you?"
+          timeout: 60000
+      - tapOn:
+          id: "onboarding-name-input"
+      - inputText: "ForgeLog Tester"
+      - scrollUntilVisible:
+          element:
+            id: "onboarding-continue"
+          direction: DOWN
+      - tapOn:
+          id: "onboarding-continue"
 - extendedWaitUntil:
     visible: "Workout"
     timeout: 60000
