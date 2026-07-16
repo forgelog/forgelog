@@ -1,5 +1,8 @@
 appId: dev.bishnoi.forgelog.mobile
 ---
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 60000
 - tapOn:
     id: "onboarding-name-input"
 - inputText: "ForgeLog Tester"
