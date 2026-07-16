@@ -133,6 +133,8 @@ appId: dev.bishnoi.forgelog.mobile
     id: "routine-exercise-2-add-set"
 - tapOn:
     id: "routine-set-2-0-duration"
+- assertVisible:
+    id: "routine-set-2-0-duration"
 - inputText: "45"
 - tapOn: "Save"
 - extendedWaitUntil:
@@ -186,6 +188,11 @@ appId: dev.bishnoi.forgelog.mobile
     element:
       id: "workout-set-2-0-duration"
     direction: DOWN
+- tapOn:
+    id: "workout-set-2-0-duration"
+- assertVisible:
+    id: "workout-set-2-0-duration"
+- pressKey: back
 - tapOn:
     id: "workout-set-2-0-complete"
 - runFlow:

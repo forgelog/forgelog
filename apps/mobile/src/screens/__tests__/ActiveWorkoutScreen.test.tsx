@@ -103,6 +103,23 @@ test('truncates a long exercise name and renders descriptor-driven set fields', 
   expect(getByTestId('workout-set-0-0-reps')).toBeTruthy();
 });
 
+test('keeps focused set inputs above the keyboard', async () => {
+  const workout = await render(
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen
+          name="ActiveWorkout"
+          component={ActiveWorkoutScreen}
+          initialParams={{ workoutId: 'w1' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+
+  const scrollView = await waitFor(() => workout.getByTestId('workout-keyboard-aware-scroll-view'));
+  expect(scrollView.props.bottomOffset).toBeGreaterThan(0);
+});
+
 test('does not show a superset tag even when exercises share a superset_group_id', async () => {
   const groupedDetail: WorkoutDetail = {
     ...workoutDetail,

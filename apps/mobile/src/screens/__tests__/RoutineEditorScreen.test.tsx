@@ -132,6 +132,13 @@ test('shows the appropriate title for new and existing routines', async () => {
   expect(edited.queryByText('Create Routine')).toBeNull();
 });
 
+test('keeps focused set inputs above the keyboard', async () => {
+  const editor = await renderEditor({ routineId: 'r1' });
+
+  const scrollView = await waitFor(() => editor.getByTestId('routine-keyboard-aware-scroll-view'));
+  expect(scrollView.props.bottomOffset).toBeGreaterThan(0);
+});
+
 test('does not show superset toggle or tag controls, even with a superset_group_id set', async () => {
   const { queryByText, getByText } = await render(
     <NavigationContainer>
