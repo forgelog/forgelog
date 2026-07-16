@@ -50,6 +50,22 @@ jobs:
           path: apps/mobile/coverage/
           if-no-files-found: error
 
+  native-wear-bridge:
+    runs-on: ubuntu-latest
+    needs: test
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Prebuild Android project
         run: pnpm exec expo prebuild --platform android
 
@@ -178,10 +194,19 @@ jobs:
           name: forgelog-release-apk
           path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
 
-  maestro-smoke:
+  maestro-pr:
+    name: Maestro PR (${{ matrix.shard }})
     runs-on: ubuntu-latest
     needs: build-release-apk
     if: github.event_name != 'schedule'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: smoke
+            flows: apps/mobile/.maestro/smoke.yaml
+          - shard: workout-log
+            flows: apps/mobile/.maestro/workout-log.yaml
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -211,20 +236,32 @@ jobs:
           profile: pixel_7
           script: |
             adb install -r artifacts/mobile-release/app-release.apk
-            mkdir -p artifacts/maestro-pr
-            mise exec maestro -- maestro test --format JUNIT --output artifacts/maestro-pr/junit.xml --debug-output artifacts/maestro-pr/debug --test-output-dir artifacts/maestro-pr/test-output apps/mobile/.maestro/smoke.yaml apps/mobile/.maestro/workout-log.yaml
+            mkdir -p artifacts/maestro-pr/${{ matrix.shard }}
+            mise exec maestro -- maestro test --format JUNIT --output artifacts/maestro-pr/${{ matrix.shard }}/junit.xml --debug-output artifacts/maestro-pr/${{ matrix.shard }}/debug --test-output-dir artifacts/maestro-pr/${{ matrix.shard }}/test-output ${{ matrix.flows }}
 
       - name: Upload Maestro PR failure artifacts
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: mobile-maestro-pr-failure
-          path: artifacts/maestro-pr/
+          name: mobile-maestro-pr-${{ matrix.shard }}-failure
+          path: artifacts/maestro-pr/${{ matrix.shard }}/
 
   maestro-nightly:
+    name: Maestro nightly (${{ matrix.shard }})
     runs-on: ubuntu-latest
     needs: build-release-apk
-    if: github.event_name == 'schedule' || github.event_name == 'push'
+    # Temporary: run the full Maestro suite on the 0.1.3 release PR as well.
+    if: github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.head_ref == 'chore/release-0.1.3')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: profile
+            flows: apps/mobile/.maestro/smoke.yaml apps/mobile/.maestro/first-launch-profile.yaml
+          - shard: routines
+            flows: apps/mobile/.maestro/routine-crud.yaml apps/mobile/.maestro/workout-recovery.yaml
+          - shard: workout-log
+            flows: apps/mobile/.maestro/workout-log.yaml
     permissions:
       contents: read
     steps:
@@ -259,20 +296,20 @@ jobs:
           profile: pixel_7
           script: |
             adb install -r artifacts/mobile-release/app-release.apk
-            mkdir -p artifacts/maestro-nightly
-            mise exec maestro -- maestro test --format JUNIT --output artifacts/maestro-nightly/junit.xml --debug-output artifacts/maestro-nightly/debug --test-output-dir artifacts/maestro-nightly/test-output apps/mobile/.maestro/smoke.yaml apps/mobile/.maestro/first-launch-profile.yaml apps/mobile/.maestro/routine-crud.yaml apps/mobile/.maestro/workout-log.yaml apps/mobile/.maestro/workout-recovery.yaml
+            mkdir -p artifacts/maestro-nightly/${{ matrix.shard }}
+            mise exec maestro -- maestro test --format JUNIT --output artifacts/maestro-nightly/${{ matrix.shard }}/junit.xml --debug-output artifacts/maestro-nightly/${{ matrix.shard }}/debug --test-output-dir artifacts/maestro-nightly/${{ matrix.shard }}/test-output ${{ matrix.flows }}
 
       - name: Upload nightly Maestro failure artifacts
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: mobile-maestro-nightly-failure
+          name: mobile-maestro-nightly-${{ matrix.shard }}-failure
           path: |
-            artifacts/maestro-nightly/
+            artifacts/maestro-nightly/${{ matrix.shard }}/
 
   build-release-aab:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, native-wear-bridge]
     if: github.event_name == 'push'
     defaults:
       run:

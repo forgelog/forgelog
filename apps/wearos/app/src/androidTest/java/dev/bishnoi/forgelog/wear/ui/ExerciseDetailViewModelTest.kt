@@ -1,5 +1,8 @@
 package dev.bishnoi.forgelog.wear.ui
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -29,6 +32,7 @@ import org.junit.runner.RunWith
 class ExerciseDetailViewModelTest {
     private lateinit var db: AppDatabase
     private lateinit var repo: WorkoutRepository
+    private val viewModelStore = ViewModelStore()
 
     @Before
     fun setUp() {
@@ -40,7 +44,10 @@ class ExerciseDetailViewModelTest {
     }
 
     @After
-    fun tearDown() = db.close()
+    fun tearDown() {
+        viewModelStore.clear()
+        db.close()
+    }
 
     private suspend fun seedExercise() {
         val dao = db.workoutDao()
@@ -56,13 +63,17 @@ class ExerciseDetailViewModelTest {
     }
 
     private fun viewModel(): ExerciseDetailViewModel =
-        ExerciseDetailViewModel(
-            workoutDao = db.workoutDao(),
-            referenceDao = db.referenceDao(),
-            workoutRepository = repo,
-            recordsTracker = PersonalRecordsTracker(db.referenceDao()),
-            workoutExerciseId = "we1",
-        )
+        ViewModelProvider(viewModelStore, object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                ExerciseDetailViewModel(
+                    workoutDao = db.workoutDao(),
+                    referenceDao = db.referenceDao(),
+                    workoutRepository = repo,
+                    recordsTracker = PersonalRecordsTracker(db.referenceDao()),
+                    workoutExerciseId = "we1",
+                ) as T
+        })[ExerciseDetailViewModel::class.java]
 
     @Test
     fun uiStateMapsLoggedSetEntityToSetRow() = runBlocking {
