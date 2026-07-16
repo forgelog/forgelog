@@ -22,7 +22,7 @@ test('mobileStore exposes feature operations through one persistence entry point
   );
   expect(bench).toBeDefined();
 
-  await mobileStore.profile.update({ name: 'Jordan' });
+  await mobileStore.profile.completeOnboarding({ name: 'Jordan', bodyweightKg: 75 });
   await expect(mobileStore.profile.get()).resolves.toMatchObject({ name: 'Jordan' });
 
   const routine = await mobileStore.routines.create('Facade routine');

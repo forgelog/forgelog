@@ -50,6 +50,7 @@ export type Workout = {
   started_at: string;
   ended_at: string | null;
   notes: string | null;
+  bodyweight_kg: number | null;
 };
 
 export type WorkoutExercise = {

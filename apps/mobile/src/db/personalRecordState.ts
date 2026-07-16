@@ -16,6 +16,7 @@ type RecordSourceRow = {
   exercise_id: string;
   exercise_type: string;
   workout_started_at: string;
+  workout_bodyweight_kg: number | null;
   workout_exercise_position: number;
   set_id: string;
   set_position: number;
@@ -48,6 +49,7 @@ export async function replaceRecordStateForExerciseInDb(
        we.exercise_id,
        we.exercise_type,
        w.started_at AS workout_started_at,
+       w.bodyweight_kg AS workout_bodyweight_kg,
        we.position AS workout_exercise_position,
        ls.id AS set_id,
        ls.position AS set_position,
@@ -127,10 +129,11 @@ function groupRows(rows: RecordSourceRow[]): ExerciseOccurrence[] {
         id: row.workout_exercise_id,
         workoutId: row.workout_id,
         exerciseId: row.exercise_id,
-        exerciseType: requireExerciseType(row.exercise_type),
-        startedAt: row.workout_started_at,
-        position: row.workout_exercise_position,
-        sets: [],
+      exerciseType: requireExerciseType(row.exercise_type),
+      startedAt: row.workout_started_at,
+      position: row.workout_exercise_position,
+      bodyweightKg: row.workout_bodyweight_kg,
+      sets: [],
       };
       occurrences.set(row.workout_exercise_id, occurrence);
     }

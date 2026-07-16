@@ -1,5 +1,5 @@
 import type { DatabaseExecutor } from '../../executor';
-import { getProfile, updateProfile } from '../profile';
+import { completeOnboarding, getProfile, hasCompletedOnboarding, updateProfile } from '../profile';
 
 function makeFakeDb(row: Record<string, unknown> | null) {
   const runAsync = jest.fn().mockResolvedValue(undefined);
@@ -46,6 +46,38 @@ describe('getProfile', () => {
       heightCm: null,
       bodyweightKg: null,
     });
+  });
+});
+
+describe('onboarding', () => {
+  test('requires a populated name but allows bodyweight to be skipped', async () => {
+    await expect(completeOnboarding(makeFakeDb(null), { name: ' ', bodyweightKg: 70 })).rejects.toThrow(
+      'Name is required.'
+    );
+    await expect(completeOnboarding(makeFakeDb(null), { name: 'Jamie', bodyweightKg: 10 })).rejects.toThrow(
+      /between 20 and 400/
+    );
+  });
+
+  test('upserts the onboarding profile', async () => {
+    const db = makeFakeDb(null);
+
+    await completeOnboarding(db, { name: '  Jamie Lee  ', bodyweightKg: 65 });
+
+    expect(db.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('ON CONFLICT(id) DO UPDATE'),
+      expect.objectContaining({ $name: 'Jamie Lee', $bodyweightKg: 65 })
+    );
+  });
+
+  test('treats a populated profile row as onboarded', async () => {
+    await expect(
+      hasCompletedOnboarding(
+        makeFakeDb({ name: 'Jamie Lee', bodyweight_kg: 65 })
+      )
+    ).resolves.toBe(true);
+    await expect(hasCompletedOnboarding(makeFakeDb({ name: 'Jamie Lee', bodyweight_kg: null }))).resolves.toBe(true);
+    await expect(hasCompletedOnboarding(makeFakeDb({ name: '', bodyweight_kg: null }))).resolves.toBe(false);
   });
 });
 

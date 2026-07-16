@@ -32,6 +32,7 @@ const workoutDetail: WorkoutDetail = {
   started_at: new Date().toISOString(),
   ended_at: null,
   notes: null,
+  bodyweight_kg: null,
   exercises: [
     {
       id: 'we1',

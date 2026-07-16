@@ -29,6 +29,11 @@ export type ProfileUpdate = {
   bodyweightKg?: number | null;
 };
 
+export type OnboardingProfile = {
+  name: string;
+  bodyweightKg?: number | null;
+};
+
 type ProfileRow = {
   name: string;
   theme_mode: ThemeMode;
@@ -37,6 +42,42 @@ type ProfileRow = {
   height_cm: number | null;
   bodyweight_kg: number | null;
 };
+
+export async function hasCompletedOnboarding(db: DatabaseExecutor): Promise<boolean> {
+  const row = await db.getFirstAsync<{ name: string }>('SELECT name FROM profile WHERE id = 0');
+  return row !== null && row.name.trim().length !== 0;
+}
+
+export async function completeOnboarding(
+  db: DatabaseExecutor,
+  input: OnboardingProfile
+): Promise<void> {
+  const name = validateText(input.name, {
+    maxLength: NAME_MAX_LENGTH,
+    required: true,
+    fieldLabel: 'Name',
+  });
+  if (name.error) throw new Error(name.error);
+
+  const bodyweight =
+    input.bodyweightKg == null
+      ? { value: null, error: null }
+      : validateNumber(input.bodyweightKg, {
+          min: BODYWEIGHT_MIN_KG,
+          max: BODYWEIGHT_MAX_KG,
+          fieldLabel: 'Bodyweight',
+        });
+  if (bodyweight.error) {
+    throw new Error(bodyweight.error);
+  }
+
+  await db.runAsync(
+    `INSERT INTO profile (id, name, bodyweight_kg)
+     VALUES (0, $name, $bodyweightKg)
+     ON CONFLICT(id) DO UPDATE SET name = excluded.name, bodyweight_kg = excluded.bodyweight_kg`,
+    { $name: name.value, $bodyweightKg: bodyweight.value }
+  );
+}
 
 export async function getProfile(db: DatabaseExecutor): Promise<Profile> {
   // todo: audit pending

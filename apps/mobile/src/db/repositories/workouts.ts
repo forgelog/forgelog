@@ -41,12 +41,21 @@ export async function startWorkout(
     const routine = await getRoutineDetail(db, options.routineId);
     if (routine) name = options.name ?? routine.name;
   }
+  const profile = await db.getFirstAsync<{ bodyweight_kg: number | null }>(
+    'SELECT bodyweight_kg FROM profile WHERE id = 0'
+  );
 
   // todo: audit pending
   await db.runAsync(
-    `INSERT INTO workouts (id, routine_id, name, started_at)
-       VALUES ($id, $routine_id, $name, $started_at)`,
-    { $id: workoutId, $routine_id: options.routineId ?? null, $name: name, $started_at: startedAt }
+    `INSERT INTO workouts (id, routine_id, name, started_at, bodyweight_kg)
+       VALUES ($id, $routine_id, $name, $started_at, $bodyweight_kg)`,
+    {
+      $id: workoutId,
+      $routine_id: options.routineId ?? null,
+      $name: name,
+      $started_at: startedAt,
+      $bodyweight_kg: profile?.bodyweight_kg ?? null,
+    }
   );
 
   if (options.routineId) {

@@ -115,6 +115,8 @@ function createBoundMobileStore(
       clearSetReferencesForWorkout: bind(personalRecords.clearSetReferencesForWorkout),
     },
     profile: {
+      hasCompletedOnboarding: bind(profile.hasCompletedOnboarding),
+      completeOnboarding: bind(profile.completeOnboarding),
       get: bind(profile.getProfile),
       update: bind(profile.updateProfile),
       setName: bind(profile.setProfileName),

@@ -46,6 +46,26 @@ async function setWorkoutStartedAt(workoutId: string, startedAt: string): Promis
   });
 }
 
+test('bodyweight exercise calculations use the workout bodyweight snapshot', async () => {
+  await mobileStore.profile.completeOnboarding({ name: 'Jordan', bodyweightKg: 80 });
+  const pullUps = await seededExercise('Weighted Pull Ups');
+  const workout = await startWorkout({ name: 'Weighted pull-ups' });
+  const workoutExercise = await addExerciseToWorkout(workout.id, pullUps.id);
+  const set = await addSet(workoutExercise.id);
+
+  expect(workout.bodyweight_kg).toBe(80);
+
+  await updateLoggedSet(set.id, { weight: 10, reps: 5, completed: true });
+  await finishWorkout(workout.id);
+  await mobileStore.profile.update({ bodyweightKg: 100 });
+
+  const records = await replaceRecordsForExercise(pullUps.id);
+
+  expect(records).toEqual(
+    expect.arrayContaining([expect.objectContaining({ record_type: 'max_volume', value: 450 })])
+  );
+});
+
 test('replacement uses completed sets and earliest timing tie-breaks', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const workout = await startWorkout({ name: 'PR session' });

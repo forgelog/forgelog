@@ -65,6 +65,7 @@ const workoutDetail: WorkoutDetail = {
   started_at: new Date().toISOString(),
   ended_at: new Date().toISOString(),
   notes: null,
+  bodyweight_kg: null,
   exercises: [
     makeExercise('we1', 'Bench Press', 'g1'),
     makeExercise('we2', 'Overhead Press', 'g1'),

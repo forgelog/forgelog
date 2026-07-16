@@ -22,6 +22,7 @@ export type ExerciseOccurrence = {
   exerciseType: ExerciseType;
   startedAt: string;
   position: number;
+  bodyweightKg?: number | null;
   sets: RecordSet[];
 };
 
@@ -116,7 +117,11 @@ export function computeRecordState(
   const events: ComputedRecordEvent[] = [];
 
   for (const occurrence of [...occurrences].sort(compareOccurrences)) {
-    const occurrenceBest = bestCandidatesForOccurrence(occurrence, options.bodyweightKg ?? null, fallbackAchievedAt);
+    const occurrenceBest = bestCandidatesForOccurrence(
+      occurrence,
+      occurrence.bodyweightKg ?? options.bodyweightKg ?? null,
+      fallbackAchievedAt
+    );
     for (const candidate of occurrenceBest) {
       updateCurrent(current, candidate);
 
