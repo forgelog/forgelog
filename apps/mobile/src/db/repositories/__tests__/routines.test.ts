@@ -303,7 +303,7 @@ test('saveRoutineDraft rejects invalid name and notes with existing validation m
   ).rejects.toThrow('Add at least one exercise before saving.');
 });
 
-test('getRoutinesWithSummaries returns all summaries in one aggregate query', async () => {
+test('getRoutinesWithSummaries returns all summaries using routine and exercise queries', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const squat = await seededExercise('Barbell Squat');
   const routine = await createRoutine('Strength');
@@ -327,8 +327,26 @@ test('getRoutinesWithSummaries returns all summaries in one aggregate query', as
       exerciseNames: [],
     }),
   ]);
-  expect(getAllAsync).toHaveBeenCalledTimes(1);
+  expect(getAllAsync).toHaveBeenCalledTimes(2);
   getAllAsync.mockRestore();
+});
+
+test('getRoutinesWithSummaries orders distinct exercise names by routine position', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const squat = await seededExercise('Barbell Squat');
+  const routine = await createRoutine('Strength');
+  const firstBenchEntry = await addExerciseToRoutine(routine.id, bench.id);
+  const squatEntry = await addExerciseToRoutine(routine.id, squat.id);
+  const secondBenchEntry = await addExerciseToRoutine(routine.id, bench.id);
+
+  await reorderRoutineExercises([squatEntry.id, firstBenchEntry.id, secondBenchEntry.id]);
+
+  await expect(getRoutinesWithSummariesFromStore()).resolves.toEqual([
+    expect.objectContaining({
+      id: routine.id,
+      exerciseNames: ['Barbell Squat', 'Barbell Bench Press - Medium Grip'],
+    }),
+  ]);
 });
 
 test('saveRoutineDraft rolls back when child insert fails', async () => {

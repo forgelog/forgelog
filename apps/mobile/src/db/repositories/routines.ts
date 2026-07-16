@@ -82,29 +82,35 @@ export async function getRoutineDetail(
 
 export type RoutineSummary = Routine & { exerciseCount: number; exerciseNames: string[] };
 
-type RoutineSummaryRow = Routine & { exerciseCount: number; exerciseNamesJson: string };
+type RoutineExerciseSummaryRow = { routine_id: string; name: string };
 
 export async function getRoutinesWithSummaries(db: DatabaseExecutor): Promise<RoutineSummary[]> {
+  const routines = await listRoutines(db);
   // todo: audit pending
-  const rows = await db.getAllAsync<RoutineSummaryRow>(
-    `SELECT
-       r.*,
-       COUNT(re.id) AS exerciseCount,
-       COALESCE(
-         json_group_array(DISTINCT e.name) FILTER (WHERE e.id IS NOT NULL),
-         json('[]')
-       ) AS exerciseNamesJson
-     FROM routines r
-     LEFT JOIN routine_exercises re ON re.routine_id = r.id
-     LEFT JOIN exercises e ON e.id = re.exercise_id
-     GROUP BY r.id
-     ORDER BY r.position, r.created_at`
+  const rows = await db.getAllAsync<RoutineExerciseSummaryRow>(
+    `SELECT re.routine_id, e.name
+     FROM routine_exercises re
+     JOIN exercises e ON e.id = re.exercise_id
+     ORDER BY re.routine_id, re.position, e.name`
   );
 
-  return rows.map(({ exerciseNamesJson, ...routine }) => ({
-    ...routine,
-    exerciseNames: JSON.parse(exerciseNamesJson) as string[],
-  }));
+  const summaries = new Map<string, { count: number; names: Set<string> }>();
+
+  for (const { routine_id, name } of rows) {
+    const summary = summaries.get(routine_id) ?? { count: 0, names: new Set<string>() };
+    summary.count += 1;
+    summary.names.add(name);
+    summaries.set(routine_id, summary);
+  }
+
+  return routines.map((routine) => {
+    const summary = summaries.get(routine.id);
+    return {
+      ...routine,
+      exerciseCount: summary?.count ?? 0,
+      exerciseNames: [...(summary?.names ?? [])],
+    };
+  });
 }
 
 function validateRoutineName(name: string): string {
