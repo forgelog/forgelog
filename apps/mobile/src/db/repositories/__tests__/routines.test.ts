@@ -303,7 +303,7 @@ test('saveRoutineDraft rejects invalid name and notes with existing validation m
   ).rejects.toThrow('Add at least one exercise before saving.');
 });
 
-test('getRoutinesWithSummaries returns all summaries in one aggregate query', async () => {
+test('getRoutinesWithSummaries returns all summaries using routine and exercise queries', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const squat = await seededExercise('Barbell Squat');
   const routine = await createRoutine('Strength');
@@ -319,7 +319,11 @@ test('getRoutinesWithSummaries returns all summaries in one aggregate query', as
     expect.objectContaining({
       id: routine.id,
       exerciseCount: 3,
-      exerciseNames: ['Barbell Bench Press - Medium Grip', 'Barbell Squat'],
+      exerciseNames: [
+        'Barbell Bench Press - Medium Grip',
+        'Barbell Bench Press - Medium Grip',
+        'Barbell Squat',
+      ],
     }),
     expect.objectContaining({
       id: emptyRoutine.id,
@@ -327,11 +331,11 @@ test('getRoutinesWithSummaries returns all summaries in one aggregate query', as
       exerciseNames: [],
     }),
   ]);
-  expect(getAllAsync).toHaveBeenCalledTimes(1);
+  expect(getAllAsync).toHaveBeenCalledTimes(2);
   getAllAsync.mockRestore();
 });
 
-test('getRoutinesWithSummaries orders distinct exercise names by routine position', async () => {
+test('getRoutinesWithSummaries orders all exercise names by routine position, including duplicates', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const squat = await seededExercise('Barbell Squat');
   const routine = await createRoutine('Strength');
@@ -344,7 +348,11 @@ test('getRoutinesWithSummaries orders distinct exercise names by routine positio
   await expect(getRoutinesWithSummariesFromStore()).resolves.toEqual([
     expect.objectContaining({
       id: routine.id,
-      exerciseNames: ['Barbell Squat', 'Barbell Bench Press - Medium Grip'],
+      exerciseNames: [
+        'Barbell Squat',
+        'Barbell Bench Press - Medium Grip',
+        'Barbell Bench Press - Medium Grip',
+      ],
     }),
   ]);
 });
