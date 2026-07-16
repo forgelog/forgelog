@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { BottomSheet, BottomSheetView } from '@expo/ui/community/bottom-sheet';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -11,6 +12,7 @@ import {
   View,
   type LayoutChangeEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
@@ -18,6 +20,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { SetFieldInputs } from '../components/SetFieldInputs';
 import {
   completeSet,
+  deleteExerciseFromWorkout,
   deleteSet,
   discardWorkout,
   uncompleteSet,
@@ -55,6 +58,11 @@ type PersonalRecordNotice = {
   detail: string;
 };
 
+type ExerciseOptionsState = {
+  exercise: WorkoutExerciseDetail;
+  closing?: boolean;
+};
+
 export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const { workoutId, pickedExerciseId } = route.params;
   const c = useTheme();
@@ -66,6 +74,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [personalRecordNotice, setPersonalRecordNotice] = useState<PersonalRecordNotice | null>(null);
   const [toastTop, setToastTop] = useState<number | null>(null);
+  const [exerciseOptions, setExerciseOptions] = useState<ExerciseOptionsState | null>(null);
   const reloadRequestId = useRef(0);
   const personalRecordNoticeId = useRef(0);
 
@@ -234,6 +243,41 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     }
   }
 
+  function showExerciseOptions(exercise: WorkoutExerciseDetail) {
+    setExerciseOptions({ exercise });
+  }
+
+  function closeExerciseOptions() {
+    setExerciseOptions((current) => (current ? { ...current, closing: true } : current));
+  }
+
+  async function removeExercise(exercise: WorkoutExerciseDetail) {
+    try {
+      await deleteExerciseFromWorkout(exercise.id, exercise.exercise.id);
+      await refreshPrSetIds(workoutId, setPrSetIds);
+      setDetail((current) =>
+        current
+          ? { ...current, exercises: current.exercises.filter((item) => item.id !== exercise.id) }
+          : current
+      );
+    } catch {
+      Alert.alert('Save failed', 'Could not remove exercise.');
+      reload();
+    }
+  }
+
+  function confirmRemoveExercise(exercise: WorkoutExerciseDetail) {
+    closeExerciseOptions();
+    Alert.alert('Remove exercise', `Remove ${exercise.exercise.name} from this workout?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => removeExercise(exercise),
+      },
+    ]);
+  }
+
   function handleFinish() {
     if (!detail || !mobileStore.workouts.hasCompletedSet(detail.exercises)) {
       Alert.alert('No sets completed', 'Complete at least one set before finishing.');
@@ -318,6 +362,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             prevSets={prevSets}
             prSetIds={prSetIds}
             onOpenExercise={(exerciseId) => navigation.navigate('ExerciseDetail', { exerciseId })}
+            onOpenOptions={showExerciseOptions}
             onEditSetField={editSetField}
             onToggleComplete={toggleComplete}
             onRemoveSet={removeSet}
@@ -332,6 +377,12 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             style={styles.addExercise}
           />
         }
+      />
+      <ExerciseOptionsSheet
+        state={exerciseOptions}
+        onClose={closeExerciseOptions}
+        onClosed={() => setExerciseOptions(null)}
+        onRemove={confirmRemoveExercise}
       />
       {personalRecordNotice ? (
         <PersonalRecordToast
@@ -417,6 +468,7 @@ type ActiveWorkoutExerciseItemProps = Readonly<{
   prevSets: Record<string, LoggedSet[]>;
   prSetIds: Set<string>;
   onOpenExercise: (exerciseId: string) => void;
+  onOpenOptions: (exercise: WorkoutExerciseDetail) => void;
   onEditSetField: (
     weId: string,
     exerciseId: string,
@@ -435,6 +487,7 @@ function ActiveWorkoutExerciseItem({
   prevSets,
   prSetIds,
   onOpenExercise,
+  onOpenOptions,
   onEditSetField,
   onToggleComplete,
   onRemoveSet,
@@ -456,6 +509,15 @@ function ActiveWorkoutExerciseItem({
             {item.exercise.name}
           </Text>
           <Icon name="information-outline" variant="sub" size={18} />
+        </Pressable>
+        <Pressable
+          onPress={() => onOpenOptions(item)}
+          hitSlop={8}
+          accessibilityLabel={`Exercise options ${item.exercise.name}`}
+          accessibilityRole="button"
+          testID={`workout-exercise-${index}-options`}
+        >
+          <Icon name="dots-vertical" variant="sub" size={20} />
         </Pressable>
       </View>
       <View style={styles.columnHeader}>
@@ -493,6 +555,60 @@ function ActiveWorkoutExerciseItem({
         <Text style={[styles.addSetText, { color: c.accent }]}>+ Add set</Text>
       </Pressable>
     </View>
+  );
+}
+
+type ExerciseOptionsSheetProps = Readonly<{
+  state: ExerciseOptionsState | null;
+  onClose: () => void;
+  onClosed: () => void;
+  onRemove: (exercise: WorkoutExerciseDetail) => void;
+}>;
+
+function ExerciseOptionsSheet({ state, onClose, onClosed, onRemove }: ExerciseOptionsSheetProps) {
+  const c = useTheme();
+
+  if (!state) return null;
+
+  const { exercise } = state;
+  return (
+    <BottomSheet
+      index={state.closing ? -1 : 0}
+      enableDynamicSizing
+      enablePanDownToClose
+      onClose={onClosed}
+      backgroundStyle={{ backgroundColor: c.card }}
+    >
+      <BottomSheetView style={styles.sheet}>
+        <SafeAreaView edges={['bottom']} style={styles.sheetSafeArea}>
+          <View testID="workout-exercise-options-sheet">
+            <View style={styles.sheetHeader}>
+              <Text style={[styles.sheetTitle, { color: c.fg }]} numberOfLines={1}>
+                {exercise.exercise.name}
+              </Text>
+            </View>
+            <Pressable
+              style={[styles.sheetAction, { borderTopColor: c.sep }]}
+              onPress={() => onRemove(exercise)}
+              accessibilityLabel={`Remove ${exercise.exercise.name} from workout`}
+              accessibilityRole="button"
+              testID="workout-exercise-action-remove"
+            >
+              <Icon name="trash-can-outline" color={c.danger} size={20} />
+              <Text style={[styles.sheetActionText, { color: c.danger }]}>Remove exercise</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.sheetCancel, { backgroundColor: c.fill }]}
+              onPress={onClose}
+              accessibilityLabel="Cancel exercise options"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.sheetCancelText, { color: c.fg }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </BottomSheetView>
+    </BottomSheet>
   );
 }
 
@@ -665,6 +781,33 @@ const styles = StyleSheet.create({
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseNameRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
   exerciseName: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
+  sheet: { paddingHorizontal: 16, paddingTop: 8 },
+  sheetSafeArea: { gap: 4 },
+  sheetHeader: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 8,
+  },
+  sheetTitle: { maxWidth: '100%', fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  sheetAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 52,
+    borderTopWidth: 1,
+  },
+  sheetActionText: { fontSize: 16, fontWeight: '600' },
+  sheetCancel: {
+    minHeight: 48,
+    borderRadius: 14,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  sheetCancelText: { fontSize: 16, fontWeight: '700' },
   columnHeader: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 0 },
   columnLabel: { fontSize: 11, fontWeight: '700' },
   setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8, paddingVertical: 4 },

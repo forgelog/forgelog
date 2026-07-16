@@ -78,6 +78,9 @@ importers:
         specifier: file:./modules/wear-sync
         version: file:modules/wear-sync
     devDependencies:
+      '@babel/runtime':
+        specifier: ^7.29.7
+        version: 7.29.7
       '@expo/config-plugins':
         specifier: 57.0.3
         version: 57.0.3(typescript@6.0.3)

@@ -9,6 +9,7 @@ import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 
 jest.mock('../../db/repositories/personalRecords');
 jest.mock('../../db/repositories/workouts');
+jest.mock('@expo/ui/community/bottom-sheet');
 
 const mockGetWorkoutDetail = getWorkoutDetail as jest.MockedFunction<typeof getWorkoutDetail>;
 const mockGetPreviousSessionSets = getPreviousSessionSets as jest.MockedFunction<

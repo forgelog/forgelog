@@ -11,6 +11,8 @@ import { ExerciseDetailScreen } from '../ExerciseDetailScreen';
 import { ExerciseLibraryScreen } from '../ExerciseLibraryScreen';
 import { HomeScreen } from '../HomeScreen';
 
+jest.mock('@expo/ui/community/bottom-sheet');
+
 const {
   addExercise: addExerciseToWorkout,
   addSet,
@@ -148,6 +150,27 @@ test('renders fields from the workout exercise snapshot', async () => {
   expect(tracking.getByTestId('workout-set-0-0-weight')).toBeTruthy();
   expect(tracking.getByTestId('workout-set-0-0-reps')).toBeTruthy();
   expect(tracking.queryByTestId('workout-exercise-0-tracking-type')).toBeNull();
+});
+
+test('removes an exercise through its options menu', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const workout = await startWorkout({ name: 'Remove Exercise' });
+  await addExerciseToWorkout(workout.id, bench.id);
+  const removeFlow = await renderActiveWorkout(workout.id);
+  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+  await waitFor(() => expect(removeFlow.getByLabelText(`Exercise options ${bench.name}`)).toBeTruthy());
+  fireEvent.press(removeFlow.getByLabelText(`Exercise options ${bench.name}`));
+
+  await waitFor(() => expect(removeFlow.getByTestId('workout-exercise-options-sheet')).toBeTruthy());
+  fireEvent.press(removeFlow.getByLabelText(`Remove ${bench.name} from workout`));
+
+  const removeButton = latestAlertButtons(alertSpy).find((button) => button.text === 'Remove');
+  await removeButton?.onPress?.();
+
+  await waitFor(() => expect(removeFlow.queryByText(bench.name)).toBeNull());
+  await expect(getWorkoutDetail(workout.id)).resolves.toMatchObject({ exercises: [] });
+  removeFlow.unmount();
 });
 
 test('finishes a workout', async () => {
