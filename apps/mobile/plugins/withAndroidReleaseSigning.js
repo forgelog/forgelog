@@ -24,6 +24,8 @@ const RELEASE_OPTIMIZATION_PROPERTIES = {
   'android.enableShrinkResourcesInReleaseBuilds': 'true',
   // Required by AGP 8.12 for its optimized resource shrinking pipeline.
   'android.r8.optimizedResourceShrinking': 'true',
+  // Required for Gradle-managed device snapshots on GitHub's headless runners.
+  'android.experimental.testOptions.managedDevices.emulator.gpu': 'swiftshader_indirect',
 };
 
 function withReleaseOptimizationProperties(config) {
