@@ -82,19 +82,18 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Install Android emulator
-        run: |
-          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
-          fi
-          "$SDKMANAGER" --install "emulator" "system-images;android-34;google_apis;x86_64"
-
       - name: Native Wear bridge tests
         id: native-wear-bridge-tests
         timeout-minutes: 45
-        working-directory: apps/mobile/android
-        run: ./gradlew :wear-sync:testDebugUnitTest :wear-sync:phoneApi34DebugAndroidTest -PreactNativeArchitectures=x86_64 --stacktrace --continue
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          script: |
+            cd apps/mobile/android
+            ./gradlew :wear-sync:testDebugUnitTest :wear-sync:connectedDebugAndroidTest -PreactNativeArchitectures=x86_64 --stacktrace --continue
 
       - name: Native Wear bridge coverage
         id: native-wear-bridge-coverage
