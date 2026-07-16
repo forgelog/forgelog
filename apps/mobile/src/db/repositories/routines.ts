@@ -99,7 +99,7 @@ export async function getRoutinesWithSummaries(db: DatabaseExecutor): Promise<Ro
              JOIN exercises e2 ON e2.id = re2.exercise_id
              WHERE re2.routine_id = r.id
              GROUP BY e2.name
-             ORDER BY first_position
+             ORDER BY first_position, e2.name
            )
          ),
          json('[]')
