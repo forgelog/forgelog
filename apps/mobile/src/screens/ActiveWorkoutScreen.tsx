@@ -1,7 +1,16 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Animated,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
@@ -15,7 +24,7 @@ import {
   updateSetAndRecomputeRecords,
 } from '../application/activeWorkout';
 import { mobileStore, type LoggedSetUpdate } from '../db/mobileStore';
-import type { LoggedSet, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
+import type { LoggedSet, PersonalRecordEvent, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
 import {
   fieldsForExerciseType,
   formatCompactSet,
@@ -38,6 +47,14 @@ const SET_COLUMN: Record<SetFieldKey, keyof LoggedSet> = {
   distance: 'distance_meters',
 };
 
+const PERSONAL_RECORD_TOAST_DURATION_MS = 3000;
+
+type PersonalRecordNotice = {
+  id: number;
+  title: string;
+  detail: string;
+};
+
 export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const { workoutId, pickedExerciseId } = route.params;
   const c = useTheme();
@@ -47,7 +64,10 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const [prevSets, setPrevSets] = useState<Record<string, LoggedSet[]>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [personalRecordNotice, setPersonalRecordNotice] = useState<PersonalRecordNotice | null>(null);
+  const [toastTop, setToastTop] = useState<number | null>(null);
   const reloadRequestId = useRef(0);
+  const personalRecordNoticeId = useRef(0);
 
   const reload = useCallback(() => {
     let current = true;
@@ -93,6 +113,23 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }, [workoutId]);
 
   useFocusEffect(reload);
+
+  const showPersonalRecordToast = useCallback((recordEvents: PersonalRecordEvent[]) => {
+    personalRecordNoticeId.current += 1;
+    setPersonalRecordNotice({
+      id: personalRecordNoticeId.current,
+      ...noticeForRecordEvents(recordEvents),
+    });
+  }, []);
+
+  const dismissPersonalRecordToast = useCallback((noticeId: number) => {
+    setPersonalRecordNotice((current) => (current?.id === noticeId ? null : current));
+  }, []);
+
+  const handleTimerLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextTop = event.nativeEvent.layout.y + event.nativeEvent.layout.height + 8;
+    setToastTop((currentTop) => (currentTop === nextTop ? currentTop : nextTop));
+  }, []);
 
   useEffect(() => {
     if (!pickedExerciseId) return;
@@ -172,10 +209,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         const { recordEvents } = await completeSet(setId, we.exercise.id);
         await refreshPrSetIds(workoutId, setPrSetIds);
         if (recordEvents.length > 0) {
-          Alert.alert(
-            'New PR',
-            recordEvents.map((event) => `${label(event.record_type)}: ${round(event.value)}`).join('\n')
-          );
+          showPersonalRecordToast(recordEvents);
         }
       } else {
         await uncompleteSet(setId, we.exercise.id);
@@ -271,7 +305,9 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           </View>
         }
       />
-      <Text style={[styles.timer, { color: c.accent }]}>{formatTime(elapsed)}</Text>
+      <Text style={[styles.timer, { color: c.accent }]} onLayout={handleTimerLayout}>
+        {formatTime(elapsed)}
+      </Text>
       <FlatList
         data={detail.exercises}
         keyExtractor={(item) => item.id}
@@ -297,6 +333,80 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           />
         }
       />
+      {personalRecordNotice ? (
+        <PersonalRecordToast
+          notice={personalRecordNotice}
+          top={toastTop}
+          onHidden={dismissPersonalRecordToast}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+type PersonalRecordToastProps = Readonly<{
+  notice: PersonalRecordNotice;
+  top: number | null;
+  onHidden: (noticeId: number) => void;
+}>;
+
+function PersonalRecordToast({ notice, top, onHidden }: PersonalRecordToastProps) {
+  const c = useTheme();
+  const [opacity] = useState(() => new Animated.Value(0));
+  const [translateY] = useState(() => new Animated.Value(-12));
+
+  useEffect(() => {
+    opacity.setValue(0);
+    translateY.setValue(-12);
+    const enter = Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 180, useNativeDriver: true }),
+    ]);
+    let exit: Animated.CompositeAnimation | undefined;
+    enter.start();
+    const timeout = setTimeout(() => {
+      exit = Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: -8, duration: 180, useNativeDriver: true }),
+      ]);
+      exit.start(({ finished }) => {
+        if (finished) onHidden(notice.id);
+      });
+    }, PERSONAL_RECORD_TOAST_DURATION_MS);
+
+    return () => {
+      clearTimeout(timeout);
+      enter.stop();
+      exit?.stop();
+    };
+  }, [notice.id, onHidden, opacity, translateY]);
+
+  return (
+    <View pointerEvents="none" style={[styles.toastLayer, { top: top ?? 128 }]}>
+      <Animated.View
+        accessibilityLabel={`${notice.title}. ${notice.detail}`}
+        accessibilityLiveRegion="polite"
+        style={[
+          styles.toast,
+          {
+            backgroundColor: c.card,
+            borderColor: c.accent,
+            opacity,
+            transform: [{ translateY }],
+          },
+        ]}
+        testID="personal-record-toast"
+      >
+        <View style={[styles.toastIcon, { backgroundColor: c.accent }]}>
+          <Icon name="trophy-outline" color={c.bg} size={18} />
+        </View>
+        <View style={styles.toastCopy}>
+          <Text style={[styles.toastTitle, { color: c.fg }]}>{notice.title}</Text>
+          <Text style={[styles.toastDetail, { color: c.sub }]} numberOfLines={1}>
+            {notice.detail}
+          </Text>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -487,6 +597,27 @@ function label(recordType: string): string {
   );
 }
 
+function noticeForRecordEvents(recordEvents: PersonalRecordEvent[]): Omit<PersonalRecordNotice, 'id'> {
+  if (recordEvents.length === 1) {
+    const [event] = recordEvents;
+    return {
+      title: 'New personal record',
+      detail: `${label(event.record_type)} · ${formatRecordValue(event)}`,
+    };
+  }
+  return {
+    title: `${recordEvents.length} new personal records`,
+    detail: recordEvents.map((event) => label(event.record_type)).join(' · '),
+  };
+}
+
+function formatRecordValue(event: PersonalRecordEvent): string {
+  const value = round(event.value);
+  if (event.record_type === 'max_reps') return `${value} reps`;
+  if (event.record_type === 'max_volume') return `${value} kg volume`;
+  return `${value} kg`;
+}
+
 function round(value: number): number {
   return Math.round(value * 10) / 10;
 }
@@ -500,11 +631,36 @@ async function refreshPrSetIds(workoutId: string, setIds: (ids: Set<string>) => 
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, position: 'relative' },
   center: { justifyContent: 'center' },
   empty: { textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   timer: { fontSize: 28, fontWeight: '700', textAlign: 'center', paddingVertical: 8, fontVariant: ['tabular-nums'] },
+  toastLayer: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    zIndex: 1,
+  },
+  toast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 60,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+  },
+  toastIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toastCopy: { flex: 1, minWidth: 0 },
+  toastTitle: { fontSize: 15, fontWeight: '700' },
+  toastDetail: { marginTop: 2, fontSize: 13 },
   exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseNameRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },

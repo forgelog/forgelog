@@ -126,9 +126,9 @@ test('completes PR sets', async () => {
     await Promise.resolve();
   });
 
-  await waitFor(() =>
-    expect(alertSpy.mock.calls.some(([title]) => String(title).startsWith('New PR'))).toBe(true)
-  );
+  await waitFor(() => expect(active.getByTestId('personal-record-toast')).toBeTruthy());
+  expect(active.getByText('3 new personal records')).toBeTruthy();
+  expect(alertSpy.mock.calls.some(([title]) => String(title).startsWith('New PR'))).toBe(false);
   await waitFor(async () => {
     const detail = await getWorkoutDetail(workout.id);
     expect(detail?.exercises[0].sets[0].completed).toBe(true);
