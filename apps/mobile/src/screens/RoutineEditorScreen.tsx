@@ -14,6 +14,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -481,7 +483,10 @@ function RoutineDraftFrame() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: c.bg }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: c.bg }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <ScreenHeader
         title={meta.mode.kind === 'create' ? 'Create Routine' : 'Edit Routine'}
         onLeadingPress={actions.close}
@@ -498,6 +503,7 @@ function RoutineDraftFrame() {
         data={draft.exercises}
         keyExtractor={(item) => item.localId}
         renderItem={renderItem}
+        keyboardShouldPersistTaps="handled"
         ListHeaderComponent={<RoutineDraftFields />}
         ListFooterComponent={
           <PillButton
@@ -511,7 +517,7 @@ function RoutineDraftFrame() {
           />
         }
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -6,6 +6,8 @@ import {
   Alert,
   Animated,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -331,7 +333,10 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: c.bg }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: c.bg }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <ScreenHeader
         title={detail.name}
         onLeadingPress={() => navigation.goBack()}
@@ -355,6 +360,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       <FlatList
         data={detail.exercises}
         keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
         renderItem={({ item, index }) => (
           <ActiveWorkoutExerciseItem
             item={item}
@@ -391,7 +397,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           onHidden={dismissPersonalRecordToast}
         />
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
