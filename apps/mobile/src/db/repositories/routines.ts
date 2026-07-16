@@ -91,12 +91,21 @@ export async function getRoutinesWithSummaries(db: DatabaseExecutor): Promise<Ro
        r.*,
        COUNT(re.id) AS exerciseCount,
        COALESCE(
-         json_group_array(DISTINCT e.name) FILTER (WHERE e.id IS NOT NULL),
+         (
+           SELECT json_group_array(name)
+           FROM (
+             SELECT e2.name, MIN(re2.position) AS first_position
+             FROM routine_exercises re2
+             JOIN exercises e2 ON e2.id = re2.exercise_id
+             WHERE re2.routine_id = r.id
+             GROUP BY e2.name
+             ORDER BY first_position
+           )
+         ),
          json('[]')
        ) AS exerciseNamesJson
      FROM routines r
      LEFT JOIN routine_exercises re ON re.routine_id = r.id
-     LEFT JOIN exercises e ON e.id = re.exercise_id
      GROUP BY r.id
      ORDER BY r.position, r.created_at`
   );

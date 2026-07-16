@@ -331,6 +331,24 @@ test('getRoutinesWithSummaries returns all summaries in one aggregate query', as
   getAllAsync.mockRestore();
 });
 
+test('getRoutinesWithSummaries orders distinct exercise names by routine position', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const squat = await seededExercise('Barbell Squat');
+  const routine = await createRoutine('Strength');
+  const firstBenchEntry = await addExerciseToRoutine(routine.id, bench.id);
+  const squatEntry = await addExerciseToRoutine(routine.id, squat.id);
+  const secondBenchEntry = await addExerciseToRoutine(routine.id, bench.id);
+
+  await reorderRoutineExercises([squatEntry.id, firstBenchEntry.id, secondBenchEntry.id]);
+
+  await expect(getRoutinesWithSummariesFromStore()).resolves.toEqual([
+    expect.objectContaining({
+      id: routine.id,
+      exerciseNames: ['Barbell Squat', 'Barbell Bench Press - Medium Grip'],
+    }),
+  ]);
+});
+
 test('saveRoutineDraft rolls back when child insert fails', async () => {
   const before = await getRoutinesWithSummariesFromStore();
 
