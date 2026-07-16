@@ -1,6 +1,7 @@
 name: Mobile
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '17 2 * * *'
   push:
