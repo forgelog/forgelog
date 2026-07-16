@@ -66,6 +66,7 @@ test('shows empty routines', async () => {
 
 test('shows a load-error state when routines fail to load', async () => {
   const db = await getDb();
+  // todo: audit pending
   await db.execAsync('DROP TABLE routines');
 
   const error = await renderHomeStack();

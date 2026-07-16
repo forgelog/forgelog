@@ -1,7 +1,7 @@
-import { id } from '../id';
 import { requireExerciseType } from '../../domain/setFields';
 import { NAME_MAX_LENGTH, NOTES_MAX_LENGTH, validateText } from '../../validation/textInput';
 import type { DatabaseExecutor } from '../executor';
+import { id } from '../id';
 import type {
   Routine,
   RoutineDetail,
@@ -25,6 +25,7 @@ type ExerciseRow = {
 };
 
 export async function listRoutines(db: DatabaseExecutor): Promise<Routine[]> {
+  // todo: audit pending
   return db.getAllAsync<Routine>('SELECT * FROM routines ORDER BY position, created_at');
 }
 
@@ -32,11 +33,13 @@ export async function getRoutineDetail(
   db: DatabaseExecutor,
   routineId: string
 ): Promise<RoutineDetail | null> {
+  // todo: audit pending
   const routine = await db.getFirstAsync<Routine>('SELECT * FROM routines WHERE id = $id', {
     $id: routineId,
   });
   if (!routine) return null;
 
+  // todo: audit pending
   const routineExercises = await db.getAllAsync<RoutineExercise>(
     'SELECT * FROM routine_exercises WHERE routine_id = $id ORDER BY position',
     { $id: routineId }
@@ -44,9 +47,11 @@ export async function getRoutineDetail(
 
   const exercises: RoutineExerciseDetail[] = [];
   for (const re of routineExercises) {
+    // todo: audit pending
     const exRow = await db.getFirstAsync<ExerciseRow>('SELECT * FROM exercises WHERE id = $id', {
       $id: re.exercise_id,
     });
+    // todo: audit pending
     const sets = await db.getAllAsync<RoutineSet>(
       'SELECT * FROM routine_sets WHERE routine_exercise_id = $id ORDER BY position',
       { $id: re.id }
@@ -75,21 +80,31 @@ export async function getRoutineDetail(
   return { ...routine, exercises };
 }
 
-export type RoutineSummary = Routine & { exerciseCount: number; muscles: string[] };
+export type RoutineSummary = Routine & { exerciseCount: number; exerciseNames: string[] };
 
-export async function listRoutineSummaries(db: DatabaseExecutor): Promise<RoutineSummary[]> {
-  const routines = await listRoutines(db);
-  const summaries: RoutineSummary[] = [];
-  for (const routine of routines) {
-    const detail = await getRoutineDetail(db, routine.id);
-    const muscles = [...new Set((detail?.exercises ?? []).map((e) => e.exercise.muscle_group))];
-    summaries.push({
-      ...routine,
-      exerciseCount: detail?.exercises.length ?? 0,
-      muscles,
-    });
-  }
-  return summaries;
+type RoutineSummaryRow = Routine & { exerciseCount: number; exerciseNamesJson: string };
+
+export async function getRoutinesWithSummaries(db: DatabaseExecutor): Promise<RoutineSummary[]> {
+  // todo: audit pending
+  const rows = await db.getAllAsync<RoutineSummaryRow>(
+    `SELECT
+       r.*,
+       COUNT(re.id) AS exerciseCount,
+       COALESCE(
+         json_group_array(DISTINCT e.name) FILTER (WHERE e.id IS NOT NULL),
+         json('[]')
+       ) AS exerciseNamesJson
+     FROM routines r
+     LEFT JOIN routine_exercises re ON re.routine_id = r.id
+     LEFT JOIN exercises e ON e.id = re.exercise_id
+     GROUP BY r.id
+     ORDER BY r.position, r.created_at`
+  );
+
+  return rows.map(({ exerciseNamesJson, ...routine }) => ({
+    ...routine,
+    exerciseNames: JSON.parse(exerciseNamesJson) as string[],
+  }));
 }
 
 function validateRoutineName(name: string): string {
@@ -122,10 +137,12 @@ export async function createRoutine(
   const validNotes = validateRoutineNotes(notes);
   const newId = id();
   const position = await nextRoutinePosition(db);
+  // todo: audit pending
   await db.runAsync(
     'INSERT INTO routines (id, name, notes, position) VALUES ($id, $name, $notes, $position)',
     { $id: newId, $name: validName, $notes: validNotes, $position: position }
   );
+  // todo: audit pending
   const created = await db.getFirstAsync<Routine>('SELECT * FROM routines WHERE id = $id', {
     $id: newId,
   });
@@ -150,10 +167,12 @@ export async function updateRoutine(
   }
   if (!sets.length) return;
   sets.push("updated_at = datetime('now')");
+  // todo: audit pending
   await db.runAsync(`UPDATE routines SET ${sets.join(', ')} WHERE id = $id`, params);
 }
 
 export async function deleteRoutine(db: DatabaseExecutor, routineId: string): Promise<void> {
+  // todo: audit pending
   await db.runAsync('DELETE FROM routines WHERE id = $id', { $id: routineId });
 }
 
@@ -163,15 +182,18 @@ export async function addExerciseToRoutine(
   exerciseId: string
 ): Promise<RoutineExercise> {
   const newId = id();
+  // todo: audit pending
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM routine_exercises WHERE routine_id = $id',
     { $id: routineId }
   );
+  // todo: audit pending
   const exercise = await db.getFirstAsync<{ exercise_type: string }>(
     'SELECT exercise_type FROM exercises WHERE id = $id',
     { $id: exerciseId }
   );
   if (!exercise) throw new Error('Exercise not found');
+  // todo: audit pending
   await db.runAsync(
     `INSERT INTO routine_exercises (id, routine_id, exercise_id, position, exercise_type)
      VALUES ($id, $routine_id, $exercise_id, $position, $exercise_type)`,
@@ -183,6 +205,7 @@ export async function addExerciseToRoutine(
       $exercise_type: requireExerciseType(exercise.exercise_type),
     }
   );
+  // todo: audit pending
   const created = await db.getFirstAsync<RoutineExercise>(
     'SELECT * FROM routine_exercises WHERE id = $id',
     { $id: newId }
@@ -195,6 +218,7 @@ export async function removeRoutineExercise(
   db: DatabaseExecutor,
   routineExerciseId: string
 ): Promise<void> {
+  // todo: audit pending
   await db.runAsync('DELETE FROM routine_exercises WHERE id = $id', { $id: routineExerciseId });
 }
 
@@ -218,6 +242,7 @@ export async function updateRoutineExercise(
     params.$notes = fields.notes;
   }
   if (!sets.length) return;
+  // todo: audit pending
   await db.runAsync(`UPDATE routine_exercises SET ${sets.join(', ')} WHERE id = $id`, params);
 }
 
@@ -226,6 +251,7 @@ export async function reorderRoutineExercises(
   orderedIds: string[]
 ): Promise<void> {
   for (let i = 0; i < orderedIds.length; i++) {
+    // todo: audit pending
     await db.runAsync('UPDATE routine_exercises SET position = $pos WHERE id = $id', {
       $pos: i,
       $id: orderedIds[i],
@@ -272,15 +298,18 @@ export async function saveRoutineDraft(
   const routineId = input.routineId ?? id();
 
   if (input.routineId) {
+    // todo: audit pending
     await db.runAsync(
       "UPDATE routines SET name = $name, notes = $notes, updated_at = datetime('now') WHERE id = $id",
       { $id: routineId, $name: validName, $notes: validNotes }
     );
+    // todo: audit pending
     await db.runAsync('DELETE FROM routine_exercises WHERE routine_id = $id', {
       $id: routineId,
     });
   } else {
     const position = await nextRoutinePosition(db);
+    // todo: audit pending
     await db.runAsync(
       'INSERT INTO routines (id, name, notes, position) VALUES ($id, $name, $notes, $position)',
       { $id: routineId, $name: validName, $notes: validNotes, $position: position }
@@ -289,13 +318,15 @@ export async function saveRoutineDraft(
 
   for (let exerciseIndex = 0; exerciseIndex < input.exercises.length; exerciseIndex++) {
     const exercise = input.exercises[exerciseIndex];
+    // todo: audit pending
     const exerciseExists = await db.getFirstAsync<{ id: string; exercise_type: string }>(
       'SELECT id, exercise_type FROM exercises WHERE id = $id',
       { $id: exercise.exercise_id }
     );
     if (!exerciseExists) throw new Error('Exercise not found');
-    const exerciseType = requireExerciseType(exercise.exercise_type);
+    const exerciseType = requireExerciseType(exerciseExists.exercise_type);
     const routineExerciseId = id();
+    // todo: audit pending
     await db.runAsync(
       `INSERT INTO routine_exercises
            (id, routine_id, exercise_id, position, superset_group_id, exercise_type, notes)
@@ -313,6 +344,7 @@ export async function saveRoutineDraft(
 
     for (let setIndex = 0; setIndex < exercise.sets.length; setIndex++) {
       const set = exercise.sets[setIndex];
+      // todo: audit pending
       await db.runAsync(
         `INSERT INTO routine_sets
              (id, routine_exercise_id, position, set_type,
@@ -344,10 +376,12 @@ export async function addRoutineSet(
   input: RoutineSetInput = {}
 ): Promise<RoutineSet> {
   const newId = id();
+  // todo: audit pending
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM routine_sets WHERE routine_exercise_id = $id',
     { $id: routineExerciseId }
   );
+  // todo: audit pending
   await db.runAsync(
     `INSERT INTO routine_sets
        (id, routine_exercise_id, position, set_type,
@@ -365,6 +399,7 @@ export async function addRoutineSet(
       $target_distance_meters: input.target_distance_meters ?? null,
     }
   );
+  // todo: audit pending
   const created = await db.getFirstAsync<RoutineSet>('SELECT * FROM routine_sets WHERE id = $id', {
     $id: newId,
   });
@@ -386,19 +421,24 @@ export async function updateRoutineSet(
   if (fields.set_type !== undefined) assign('set_type', '$set_type', fields.set_type);
   if (fields.target_weight !== undefined) assign('target_weight', '$weight', fields.target_weight);
   if (fields.target_reps !== undefined) assign('target_reps', '$reps', fields.target_reps);
-  if (fields.target_duration_seconds !== undefined)
+  if (fields.target_duration_seconds !== undefined) {
     assign('target_duration_seconds', '$duration', fields.target_duration_seconds);
-  if (fields.target_distance_meters !== undefined)
+  }
+  if (fields.target_distance_meters !== undefined) {
     assign('target_distance_meters', '$distance', fields.target_distance_meters);
+  }
   if (!sets.length) return;
+  // todo: audit pending
   await db.runAsync(`UPDATE routine_sets SET ${sets.join(', ')} WHERE id = $id`, params);
 }
 
 export async function deleteRoutineSet(db: DatabaseExecutor, setId: string): Promise<void> {
+  // todo: audit pending
   await db.runAsync('DELETE FROM routine_sets WHERE id = $id', { $id: setId });
 }
 
 async function nextRoutinePosition(db: DatabaseExecutor): Promise<number> {
+  // todo: audit pending
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM routines'
   );

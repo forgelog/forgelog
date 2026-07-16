@@ -20,6 +20,7 @@ beforeEach(() => {
 
 test('database connections and exclusive transactions satisfy DatabaseExecutor', async () => {
   const executor: DatabaseExecutor = await getDb();
+  // todo: audit pending
   const row = await executor.getFirstAsync<{ value: number }>('SELECT 1 AS value');
 
   expect(executorCompatibility).toEqual([true, true]);

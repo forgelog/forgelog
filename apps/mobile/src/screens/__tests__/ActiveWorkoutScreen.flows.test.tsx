@@ -59,6 +59,7 @@ test('shows a missing-workout state', async () => {
 
 test('shows a load-error state', async () => {
   const db = await getDb();
+  // todo: audit pending
   await db.execAsync('DROP TABLE workouts');
 
   const error = await renderActiveWorkout('broken-workout');
@@ -96,16 +97,19 @@ test('completes PR sets', async () => {
   await updateLoggedSet(baselineSet.id, { weight: 100, reps: 5, completed: true });
   await finishWorkout(baselineWorkout.id);
   const db = await getDb();
+  // todo: audit pending
   await db.runAsync('UPDATE workouts SET started_at = $started WHERE id = $id', {
     $started: '2026-07-01T10:00:00.000Z',
     $id: baselineWorkout.id,
   });
+  // todo: audit pending
   await db.runAsync('UPDATE logged_sets SET completed_at = $completed WHERE id = $id', {
     $completed: '2026-07-01T10:05:00.000Z',
     $id: baselineSet.id,
   });
 
   const workout = await startWorkout({ name: 'Active PR Day' });
+  // todo: audit pending
   await db.runAsync('UPDATE workouts SET started_at = $started WHERE id = $id', {
     $started: '2026-07-08T10:00:00.000Z',
     $id: workout.id,

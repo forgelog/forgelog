@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 /**
- * SQL operations available to repositories.
+ * SQLite operations available to repositories.
  *
  * Both Expo's database connection and the handle passed to
  * `withExclusiveTransactionAsync` satisfy this type. Connection lifecycle and

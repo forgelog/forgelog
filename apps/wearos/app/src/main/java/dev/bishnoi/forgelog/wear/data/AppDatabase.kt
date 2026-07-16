@@ -42,6 +42,7 @@ abstract class AppDatabase : RoomDatabase() {
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
+        // todo: audit pending
         db.execSQL(
             """
             CREATE TABLE routine_exercises_next (
@@ -54,6 +55,7 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
             )
             """.trimIndent()
         )
+        // todo: audit pending
         db.execSQL(
             """
             INSERT INTO routine_exercises_next
@@ -62,9 +64,12 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
             FROM routine_exercises
             """.trimIndent()
         )
+        // todo: audit pending
         db.execSQL("DROP TABLE routine_exercises")
+        // todo: audit pending
         db.execSQL("ALTER TABLE routine_exercises_next RENAME TO routine_exercises")
 
+        // todo: audit pending
         db.execSQL(
             """
             CREATE TABLE workout_exercises_next (
@@ -77,6 +82,7 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
             )
             """.trimIndent()
         )
+        // todo: audit pending
         db.execSQL(
             """
             INSERT INTO workout_exercises_next
@@ -85,7 +91,9 @@ private val MIGRATION_1_2 = object : Migration(1, 2) {
             FROM workout_exercises
             """.trimIndent()
         )
+        // todo: audit pending
         db.execSQL("DROP TABLE workout_exercises")
+        // todo: audit pending
         db.execSQL("ALTER TABLE workout_exercises_next RENAME TO workout_exercises")
     }
 }

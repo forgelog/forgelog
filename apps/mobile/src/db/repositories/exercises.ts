@@ -58,6 +58,7 @@ export async function listExercises(
   }
 
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  // todo: audit pending
   const rows = await db.getAllAsync<ExerciseRow>(
     `SELECT * FROM exercises ${clause} ORDER BY name COLLATE NOCASE`,
     params
@@ -69,6 +70,7 @@ export async function getExercise(
   db: DatabaseExecutor,
   exerciseId: string
 ): Promise<Exercise | null> {
+  // todo: audit pending
   const row = await db.getFirstAsync<ExerciseRow>('SELECT * FROM exercises WHERE id = $id', {
     $id: exerciseId,
   });
@@ -88,6 +90,7 @@ export async function createCustomExercise(
   input: NewCustomExercise
 ): Promise<Exercise> {
   const newId = id();
+  // todo: audit pending
   await db.runAsync(
     `INSERT INTO exercises
        (id, name, muscle_group, equipment, exercise_type, is_custom, instructions, images)
@@ -112,6 +115,7 @@ export async function setExerciseType(
   exerciseId: string,
   exerciseType: string
 ): Promise<void> {
+  // todo: audit pending
   await db.runAsync('UPDATE exercises SET exercise_type = $t WHERE id = $id', {
     $t: requireExerciseType(exerciseType),
     $id: exerciseId,
@@ -119,6 +123,7 @@ export async function setExerciseType(
 }
 
 export async function listMuscleGroups(db: DatabaseExecutor): Promise<string[]> {
+  // todo: audit pending
   const rows = await db.getAllAsync<{ muscle_group: string }>(
     'SELECT DISTINCT muscle_group FROM exercises ORDER BY muscle_group'
   );
@@ -126,6 +131,7 @@ export async function listMuscleGroups(db: DatabaseExecutor): Promise<string[]> 
 }
 
 export async function listEquipment(db: DatabaseExecutor): Promise<string[]> {
+  // todo: audit pending
   const rows = await db.getAllAsync<{ equipment: string }>(
     'SELECT DISTINCT equipment FROM exercises ORDER BY equipment'
   );

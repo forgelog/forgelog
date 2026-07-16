@@ -64,6 +64,7 @@ export async function setWorkoutTimestamps(
   endedAt: string
 ): Promise<void> {
   const db = await getDb();
+  // todo: audit pending
   await db.runAsync('UPDATE workouts SET started_at = $startedAt, ended_at = $endedAt WHERE id = $id', {
     $startedAt: startedAt,
     $endedAt: endedAt,

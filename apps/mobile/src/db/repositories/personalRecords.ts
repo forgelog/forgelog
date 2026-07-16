@@ -9,6 +9,7 @@ export async function getRecordsForExercise(
   db: DatabaseExecutor,
   exerciseId: string
 ): Promise<PersonalRecord[]> {
+  // todo: audit pending
   return db.getAllAsync<PersonalRecord>(
     'SELECT * FROM personal_records WHERE exercise_id = $id ORDER BY record_type',
     { $id: exerciseId }
@@ -19,6 +20,7 @@ export async function getRecordEventsForExercise(
   db: DatabaseExecutor,
   exerciseId: string
 ): Promise<PersonalRecordEvent[]> {
+  // todo: audit pending
   return db.getAllAsync<PersonalRecordEvent>(
     `SELECT * FROM personal_record_events
       WHERE exercise_id = $id
@@ -31,6 +33,7 @@ export async function getRecordEventsForWorkout(
   db: DatabaseExecutor,
   workoutId: string
 ): Promise<PersonalRecordEvent[]> {
+  // todo: audit pending
   return db.getAllAsync<PersonalRecordEvent>(
     `SELECT * FROM personal_record_events
       WHERE workout_id = $id
@@ -43,6 +46,7 @@ export async function getRecordEventTypesForOccurrence(
   db: DatabaseExecutor,
   workoutExerciseId: string
 ): Promise<Set<RecordType>> {
+  // todo: audit pending
   const events = await db.getAllAsync<{ record_type: RecordType }>(
     `SELECT record_type
        FROM personal_record_events
@@ -55,6 +59,7 @@ export async function getRecordEventTypesForOccurrence(
 export type ExerciseRecordRow = PersonalRecord & { exercise_name: string };
 
 export async function listAllRecords(db: DatabaseExecutor): Promise<ExerciseRecordRow[]> {
+  // todo: audit pending
   return db.getAllAsync<ExerciseRecordRow>(
     `SELECT pr.*, e.name AS exercise_name
        FROM personal_records pr
@@ -79,6 +84,7 @@ export async function replaceRecordsForExercise(
 }
 
 export async function clearSetReference(db: DatabaseExecutor, loggedSetId: string): Promise<void> {
+  // todo: audit pending
   await db.runAsync('UPDATE personal_records SET logged_set_id = NULL WHERE logged_set_id = $id', {
     $id: loggedSetId,
   });
@@ -88,6 +94,7 @@ export async function clearSetReferencesForWorkoutExercise(
   db: DatabaseExecutor,
   workoutExerciseId: string
 ): Promise<void> {
+  // todo: audit pending
   await db.runAsync(
     `UPDATE personal_records SET logged_set_id = NULL
      WHERE logged_set_id IN (
@@ -101,6 +108,7 @@ export async function clearSetReferencesForWorkout(
   db: DatabaseExecutor,
   workoutId: string
 ): Promise<void> {
+  // todo: audit pending
   await db.runAsync(
     `UPDATE personal_records SET logged_set_id = NULL
      WHERE logged_set_id IN (

@@ -36,7 +36,7 @@ export function HomeScreen() {
     let current = true;
     setLoading(true);
     setLoadFailed(false);
-    Promise.all([mobileStore.workouts.getActive(), mobileStore.routines.listSummaries()])
+    Promise.all([mobileStore.workouts.getActive(), mobileStore.routines.getWithSummaries()])
       .then(([activeWorkout, routineRows]) => {
         if (!current) return;
         setActive(activeWorkout);
@@ -81,7 +81,10 @@ export function HomeScreen() {
         'Workout in progress',
         'You have an active workout. Resume it or discard it to start this routine.',
         [
-          { text: 'Resume', onPress: () => navigation.navigate('ActiveWorkout', { workoutId: workout.id }) },
+          {
+            text: 'Resume',
+            onPress: () => navigation.navigate('ActiveWorkout', { workoutId: workout.id }),
+          },
           {
             text: 'Discard & start',
             style: 'destructive',
@@ -134,7 +137,9 @@ export function HomeScreen() {
     setRoutineSheet({ routine, mode: 'delete', deleting: true });
     try {
       await mobileStore.routines.remove(routine.id);
-      setRoutineSheet((current) => (current ? { ...current, deleting: false, closing: true } : null));
+      setRoutineSheet((current) =>
+        current ? { ...current, deleting: false, closing: true } : null
+      );
       reload();
     } catch {
       setRoutineSheet({
@@ -194,7 +199,7 @@ export function HomeScreen() {
                 </Text>
                 <Text style={[styles.routineMeta, { color: c.sub }]}>
                   {item.exerciseCount} exercises
-                  {item.muscles.length ? ` · ${item.muscles.join(', ')}` : ''}
+                  {item.exerciseNames.length ? ` · ${item.exerciseNames.join(', ')}` : ''}
                 </Text>
               </View>
               <PillButton
@@ -310,7 +315,9 @@ function RoutineActionsSheet({
               <>
                 <Text style={[styles.deleteTitle, { color: c.fg }]}>Delete this routine?</Text>
                 <Text style={[styles.deleteMessage, { color: c.sub }]}>This cannot be undone.</Text>
-                {error ? <Text style={[styles.sheetError, { color: c.danger }]}>{error}</Text> : null}
+                {error ? (
+                  <Text style={[styles.sheetError, { color: c.danger }]}>{error}</Text>
+                ) : null}
                 <View style={styles.deleteActions}>
                   <Pressable
                     style={[styles.deleteButton, { backgroundColor: c.fill }]}
@@ -389,7 +396,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700' },
-  addButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  addButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   empty: { textAlign: 'center', marginTop: 24 },
   routineCard: { marginBottom: 0 },
   routineTouchable: { flexDirection: 'row', alignItems: 'center', gap: 12 },

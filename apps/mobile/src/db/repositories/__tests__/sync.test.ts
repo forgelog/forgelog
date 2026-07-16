@@ -29,6 +29,7 @@ async function rowCounts(): Promise<Record<string, number>> {
   const tables = ['workouts', 'workout_exercises', 'logged_sets', 'personal_records'];
   const counts: Record<string, number> = {};
   for (const table of tables) {
+    // todo: audit pending
     const row = await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) AS count FROM ${table}`);
     counts[table] = row?.count ?? 0;
   }
@@ -46,6 +47,7 @@ async function personalRecordRows(): Promise<
   }[]
 > {
   const db = await getDb();
+  // todo: audit pending
   return db.getAllAsync(
     `SELECT id, exercise_id, record_type, value, logged_set_id, achieved_at
        FROM personal_records
@@ -60,6 +62,7 @@ test('snapshots validate and duplicate watch deliveries keep row counts stable',
   await addRoutineSet(routineExercise.id, { target_weight: 60, target_reps: 8 });
 
   const db = await getDb();
+  // todo: audit pending
   await db.runAsync(
     `INSERT INTO personal_records (id, exercise_id, record_type, value, logged_set_id, achieved_at)
      VALUES ('manual-pr', $exerciseId, 'max_weight', 62.5, NULL, '2026-01-01T00:00:00.000Z')`,

@@ -23,40 +23,51 @@ export function resetDbForTests(): void {
 
 async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
+  // todo: audit pending
   await db.execAsync('PRAGMA foreign_keys = ON;');
 
+  // todo: audit pending
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version;');
   const currentVersion = row?.user_version ?? 0;
 
   if (currentVersion === 0) {
     // Fresh install: SCHEMA_SQL is always the current full schema.
+    // todo: audit pending
     await db.execAsync(SCHEMA_SQL);
   } else {
     if (currentVersion < 3) {
       // v3: exercise detail screen needs secondary muscles alongside the primary one.
+      // todo: audit pending
       await db.execAsync('ALTER TABLE exercises ADD COLUMN secondary_muscles TEXT;');
       await backfillSecondaryMuscles(db);
     }
     if (currentVersion < 4) {
       // v4: editable profile name on the Profile screen.
+      // todo: audit pending
       await db.execAsync(
         "CREATE TABLE profile (id INTEGER PRIMARY KEY CHECK (id = 0), name TEXT NOT NULL DEFAULT 'Alex Rivera');"
       );
     }
     if (currentVersion < 5) {
       // v5: theme selector on the Profile screen (system/light/dark).
+      // todo: audit pending
       await db.execAsync("ALTER TABLE profile ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'system';");
     }
     if (currentVersion < 6) {
       // v6: lifter profile fields (#15); drops the 'Alex Rivera' seeded default.
       // Transactional so a crash mid-migration can't leave columns half-added.
       await db.withTransactionAsync(async () => {
+        // todo: audit pending
         await db.execAsync(
           "ALTER TABLE profile ADD COLUMN sex TEXT CHECK (sex IN ('male', 'female', 'prefer_not_to_say'));"
         );
+        // todo: audit pending
         await db.execAsync('ALTER TABLE profile ADD COLUMN birth_date TEXT;');
+        // todo: audit pending
         await db.execAsync('ALTER TABLE profile ADD COLUMN height_cm REAL;');
+        // todo: audit pending
         await db.execAsync('ALTER TABLE profile ADD COLUMN bodyweight_kg REAL;');
+        // todo: audit pending
         await db.execAsync("UPDATE profile SET name = '' WHERE name = 'Alex Rivera';");
       });
     }
@@ -70,6 +81,7 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
       // v8: historical PR events separate "was a PR when logged" from the
       // current personal_records cache.
       await db.withTransactionAsync(async () => {
+        // todo: audit pending
         await db.execAsync(`
           CREATE TABLE IF NOT EXISTS personal_record_events (
             id                  TEXT PRIMARY KEY,
@@ -101,9 +113,11 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   }
 
   if (currentVersion < LATEST_SCHEMA_VERSION) {
+    // todo: audit pending
     await db.execAsync(`PRAGMA user_version = ${LATEST_SCHEMA_VERSION};`);
   }
 
+  // todo: audit pending
   await db.execAsync("INSERT OR IGNORE INTO profile (id, name) VALUES (0, '');");
   await seedExercises(db);
 
@@ -111,9 +125,11 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
 }
 
 async function rebuildExerciseTablesWithoutTimerMetadata(db: SQLite.SQLiteDatabase): Promise<void> {
+  // todo: audit pending
   await db.execAsync('PRAGMA foreign_keys = OFF;');
   try {
     await db.withTransactionAsync(async () => {
+      // todo: audit pending
       await db.execAsync(`
         CREATE TABLE routine_exercises_next (
           id                TEXT PRIMARY KEY,
@@ -178,13 +194,16 @@ async function rebuildExerciseTablesWithoutTimerMetadata(db: SQLite.SQLiteDataba
       `);
     });
   } finally {
+    // todo: audit pending
     await db.execAsync('PRAGMA foreign_keys = ON;');
   }
 }
 
 async function rebuildDevSchema(db: SQLite.SQLiteDatabase): Promise<void> {
+  // todo: audit pending
   await db.execAsync('PRAGMA foreign_keys = OFF;');
   try {
+    // todo: audit pending
     await db.execAsync(`
       DROP TABLE IF EXISTS personal_records;
       DROP TABLE IF EXISTS logged_sets;
@@ -196,8 +215,10 @@ async function rebuildDevSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       DROP TABLE IF EXISTS exercises;
       DROP TABLE IF EXISTS profile;
     `);
+    // todo: audit pending
     await db.execAsync(SCHEMA_SQL);
   } finally {
+    // todo: audit pending
     await db.execAsync('PRAGMA foreign_keys = ON;');
   }
 }

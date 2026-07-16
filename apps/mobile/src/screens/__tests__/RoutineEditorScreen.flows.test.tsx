@@ -40,6 +40,7 @@ function RoutineEditorWithPickedParam(props: ComponentProps<typeof RoutineEditor
 
 async function insertExercise(exerciseId = 'ex1', name = 'Bench Press') {
   const db = await getDb();
+  // todo: audit pending
   await db.runAsync(
     `INSERT OR IGNORE INTO exercises (id, name, muscle_group, equipment, exercise_type, is_custom)
      VALUES ($id, $name, 'chest', 'barbell', 'weight_reps', 1)`,
@@ -49,6 +50,7 @@ async function insertExercise(exerciseId = 'ex1', name = 'Bench Press') {
 
 async function countRows(table: string) {
   const db = await getDb();
+  // todo: audit pending
   const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM ${table}`);
   return row?.n ?? 0;
 }
@@ -115,6 +117,7 @@ test('new routine with a picked exercise saves the routine and children', async 
 
   await waitFor(() => expect(editor.getByText('Home screen')).toBeTruthy());
   const db = await getDb();
+  // todo: audit pending
   const row = await db.getFirstAsync<{ id: string }>('SELECT id FROM routines');
   expect(row?.id).toBeTruthy();
   const saved = await getRoutineDetail(row?.id as string);

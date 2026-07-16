@@ -54,6 +54,7 @@ test('shows PR badges from persisted record events', async () => {
   await replaceRecordsForExercise(bench.id);
 
   const db = await getDb();
+  // todo: audit pending
   const eventCount = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) AS count FROM personal_record_events WHERE logged_set_id = $setId',
     { $setId: set.id }

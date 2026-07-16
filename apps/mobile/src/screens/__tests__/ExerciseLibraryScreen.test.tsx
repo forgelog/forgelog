@@ -57,6 +57,7 @@ test('shows an empty state when filters have no matches', async () => {
 test('shows a load-error state when seeded exercise data is invalid', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const db = await getDb();
+  // todo: audit pending
   await db.runAsync('UPDATE exercises SET images = $images WHERE id = $id', {
     $images: 'not-json',
     $id: bench.id,
