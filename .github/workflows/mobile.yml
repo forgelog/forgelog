@@ -11,6 +11,10 @@ on:
       - 'data/contracts/**'
       - '.github/workflows/mobile.yml'
 
+concurrency:
+  group: mobile-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -309,7 +313,7 @@ jobs:
 
   build-release-aab:
     runs-on: ubuntu-latest
-    needs: [test, native-wear-bridge]
+    needs: test
     if: github.event_name == 'push'
     defaults:
       run:
