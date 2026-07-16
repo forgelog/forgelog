@@ -82,6 +82,9 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      - name: Free emulator disk space
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc
+
       - name: Native Wear bridge instrumentation tests
         id: native-wear-bridge-tests
         timeout-minutes: 45
