@@ -94,12 +94,12 @@ export async function getRoutinesWithSummaries(db: DatabaseExecutor): Promise<Ro
      ORDER BY re.routine_id, re.position, e.name`
   );
 
-  const summaries = new Map<string, { count: number; names: Set<string> }>();
+  const summaries = new Map<string, { count: number; names: string[] }>();
 
   for (const { routine_id, name } of rows) {
-    const summary = summaries.get(routine_id) ?? { count: 0, names: new Set<string>() };
+    const summary = summaries.get(routine_id) ?? { count: 0, names: [] };
     summary.count += 1;
-    summary.names.add(name);
+    summary.names.push(name);
     summaries.set(routine_id, summary);
   }
 
@@ -108,7 +108,7 @@ export async function getRoutinesWithSummaries(db: DatabaseExecutor): Promise<Ro
     return {
       ...routine,
       exerciseCount: summary?.count ?? 0,
-      exerciseNames: [...(summary?.names ?? [])],
+      exerciseNames: summary?.names ?? [],
     };
   });
 }
