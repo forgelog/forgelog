@@ -95,7 +95,7 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: cd apps/mobile/android && ./gradlew :wear-sync:connectedDebugAndroidTest -PreactNativeArchitectures=x86_64 --stacktrace --continue
+          script: cd apps/mobile/android && ./gradlew :wear-sync:connectedDebugAndroidTest -PreactNativeArchitectures=x86_64 --stacktrace --continue --write-locks
 
       - name: Native Wear bridge coverage
         id: native-wear-bridge-coverage
