@@ -2,6 +2,8 @@
 IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+jest.mock('react-native-keyboard-controller');
+
 const originalConsoleError = console.error.bind(console);
 
 // React 19 + the RN test renderer emits these known act warnings for

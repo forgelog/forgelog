@@ -6,8 +6,6 @@ import {
   Alert,
   Animated,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -17,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon } from '../components/Icon';
+import { KeyboardAwareListScrollView } from '../components/KeyboardAwareListScrollView';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SetFieldInputs } from '../components/SetFieldInputs';
@@ -333,10 +332,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: c.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
       <ScreenHeader
         title={detail.name}
         onLeadingPress={() => navigation.goBack()}
@@ -375,6 +371,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             onAddSet={handleAddSet}
           />
         )}
+        renderScrollComponent={KeyboardAwareListScrollView}
+        testID="workout-keyboard-aware-scroll-view"
         ListFooterComponent={
           <PillButton
             label="Add Exercise"
@@ -397,7 +395,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           onHidden={dismissPersonalRecordToast}
         />
       ) : null}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

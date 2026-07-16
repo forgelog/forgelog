@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { initWearSync, publishSyncSnapshot } from './src/sync/wearSync';
@@ -14,10 +15,12 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <RootNavigator />
-      </ThemeProvider>
-      <StatusBar style="auto" />
+      <KeyboardProvider>
+        <ThemeProvider>
+          <RootNavigator />
+        </ThemeProvider>
+        <StatusBar style="auto" />
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

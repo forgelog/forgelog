@@ -14,8 +14,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -24,6 +22,7 @@ import {
 } from 'react-native';
 
 import { Icon } from '../components/Icon';
+import { KeyboardAwareListScrollView } from '../components/KeyboardAwareListScrollView';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SetFieldInputs } from '../components/SetFieldInputs';
@@ -483,10 +482,7 @@ function RoutineDraftFrame() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: c.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={[styles.container, { backgroundColor: c.bg }]}>
       <ScreenHeader
         title={meta.mode.kind === 'create' ? 'Create Routine' : 'Edit Routine'}
         onLeadingPress={actions.close}
@@ -502,9 +498,11 @@ function RoutineDraftFrame() {
       <FlatList
         data={draft.exercises}
         keyExtractor={(item) => item.localId}
-        renderItem={renderItem}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={<RoutineDraftFields />}
+        renderItem={renderItem}
+        renderScrollComponent={KeyboardAwareListScrollView}
+        testID="routine-keyboard-aware-scroll-view"
         ListFooterComponent={
           <PillButton
             label="+ Add Exercise"
@@ -517,7 +515,7 @@ function RoutineDraftFrame() {
           />
         }
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
