@@ -82,10 +82,6 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Native Wear bridge unit tests
-        working-directory: apps/mobile/android
-        run: ./gradlew :wear-sync:testDebugUnitTest -PreactNativeArchitectures=x86_64 --stacktrace --continue
-
       - name: Native Wear bridge instrumentation tests
         id: native-wear-bridge-tests
         timeout-minutes: 45
@@ -95,14 +91,14 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: cd apps/mobile/android && ./gradlew :wear-sync:connectedDebugAndroidTest -PreactNativeArchitectures=x86_64 --stacktrace --continue --write-locks
+          script: cd apps/mobile/android && ./gradlew :wear-sync:testDebugUnitTest :wear-sync:connectedDebugAndroidTest -PreactNativeArchitectures=x86_64 --stacktrace --continue --write-locks
 
       - name: Native Wear bridge coverage
         id: native-wear-bridge-coverage
         if: always() && steps.native-wear-bridge-tests.outcome != 'skipped'
         timeout-minutes: 10
         working-directory: apps/mobile/android
-        run: ./gradlew :wear-sync:koverXmlReportDebug :wear-sync:koverHtmlReportDebug :wear-sync:koverVerifyDebug --continue
+        run: ./gradlew :wear-sync:koverXmlReportDebug :wear-sync:koverHtmlReportDebug :wear-sync:koverVerifyDebug --continue --write-locks
 
       - name: Upload native Wear bridge coverage reports
         if: always() && steps.native-wear-bridge-coverage.outcome != 'skipped'
