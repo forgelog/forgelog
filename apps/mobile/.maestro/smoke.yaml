@@ -10,8 +10,7 @@ appId: dev.bishnoi.forgelog.mobile
 - runFlow:
     when:
       visible: "Continue"
-    commands:
-      - tapOn: "Continue"
+    file: "complete-onboarding.yaml"
 - runFlow:
     when:
       visible: "Pixel Launcher isn't responding"

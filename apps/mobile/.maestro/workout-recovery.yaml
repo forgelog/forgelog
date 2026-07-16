@@ -7,6 +7,10 @@ appId: dev.bishnoi.forgelog.mobile
       visible: "Pixel Launcher isn't responding"
     commands:
       - tapOn: "Close app"
+- runFlow:
+    when:
+      visible: "Continue"
+    file: "complete-onboarding.yaml"
 - extendedWaitUntil:
     visible: "Workout"
     timeout: 60000

@@ -1,0 +1,7 @@
+appId: dev.bishnoi.forgelog.mobile
+---
+- tapOn:
+    id: "onboarding-name-input"
+- inputText: "ForgeLog Tester"
+- tapOn:
+    id: "onboarding-continue"
