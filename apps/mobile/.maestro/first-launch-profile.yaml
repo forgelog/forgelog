@@ -15,6 +15,7 @@ appId: dev.bishnoi.forgelog.mobile
       - tapOn:
           id: "onboarding-name-input"
       - inputText: "ForgeLog Tester"
+      - pressKey: back
       - scrollUntilVisible:
           element:
             id: "onboarding-continue"
