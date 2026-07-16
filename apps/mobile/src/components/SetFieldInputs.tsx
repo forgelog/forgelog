@@ -1,5 +1,5 @@
-import type { StyleProp, TextStyle } from 'react-native';
-import { TextInput } from 'react-native';
+import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
+import { TextInput, View } from 'react-native';
 
 import type { ExerciseTypeFieldDescriptor, SetFieldKey } from '../domain/setFields';
 import { useTheme } from '../theme/ThemeContext';
@@ -12,6 +12,7 @@ type Props = Readonly<{
   accessibilityLabelForField: (field: ExerciseTypeFieldDescriptor) => string;
   testIDForField: (field: SetFieldKey) => string;
   editable?: boolean;
+  containerStyle?: StyleProp<ViewStyle>;
 }>;
 
 export function SetFieldInputs({
@@ -22,10 +23,11 @@ export function SetFieldInputs({
   accessibilityLabelForField,
   testIDForField,
   editable = true,
+  containerStyle,
 }: Props) {
   const c = useTheme();
 
-  return (
+  const inputs = (
     <>
       {fields.map((field) => (
         <TextInput
@@ -44,4 +46,6 @@ export function SetFieldInputs({
       ))}
     </>
   );
+
+  return containerStyle ? <View style={containerStyle}>{inputs}</View> : inputs;
 }

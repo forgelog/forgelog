@@ -527,13 +527,19 @@ function ActiveWorkoutExerciseItem({
         </Pressable>
       </View>
       <View style={styles.columnHeader}>
-        <Text style={[styles.columnLabel, { color: c.sub, width: 26, textAlign: 'center' }]}>SET</Text>
-        <Text style={[styles.columnLabel, { color: c.sub, width: 52, textAlign: 'center' }]}>PREV</Text>
-        {fields.map((field) => (
-          <Text key={field.key} style={[styles.columnLabel, { color: c.sub, flex: 1, textAlign: 'center' }]}>
-            {field.columnLabel.toUpperCase()}
-          </Text>
-        ))}
+        <Text style={[styles.columnLabel, styles.setColumn, { color: c.sub }]}>SET</Text>
+        <Text style={[styles.columnLabel, styles.previousColumn, { color: c.sub }]}>PREV</Text>
+        <View style={styles.fieldColumns}>
+          {fields.map((field) => (
+            <Text
+              key={field.key}
+              style={[styles.columnLabel, styles.fieldColumnLabel, { color: c.sub }]}
+            >
+              {field.columnLabel.toUpperCase()}
+            </Text>
+          ))}
+        </View>
+        <View style={styles.actionsSpacer} />
       </View>
       {item.sets.map((set, setIndex) => (
         <ActiveWorkoutSetRow
@@ -668,6 +674,7 @@ function ActiveWorkoutSetRow({
       </Text>
       <SetFieldInputs
         fields={fields}
+        containerStyle={styles.fieldColumns}
         inputStyle={styles.setInput}
         valueForField={(field) => (set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
         onChangeField={(field, text) =>
@@ -814,8 +821,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sheetCancelText: { fontSize: 16, fontWeight: '700' },
-  columnHeader: { flexDirection: 'row', gap: 8, marginTop: 10, paddingLeft: 0 },
+  columnHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   columnLabel: { fontSize: 11, fontWeight: '700' },
+  setColumn: { width: 26, textAlign: 'center' },
+  previousColumn: { width: 52, textAlign: 'center' },
+  fieldColumns: { flex: 1, minWidth: 0, flexDirection: 'row', gap: 8 },
+  fieldColumnLabel: { flex: 1, textAlign: 'center' },
+  actionsSpacer: { width: 60 },
   setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8, paddingVertical: 4 },
   setIndex: { width: 26, textAlign: 'center' },
   prevValue: { width: 52, textAlign: 'center', fontSize: 13 },
