@@ -21,6 +21,6 @@ Tests may import `db/index` to create/reset an in-memory database and may import
 - `completeSet`, `uncompleteSet`, `updateSetAndRecomputeRecords`, `deleteSet`, `deleteExerciseFromWorkout`, `discardWorkout`, and `startOrResumeWorkout` in `src/application/activeWorkout.ts` are the public, invariant-preserving workout mutation API.
 - `runInMobileStoreTransaction` creates transaction-bound stores backed by Expo's exclusive transaction handle on native platforms. Web retains Expo's non-exclusive fallback because exclusive transactions are not supported there. Screens, theme code, and sync transport must not import it.
 - Repository functions receive a `DatabaseExecutor` from their caller. They contain SQL and row mapping but do not open connections or transactions.
-- Database initialization, schema generation, migrations, and seeding remain internal to `src/db`.
+- Database initialization, versioned schema migrations, and seeding remain internal to `src/db`.
 
 The ESLint configuration enforces the production UI/theme/sync boundary and prevents repositories from importing the global database entry point.

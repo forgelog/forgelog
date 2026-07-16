@@ -6,12 +6,12 @@
 - `apps/wearos`: Wear OS app in Kotlin and Jetpack Compose.
 - `data/contracts`: Shared sync schema and fixtures. Treat this as the contract source of truth for both suites.
 - `apps/mobile/modules/wear-sync`: Expo native bridge for phone-to-watch sync.
-- `internal-docs/schema.sql`: Source SQL schema for the mobile generated schema file.
 
 ## Mobile Layers
 
 - `src/domain`: Pure logic with no persistence, navigation, or React dependencies.
-- `src/db`: SQLite setup, schema, seed data, and persistence types.
+- `src/db`: SQLite setup, versioned schema migrations, seed data, and persistence types.
+- `src/db/schema.ts`: Immutable initial schema for migration 1. Add future changes as new entries in `src/db/index.ts`.
 - `src/db/repositories`: SQL-backed repository APIs. Keep SQL details here.
 - `src/application`: Transactional use cases that coordinate repositories.
 - `src/screens`: React Native UI and navigation-facing screen behavior.
@@ -32,14 +32,7 @@
 - Tests live in a sibling `__tests__` directory next to the code they cover.
 - Use `src/test-utils/db.ts`, `src/test-utils/render.tsx`, and `src/test-utils/async.ts` for helpers shared by multiple tests.
 - Contract fixtures in `data/contracts/fixtures` and the `validatorDrift` guard are the interim protection until schema codegen exists.
-- Maestro E2E flows live in `.maestro`. `pnpm run test:e2e` runs them locally and excludes migration-tagged flows; CI runs the smoke set on PRs and the full set nightly.
-
-## Generated Files
-
-- `apps/mobile/src/db/schema.ts` is generated from `internal-docs/schema.sql`.
-- Never hand-edit generated schema output.
-- Run `cd apps/mobile && pnpm run generate:schema` after schema SQL changes.
-- Run `cd apps/mobile && pnpm run check:generated` to verify generated output is current.
+- Maestro E2E flows live in `.maestro`. `pnpm run test:e2e` runs them locally; CI runs the smoke set on PRs and the full set nightly.
 
 ## Mobile Commands
 

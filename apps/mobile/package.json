@@ -51,10 +51,8 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "test:e2e": "mise exec maestro -- maestro test .maestro --exclude-tags migration",
-    "check:coverage": "node scripts/check-coverage-thresholds.js",
-    "generate:schema": "node scripts/generate-schema.js",
-    "check:generated": "node scripts/generate-schema.js --check"
+    "test:e2e": "mise exec maestro -- maestro test .maestro",
+    "check:coverage": "node scripts/check-coverage-thresholds.js"
   },
   "private": true,
   "expo": {

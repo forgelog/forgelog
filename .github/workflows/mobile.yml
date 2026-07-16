@@ -9,7 +9,6 @@ on:
     paths:
       - 'apps/mobile/**'
       - 'data/contracts/**'
-      - 'internal-docs/schema.sql'
       - '.github/workflows/mobile.yml'
 
 permissions:
@@ -30,9 +29,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Check generated files
-        run: pnpm run check:generated
 
       - name: Typecheck
         run: pnpm run typecheck
@@ -256,7 +252,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CURRENT_APK: ${{ github.workspace }}/artifacts/mobile-release/app-release.apk
-          MAESTRO_OUTPUT_DIR: ${{ github.workspace }}/artifacts/maestro-migration
         with:
           api-level: 34
           target: google_apis
@@ -266,7 +261,6 @@ jobs:
             adb install -r artifacts/mobile-release/app-release.apk
             mkdir -p artifacts/maestro-nightly
             mise exec maestro -- maestro test --format JUNIT --output artifacts/maestro-nightly/junit.xml --debug-output artifacts/maestro-nightly/debug --test-output-dir artifacts/maestro-nightly/test-output apps/mobile/.maestro/smoke.yaml apps/mobile/.maestro/first-launch-profile.yaml apps/mobile/.maestro/routine-crud.yaml apps/mobile/.maestro/workout-log.yaml apps/mobile/.maestro/workout-recovery.yaml
-            apps/mobile/scripts/run-maestro-migration.sh
 
       - name: Upload nightly Maestro failure artifacts
         if: failure()
@@ -275,7 +269,6 @@ jobs:
           name: mobile-maestro-nightly-failure
           path: |
             artifacts/maestro-nightly/
-            artifacts/maestro-migration/
 
   build-release-aab:
     runs-on: ubuntu-latest

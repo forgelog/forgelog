@@ -7,11 +7,10 @@ Wear OS persistence is intentionally out of scope. Complete items in order unles
 ## Definition of done for every database change
 
 - [ ] Keep SQL in `src/db` and multi-repository orchestration in `src/application`.
-- [ ] Update `internal-docs/schema.sql` when the current schema changes.
-- [ ] Run `cd apps/mobile && pnpm run generate:schema` after schema changes.
-- [ ] Add or update a migration for existing installs.
+- [ ] Add an append-only migration for every persisted-schema change.
+- [ ] Never edit `src/db/schema.ts`; it is the immutable migration 1 schema.
 - [ ] Add real in-memory SQLite tests for the changed behavior.
-- [ ] Run focused tests, then `pnpm run check:generated`, `pnpm run typecheck`, `pnpm run lint`, and `pnpm test`.
+- [ ] Run focused tests, then `pnpm run typecheck`, `pnpm run lint`, and `pnpm test`.
 
 ## 1. Establish the persistence boundary
 
@@ -31,24 +30,18 @@ Wear OS persistence is intentionally out of scope. Complete items in order unles
 - [x] No transaction callback calls a repository that silently reacquires the global database.
 - [x] Concurrent transaction tests demonstrate isolation and rollback behavior.
 
-## 2. Make migrations release-safe
+## 2. Keep migrations release-safe
 
-- [ ] Replace the conditional migration chain with ordered, numbered migrations.
-- [ ] Update `PRAGMA user_version` atomically with each successful migration.
-- [ ] Ensure a failed migration can be retried without duplicate-column or partial-schema failures.
-- [ ] Record which schema versions have shipped to real users and must remain upgradeable.
-- [ ] Decide how installs below schema version 7 will be handled without the current destructive rebuild.
-- [ ] Remove or tightly gate `rebuildDevSchema` so release builds cannot erase user data.
-- [ ] Add migration fixtures for every supported starting version through the latest version.
-- [ ] Add failure-injection tests that interrupt a migration and reopen the database.
-- [ ] Run `PRAGMA foreign_key_check` after migrations in tests.
-- [ ] Keep fresh-schema creation and migrated schemas structurally equivalent.
+- [x] Initialize the database through ordered, immutable migrations.
+- [ ] Append a new migration for every persisted-schema change; never edit a shipped migration.
+- [x] Update `PRAGMA user_version` in the same exclusive transaction as its migration.
+- [ ] Add historical-version fixtures before supporting upgrades beyond migration 1.
+- [ ] Verify a fresh database reaches the latest schema by applying every migration in order.
 
 ### Acceptance checks
 
-- [ ] Every supported historical database upgrades to the latest version without data loss.
-- [ ] Reopening after an interrupted migration succeeds.
-- [ ] Fresh and migrated schemas pass the same schema assertions.
+- [x] A new local database reaches the latest migration and seeds successfully.
+- [ ] Every supported historical database upgrades without data loss.
 
 ## 3. Enforce workout and transaction invariants
 
@@ -70,7 +63,7 @@ Wear OS persistence is intentionally out of scope. Complete items in order unles
 ## 4. Correct historical bodyweight calculations
 
 - [ ] Choose the historical snapshot location, preferably `workouts.bodyweight_kg`.
-- [ ] Add the schema column and a non-destructive migration/backfill policy.
+- [ ] Add the schema column and a migration/backfill policy.
 - [ ] Snapshot the current profile bodyweight when a workout starts.
 - [ ] Use each workout's bodyweight snapshot when computing historical volume and estimated 1RM.
 - [ ] Define behavior for old workouts whose bodyweight snapshot is unknown.

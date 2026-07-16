@@ -21,8 +21,11 @@ test('resetDbForTests gives each test a fresh DB', async () => {
   expect(active).toBeNull();
 });
 
-test('fresh schema requires canonical exercise_type columns', async () => {
+test('migration 1 creates unconstrained exercise_type columns', async () => {
   const db = await getDb();
+  const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+
+  expect(version?.user_version).toBe(1);
 
   for (const table of ['exercises', 'routine_exercises', 'workout_exercises']) {
     // todo: audit pending
@@ -38,7 +41,6 @@ test('fresh schema requires canonical exercise_type columns', async () => {
     expect(columns.find((column) => column.name === 'exercise_type')?.notnull).toBe(1);
     expect(schema?.sql).toContain('exercise_type');
     expect(schema?.sql).toContain('NOT NULL');
-    expect(schema?.sql).toContain('weight_reps');
-    expect(schema?.sql).toContain('weight_distance');
+    expect(schema?.sql).not.toContain('CHECK');
   }
 });
