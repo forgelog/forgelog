@@ -39,6 +39,7 @@ type ProfileRow = {
 };
 
 export async function getProfile(db: DatabaseExecutor): Promise<Profile> {
+  // todo: audit pending
   const row = await db.getFirstAsync<ProfileRow>(
     'SELECT name, theme_mode, sex, birth_date, height_cm, bodyweight_kg FROM profile WHERE id = 0'
   );
@@ -102,6 +103,7 @@ export async function updateProfile(db: DatabaseExecutor, patch: ProfileUpdate):
 
   if (sets.length === 0) return;
 
+  // todo: audit pending
   await db.runAsync(`UPDATE profile SET ${sets.join(', ')} WHERE id = 0`, params);
 }
 
@@ -111,10 +113,12 @@ export async function setProfileName(db: DatabaseExecutor, name: string): Promis
     fieldLabel: 'Name',
   });
   if (error) throw new Error(error);
+  // todo: audit pending
   await db.runAsync('UPDATE profile SET name = $name WHERE id = 0', { $name: value });
 }
 
 export async function getThemeMode(db: DatabaseExecutor): Promise<ThemeMode> {
+  // todo: audit pending
   const row = await db.getFirstAsync<{ theme_mode: ThemeMode }>(
     'SELECT theme_mode FROM profile WHERE id = 0'
   );
@@ -122,5 +126,6 @@ export async function getThemeMode(db: DatabaseExecutor): Promise<ThemeMode> {
 }
 
 export async function setThemeMode(db: DatabaseExecutor, mode: ThemeMode): Promise<void> {
+  // todo: audit pending
   await db.runAsync('UPDATE profile SET theme_mode = $mode WHERE id = 0', { $mode: mode });
 }

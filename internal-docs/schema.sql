@@ -9,6 +9,7 @@
 -- PRAGMA foreign_keys = ON;
 
 -- ---------- Exercise library ----------
+-- todo: audit pending
 CREATE TABLE exercises (
   id            TEXT PRIMARY KEY,           -- uuid, generated client-side
   name          TEXT NOT NULL,
@@ -36,9 +37,11 @@ CREATE TABLE exercises (
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- todo: audit pending
 CREATE INDEX idx_exercises_muscle_group ON exercises(muscle_group);
 
 -- ---------- Routines (reusable templates) ----------
+-- todo: audit pending
 CREATE TABLE routines (
   id         TEXT PRIMARY KEY,
   name       TEXT NOT NULL,
@@ -48,6 +51,7 @@ CREATE TABLE routines (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- todo: audit pending
 CREATE TABLE routine_exercises (
   id                TEXT PRIMARY KEY,
   routine_id        TEXT NOT NULL REFERENCES routines(id) ON DELETE CASCADE,
@@ -69,8 +73,10 @@ CREATE TABLE routine_exercises (
   notes             TEXT
 );
 
+-- todo: audit pending
 CREATE INDEX idx_routine_exercises_routine ON routine_exercises(routine_id);
 
+-- todo: audit pending
 CREATE TABLE routine_sets (
   id                      TEXT PRIMARY KEY,
   routine_exercise_id     TEXT NOT NULL REFERENCES routine_exercises(id) ON DELETE CASCADE,
@@ -82,9 +88,11 @@ CREATE TABLE routine_sets (
   target_distance_meters  REAL
 );
 
+-- todo: audit pending
 CREATE INDEX idx_routine_sets_routine_exercise ON routine_sets(routine_exercise_id);
 
 -- ---------- Workouts (actual sessions) ----------
+-- todo: audit pending
 CREATE TABLE workouts (
   id          TEXT PRIMARY KEY,
   routine_id  TEXT REFERENCES routines(id) ON DELETE SET NULL, -- freestyle workouts allowed; deleting a routine keeps history
@@ -94,8 +102,10 @@ CREATE TABLE workouts (
   notes       TEXT
 );
 
+-- todo: audit pending
 CREATE INDEX idx_workouts_started_at ON workouts(started_at DESC);
 
+-- todo: audit pending
 CREATE TABLE workout_exercises (
   id                TEXT PRIMARY KEY,
   workout_id        TEXT NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
@@ -117,9 +127,12 @@ CREATE TABLE workout_exercises (
   notes             TEXT
 );
 
+-- todo: audit pending
 CREATE INDEX idx_workout_exercises_workout ON workout_exercises(workout_id);
+-- todo: audit pending
 CREATE INDEX idx_workout_exercises_exercise ON workout_exercises(exercise_id);
 
+-- todo: audit pending
 CREATE TABLE logged_sets (
   id                  TEXT PRIMARY KEY,
   workout_exercise_id TEXT NOT NULL REFERENCES workout_exercises(id) ON DELETE CASCADE,
@@ -134,12 +147,14 @@ CREATE TABLE logged_sets (
   completed_at        TEXT
 );
 
+-- todo: audit pending
 CREATE INDEX idx_logged_sets_workout_exercise ON logged_sets(workout_exercise_id);
 
 -- ---------- Personal records ----------
 -- Cached, not computed on the fly: updated by app logic right after a set
 -- is marked completed, so a "new PR!" banner can show up instantly instead
 -- of running an aggregate query on every screen render.
+-- todo: audit pending
 CREATE TABLE personal_records (
   id            TEXT PRIMARY KEY,
   exercise_id   TEXT NOT NULL REFERENCES exercises(id),
@@ -150,6 +165,7 @@ CREATE TABLE personal_records (
   UNIQUE(exercise_id, record_type)
 );
 
+-- todo: audit pending
 CREATE TABLE personal_record_events (
   id                  TEXT PRIMARY KEY,
   exercise_id         TEXT NOT NULL REFERENCES exercises(id),
@@ -165,15 +181,19 @@ CREATE TABLE personal_record_events (
   UNIQUE(exercise_id, record_type, workout_exercise_id, scope)
 );
 
+-- todo: audit pending
 CREATE INDEX idx_personal_record_events_exercise
   ON personal_record_events(exercise_id, achieved_at DESC);
+-- todo: audit pending
 CREATE INDEX idx_personal_record_events_set
   ON personal_record_events(logged_set_id);
+-- todo: audit pending
 CREATE INDEX idx_personal_record_events_workout
   ON personal_record_events(workout_id);
 
 -- ---------- Profile ----------
 -- Single-row table for local, unauthenticated profile info.
+-- todo: audit pending
 CREATE TABLE profile (
   id            INTEGER PRIMARY KEY CHECK (id = 0),
   name          TEXT NOT NULL DEFAULT '',

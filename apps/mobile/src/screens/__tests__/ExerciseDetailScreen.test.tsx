@@ -93,6 +93,7 @@ test('shows empty history for an exercise with no sessions', async () => {
 test('keeps the about tab available when history loading fails', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const db = await getDb();
+  // todo: audit pending
   await db.execAsync('DROP TABLE personal_record_events');
 
   const detail = await renderExerciseDetail(bench.id);

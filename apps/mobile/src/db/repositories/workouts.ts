@@ -42,6 +42,7 @@ export async function startWorkout(
     if (routine) name = options.name ?? routine.name;
   }
 
+  // todo: audit pending
   await db.runAsync(
     `INSERT INTO workouts (id, routine_id, name, started_at)
        VALUES ($id, $routine_id, $name, $started_at)`,
@@ -53,6 +54,7 @@ export async function startWorkout(
     if (routine) {
       for (const re of routine.exercises) {
         const weId = id();
+        // todo: audit pending
         await db.runAsync(
           `INSERT INTO workout_exercises
                (id, workout_id, exercise_id, position, superset_group_id, exercise_type, notes)
@@ -70,6 +72,7 @@ export async function startWorkout(
           }
         );
         for (const s of re.sets) {
+          // todo: audit pending
           await db.runAsync(
             `INSERT INTO logged_sets
                  (id, workout_exercise_id, position, set_type, weight, reps, duration_seconds, distance_meters, completed)
@@ -90,6 +93,7 @@ export async function startWorkout(
     }
   }
 
+  // todo: audit pending
   const created = await db.getFirstAsync<Workout>('SELECT * FROM workouts WHERE id = $id', {
     $id: workoutId,
   });
@@ -98,6 +102,7 @@ export async function startWorkout(
 }
 
 export async function getActiveWorkout(db: DatabaseExecutor): Promise<Workout | null> {
+  // todo: audit pending
   const row = await db.getFirstAsync<Workout>(
     'SELECT * FROM workouts WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1'
   );
@@ -108,11 +113,13 @@ export async function getWorkoutDetail(
   db: DatabaseExecutor,
   workoutId: string
 ): Promise<WorkoutDetail | null> {
+  // todo: audit pending
   const workout = await db.getFirstAsync<Workout>('SELECT * FROM workouts WHERE id = $id', {
     $id: workoutId,
   });
   if (!workout) return null;
 
+  // todo: audit pending
   const workoutExercises = await db.getAllAsync<WorkoutExercise>(
     'SELECT * FROM workout_exercises WHERE workout_id = $id ORDER BY position',
     { $id: workoutId }
@@ -120,9 +127,11 @@ export async function getWorkoutDetail(
 
   const exercises: WorkoutExerciseDetail[] = [];
   for (const we of workoutExercises) {
+    // todo: audit pending
     const exRow = await db.getFirstAsync<ExerciseRow>('SELECT * FROM exercises WHERE id = $id', {
       $id: we.exercise_id,
     });
+    // todo: audit pending
     const sets = await db.getAllAsync<RawLoggedSet>(
       'SELECT * FROM logged_sets WHERE workout_exercise_id = $id ORDER BY position',
       { $id: we.id }
@@ -158,6 +167,7 @@ export async function getPreviousSessionSets(
   exerciseId: string,
   excludeWorkoutId: string
 ): Promise<LoggedSet[]> {
+  // todo: audit pending
   const we = await db.getFirstAsync<{ we_id: string }>(
     `SELECT we.id AS we_id
        FROM workout_exercises we
@@ -168,6 +178,7 @@ export async function getPreviousSessionSets(
     { $exerciseId: exerciseId, $excludeWorkoutId: excludeWorkoutId }
   );
   if (!we) return [];
+  // todo: audit pending
   const sets = await db.getAllAsync<RawLoggedSet>(
     'SELECT * FROM logged_sets WHERE workout_exercise_id = $id ORDER BY position',
     { $id: we.we_id }
@@ -193,6 +204,7 @@ export async function getSessionsForExercise(
   exerciseId: string,
   limit = 20
 ): Promise<ExerciseSession[]> {
+  // todo: audit pending
   const workoutExercises = await db.getAllAsync<{
     we_id: string;
     workout_id: string;
@@ -207,6 +219,7 @@ export async function getSessionsForExercise(
       ORDER BY w.started_at DESC, we.position`,
     { $id: exerciseId }
   );
+  // todo: audit pending
   const recordEvents = await db.getAllAsync<PersonalRecordEvent>(
     `SELECT * FROM personal_record_events
       WHERE exercise_id = $id
@@ -222,6 +235,7 @@ export async function getSessionsForExercise(
 
   const byWorkout = new Map<string, ExerciseSession>();
   for (const we of workoutExercises) {
+    // todo: audit pending
     const sets = await db.getAllAsync<RawLoggedSet>(
       'SELECT * FROM logged_sets WHERE workout_exercise_id = $id ORDER BY position',
       { $id: we.we_id }
@@ -249,15 +263,18 @@ export async function addExerciseToWorkout(
   exerciseId: string
 ): Promise<WorkoutExercise> {
   const newId = id();
+  // todo: audit pending
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM workout_exercises WHERE workout_id = $id',
     { $id: workoutId }
   );
+  // todo: audit pending
   const exercise = await db.getFirstAsync<{ exercise_type: string }>(
     'SELECT exercise_type FROM exercises WHERE id = $id',
     { $id: exerciseId }
   );
   if (!exercise) throw new Error('Exercise not found');
+  // todo: audit pending
   await db.runAsync(
     `INSERT INTO workout_exercises (id, workout_id, exercise_id, position, exercise_type)
      VALUES ($id, $workout_id, $exercise_id, $position, $exercise_type)`,
@@ -269,6 +286,7 @@ export async function addExerciseToWorkout(
       $exercise_type: requireExerciseType(exercise.exercise_type),
     }
   );
+  // todo: audit pending
   const created = await db.getFirstAsync<WorkoutExercise>(
     'SELECT * FROM workout_exercises WHERE id = $id',
     { $id: newId }
@@ -293,6 +311,7 @@ export async function updateWorkoutExercise(
     params.$notes = fields.notes;
   }
   if (!sets.length) return;
+  // todo: audit pending
   await db.runAsync(`UPDATE workout_exercises SET ${sets.join(', ')} WHERE id = $id`, params);
 }
 
@@ -302,15 +321,18 @@ export async function addSet(
   setType: SetType = 'normal'
 ): Promise<LoggedSet> {
   const newId = id();
+  // todo: audit pending
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM logged_sets WHERE workout_exercise_id = $id',
     { $id: workoutExerciseId }
   );
+  // todo: audit pending
   await db.runAsync(
     `INSERT INTO logged_sets (id, workout_exercise_id, position, set_type, completed)
      VALUES ($id, $we, $position, $set_type, 0)`,
     { $id: newId, $we: workoutExerciseId, $position: row?.next ?? 0, $set_type: setType }
   );
+  // todo: audit pending
   const created = await db.getFirstAsync<RawLoggedSet>('SELECT * FROM logged_sets WHERE id = $id', {
     $id: newId,
   });
@@ -337,6 +359,7 @@ export async function getLoggedSetRecordContext(
   db: DatabaseExecutor,
   loggedSetId: string
 ): Promise<LoggedSetRecordContext | null> {
+  // todo: audit pending
   return db.getFirstAsync<LoggedSetRecordContext>(
     `SELECT workout_exercise_id, completed
        FROM logged_sets
@@ -372,10 +395,12 @@ export async function updateLoggedSet(
   }
 
   if (!sets.length) return;
+  // todo: audit pending
   await db.runAsync(`UPDATE logged_sets SET ${sets.join(', ')} WHERE id = $id`, params);
 }
 
 export async function deleteLoggedSet(db: DatabaseExecutor, loggedSetId: string): Promise<void> {
+  // todo: audit pending
   await db.runAsync('DELETE FROM logged_sets WHERE id = $id', { $id: loggedSetId });
 }
 
@@ -383,6 +408,7 @@ export async function deleteWorkoutExercise(
   db: DatabaseExecutor,
   workoutExerciseId: string
 ): Promise<void> {
+  // todo: audit pending
   await db.runAsync('DELETE FROM workout_exercises WHERE id = $id', { $id: workoutExerciseId });
 }
 
@@ -391,6 +417,7 @@ export function hasCompletedSet(exercises: { sets: { completed: boolean }[] }[])
 }
 
 export async function finishWorkout(db: DatabaseExecutor, workoutId: string): Promise<void> {
+  // todo: audit pending
   await db.runAsync('UPDATE workouts SET ended_at = $ended WHERE id = $id', {
     $ended: new Date().toISOString(),
     $id: workoutId,
@@ -398,10 +425,12 @@ export async function finishWorkout(db: DatabaseExecutor, workoutId: string): Pr
 }
 
 export async function deleteWorkout(db: DatabaseExecutor, workoutId: string): Promise<void> {
+  // todo: audit pending
   await db.runAsync('DELETE FROM workouts WHERE id = $id', { $id: workoutId });
 }
 
 export async function listWorkouts(db: DatabaseExecutor): Promise<Workout[]> {
+  // todo: audit pending
   return db.getAllAsync<Workout>(
     'SELECT * FROM workouts WHERE ended_at IS NOT NULL ORDER BY started_at DESC'
   );
@@ -414,10 +443,12 @@ export type ProfileStats = {
 };
 
 export async function getProfileStats(db: DatabaseExecutor): Promise<ProfileStats> {
+  // todo: audit pending
   const countRow = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) AS count FROM workouts WHERE ended_at IS NOT NULL'
   );
 
+  // todo: audit pending
   const volumeRow = await db.getFirstAsync<{ volume: number | null }>(
     `SELECT SUM(ls.weight * ls.reps) AS volume
        FROM logged_sets ls
@@ -427,6 +458,7 @@ export async function getProfileStats(db: DatabaseExecutor): Promise<ProfileStat
         AND ls.weight IS NOT NULL AND ls.reps IS NOT NULL`
   );
 
+  // todo: audit pending
   const dateRows = await db.getAllAsync<{ day: string }>(
     `SELECT DISTINCT date(started_at, 'localtime') AS day FROM workouts WHERE ended_at IS NOT NULL ORDER BY day DESC`
   );

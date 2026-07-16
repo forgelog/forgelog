@@ -63,6 +63,7 @@ export async function ingestWatchWorkout(
   db: DatabaseExecutor,
   payload: WatchWorkoutPayload
 ): Promise<void> {
+  // todo: audit pending
   await db.runAsync(
     `INSERT INTO workouts (id, routine_id, name, started_at, ended_at, notes)
        VALUES ($id, $routine_id, $name, $started_at, $ended_at, $notes)
@@ -83,6 +84,7 @@ export async function ingestWatchWorkout(
   );
 
   for (const we of payload.exercises) {
+    // todo: audit pending
     await db.runAsync(
       `INSERT INTO workout_exercises
            (id, workout_id, exercise_id, position, superset_group_id, exercise_type, notes)
@@ -105,6 +107,7 @@ export async function ingestWatchWorkout(
     );
 
     for (const s of we.sets) {
+      // todo: audit pending
       await db.runAsync(
         `INSERT INTO logged_sets
              (id, workout_exercise_id, position, set_type, weight, reps, duration_seconds, distance_meters, rpe, completed, completed_at)

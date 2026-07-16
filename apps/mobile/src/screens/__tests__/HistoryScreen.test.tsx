@@ -78,6 +78,7 @@ test('groups finished workouts by month and opens workout detail', async () => {
 
 test('reports a repository load failure', async () => {
   const db = await getDb();
+  // todo: audit pending
   await db.execAsync('DROP TABLE workouts');
 
   const { getByText } = await renderHistoryStack();

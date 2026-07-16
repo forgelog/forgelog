@@ -25,9 +25,11 @@ test('fresh schema requires canonical exercise_type columns', async () => {
   const db = await getDb();
 
   for (const table of ['exercises', 'routine_exercises', 'workout_exercises']) {
+    // todo: audit pending
     const columns = await db.getAllAsync<{ name: string; notnull: number }>(
       `PRAGMA table_info(${table})`
     );
+    // todo: audit pending
     const schema = await db.getFirstAsync<{ sql: string }>(
       'SELECT sql FROM sqlite_master WHERE type = $type AND name = $table',
       { $type: 'table', $table: table }

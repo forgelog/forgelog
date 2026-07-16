@@ -40,6 +40,7 @@ export async function replaceRecordStateForExerciseInDb(
   exerciseId: string
 ): Promise<ReplacedRecordState> {
   const fallback = new Date().toISOString();
+  // todo: audit pending
   const rows = await db.getAllAsync<RecordSourceRow>(
     `SELECT
        we.id AS workout_exercise_id,
@@ -63,6 +64,7 @@ export async function replaceRecordStateForExerciseInDb(
     ORDER BY w.started_at, we.position, we.id, ls.position`,
     { $id: exerciseId }
   );
+  // todo: audit pending
   const bodyweight = await db.getFirstAsync<{ bodyweight_kg: number | null }>(
     'SELECT bodyweight_kg FROM profile WHERE id = 0'
   );
@@ -72,13 +74,16 @@ export async function replaceRecordStateForExerciseInDb(
     fallbackAchievedAt: fallback,
   });
 
+  // todo: audit pending
   const existingRecords = await db.getAllAsync<{ id: string; record_type: RecordType }>(
     'SELECT id, record_type FROM personal_records WHERE exercise_id = $id',
     { $id: exerciseId }
   );
   const existingIds = new Map(existingRecords.map((record) => [record.record_type, record.id]));
 
+  // todo: audit pending
   await db.runAsync('DELETE FROM personal_records WHERE exercise_id = $id', { $id: exerciseId });
+  // todo: audit pending
   await db.runAsync('DELETE FROM personal_record_events WHERE exercise_id = $id', {
     $id: exerciseId,
   });
@@ -100,6 +105,7 @@ export async function replaceRecordStateForExerciseInDb(
 }
 
 export async function backfillPersonalRecordState(db: DatabaseExecutor): Promise<void> {
+  // todo: audit pending
   const exercises = await db.getAllAsync<{ exercise_id: string }>(
     `SELECT DISTINCT we.exercise_id
        FROM workout_exercises we
@@ -153,6 +159,7 @@ async function insertCurrentRecord(
   existingIds: Map<RecordType, string>
 ): Promise<PersonalRecord> {
   const recordId = existingIds.get(record.type) ?? id();
+  // todo: audit pending
   await db.runAsync(
     `INSERT INTO personal_records (id, exercise_id, record_type, value, logged_set_id, achieved_at)
      VALUES ($id, $exercise_id, $record_type, $value, $logged_set_id, $achieved_at)`,
@@ -181,6 +188,7 @@ async function insertEvent(
   createdAt: string
 ): Promise<PersonalRecordEvent> {
   const eventId = `record_event:${event.workoutExerciseId}:${event.type}:${event.scope}`;
+  // todo: audit pending
   await db.runAsync(
     `INSERT INTO personal_record_events
        (id, exercise_id, workout_id, workout_exercise_id, logged_set_id, record_type, scope, value, achieved_at, formula_version, created_at)

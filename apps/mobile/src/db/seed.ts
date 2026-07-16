@@ -46,6 +46,7 @@ export async function backfillSecondaryMuscles(db: SQLiteDatabase): Promise<void
   const rows = seedData as RawSeedExercise[];
 
   await db.withTransactionAsync(async () => {
+    // todo: audit pending
     const stmt = await db.prepareAsync(
       `UPDATE exercises SET secondary_muscles = $secondary_muscles
        WHERE id = $id AND secondary_muscles IS NULL`
@@ -64,6 +65,7 @@ export async function backfillSecondaryMuscles(db: SQLiteDatabase): Promise<void
 }
 
 export async function seedExercises(db: SQLiteDatabase): Promise<void> {
+  // todo: audit pending
   const seeded = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) AS count FROM exercises WHERE is_custom = 0'
   );
@@ -72,6 +74,7 @@ export async function seedExercises(db: SQLiteDatabase): Promise<void> {
   const rows = (seedData as RawSeedExercise[]).map(toExerciseRow);
 
   await db.withTransactionAsync(async () => {
+    // todo: audit pending
     const stmt = await db.prepareAsync(
       `INSERT OR IGNORE INTO exercises
          (id, name, muscle_group, equipment, exercise_type, is_custom, instructions, images, secondary_muscles)
