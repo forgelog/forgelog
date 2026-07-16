@@ -1,10 +1,14 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 
+import { mobileStore } from '../db/mobileStore';
 import { ActiveWorkoutScreen } from '../screens/ActiveWorkoutScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { ExerciseDetailScreen } from '../screens/ExerciseDetailScreen';
 import { ExerciseLibraryScreen } from '../screens/ExerciseLibraryScreen';
+import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { RoutineDetailScreen } from '../screens/RoutineDetailScreen';
 import { RoutineEditorScreen } from '../screens/RoutineEditorScreen';
 import { WorkoutDetailScreen } from '../screens/WorkoutDetailScreen';
@@ -24,6 +28,35 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    mobileStore.profile
+      .hasCompletedOnboarding()
+      .then((complete) => {
+        if (!cancelled) setOnboardingComplete(complete);
+      })
+      .catch(() => {
+        if (!cancelled) setOnboardingComplete(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (onboardingComplete === null) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator accessibilityLabel="Loading ForgeLog" />
+      </View>
+    );
+  }
+
+  if (!onboardingComplete) {
+    return <OnboardingScreen onComplete={() => setOnboardingComplete(true)} />;
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="MainTabs" screenOptions={{ headerShown: false }}>
