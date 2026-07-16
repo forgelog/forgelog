@@ -224,8 +224,8 @@ jobs:
   maestro-nightly:
     runs-on: ubuntu-latest
     needs: build-release-apk
-    # Temporary: run the full Maestro suite on the release PR as well.
-    if: github.event_name == 'schedule' || github.event_name == 'push' || github.event_name == 'pull_request'
+    # Temporary: run the full Maestro suite on the 0.1.3 release PR as well.
+    if: github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'pull_request' && github.head_ref == 'chore/release-0.1.3')
     permissions:
       contents: read
     steps:
