@@ -25,7 +25,6 @@ export const mobileStoreForTests = {
     getSetRecordContext: bindTransactionOperation(
       (store) => store.workouts.getSetRecordContext
     ),
-    updateExercise: bindTransactionOperation((store) => store.workouts.updateExercise),
     removeExercise: bindTransactionOperation((store) => store.workouts.removeExercise),
     updateSet: bindTransactionOperation((store) => store.workouts.updateSet),
     removeSet: bindTransactionOperation((store) => store.workouts.removeSet),

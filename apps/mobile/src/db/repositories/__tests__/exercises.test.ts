@@ -2,7 +2,6 @@ import { resetDbForTests } from '../../index';
 import { mobileStore } from '../../mobileStore';
 
 const {
-  createCustom: createCustomExercise,
   listEquipment,
   list: listExercises,
   listMuscleGroups,
@@ -12,7 +11,7 @@ beforeEach(() => {
   resetDbForTests();
 });
 
-test('searches, filters, and creates custom exercises on real SQL', async () => {
+test('searches and filters seeded exercises on real SQL', async () => {
   const benchResults = await listExercises({ search: 'barbell bench press' });
   expect(benchResults.map((exercise) => exercise.name)).toContain(
     'Barbell Bench Press - Medium Grip'
@@ -29,24 +28,4 @@ test('searches, filters, and creates custom exercises on real SQL', async () => 
 
   await expect(listMuscleGroups()).resolves.toContain('chest');
   await expect(listEquipment()).resolves.toContain('barbell');
-
-  const custom = await createCustomExercise({
-    name: 'Cable Dragon Press',
-    muscle_group: 'chest',
-    equipment: 'cable',
-    exercise_type: 'weight_reps',
-    instructions: ['Brace hard.'],
-  });
-
-  expect(custom).toMatchObject({
-    name: 'Cable Dragon Press',
-    muscle_group: 'chest',
-    equipment: 'cable',
-    exercise_type: 'weight_reps',
-    is_custom: true,
-    instructions: ['Brace hard.'],
-    images: [],
-    secondary_muscles: [],
-  });
-  await expect(listExercises({ search: 'dragon' })).resolves.toEqual([custom]);
 });

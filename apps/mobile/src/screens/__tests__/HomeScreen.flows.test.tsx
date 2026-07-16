@@ -13,11 +13,7 @@ import { HomeScreen } from '../HomeScreen';
 import { RoutineDetailScreen } from '../RoutineDetailScreen';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 
-const {
-  addExercise: addExerciseToRoutine,
-  addSet: addRoutineSet,
-  create: createRoutine,
-} = mobileStore.routines;
+const { saveDraft: saveRoutineDraft } = mobileStore.routines;
 const {
   getActive: getActiveWorkout,
   getDetail: getWorkoutDetail,
@@ -41,9 +37,26 @@ afterEach(() => {
 
 async function createRoutineWithBench(name = 'Phase Six Push') {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
-  const routine = await createRoutine(name);
-  const routineExercise = await addExerciseToRoutine(routine.id, bench.id);
-  await addRoutineSet(routineExercise.id, { target_weight: 100, target_reps: 5 });
+  const routine = await saveRoutineDraft({
+    name,
+    notes: null,
+    exercises: [
+      {
+        exercise_id: bench.id,
+        exercise_type: 'weight_reps',
+        notes: null,
+        sets: [
+          {
+            set_type: 'normal',
+            target_weight: 100,
+            target_reps: 5,
+            target_duration_seconds: null,
+            target_distance_meters: null,
+          },
+        ],
+      },
+    ],
+  });
   return { bench, routine };
 }
 

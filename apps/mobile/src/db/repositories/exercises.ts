@@ -77,51 +77,6 @@ export async function getExercise(
   return row ? mapExercise(row) : null;
 }
 
-export type NewCustomExercise = {
-  name: string;
-  muscle_group: string;
-  equipment: string;
-  exercise_type: string;
-  instructions?: string[];
-};
-
-export async function createCustomExercise(
-  db: DatabaseExecutor,
-  input: NewCustomExercise
-): Promise<Exercise> {
-  const newId = id();
-  // todo: audit pending
-  await db.runAsync(
-    `INSERT INTO exercises
-       (id, name, muscle_group, equipment, exercise_type, is_custom, instructions, images)
-     VALUES ($id, $name, $muscle_group, $equipment, $exercise_type, 1, $instructions, $images)`,
-    {
-      $id: newId,
-      $name: input.name,
-      $muscle_group: input.muscle_group,
-      $equipment: input.equipment,
-      $exercise_type: requireExerciseType(input.exercise_type),
-      $instructions: JSON.stringify(input.instructions ?? []),
-      $images: JSON.stringify([]),
-    }
-  );
-  const created = await getExercise(db, newId);
-  if (!created) throw new Error('Failed to create custom exercise');
-  return created;
-}
-
-export async function setExerciseType(
-  db: DatabaseExecutor,
-  exerciseId: string,
-  exerciseType: string
-): Promise<void> {
-  // todo: audit pending
-  await db.runAsync('UPDATE exercises SET exercise_type = $t WHERE id = $id', {
-    $t: requireExerciseType(exerciseType),
-    $id: exerciseId,
-  });
-}
-
 export async function listMuscleGroups(db: DatabaseExecutor): Promise<string[]> {
   // todo: audit pending
   const rows = await db.getAllAsync<{ muscle_group: string }>(

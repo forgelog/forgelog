@@ -10,12 +10,7 @@ import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { latestAlertButtons } from '../../test-utils/async';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 
-const {
-  addExercise: addExerciseToRoutine,
-  addSet: addRoutineSet,
-  create: createRoutine,
-  getDetail: getRoutineDetail,
-} = mobileStore.routines;
+const { getDetail: getRoutineDetail, saveDraft: saveRoutineDraft } = mobileStore.routines;
 
 type TestParamList = RootStackParamList & {
   Home: undefined;
@@ -134,10 +129,27 @@ test('new routine with a picked exercise saves the routine and children', async 
 
 test('existing routine edits can be discarded without changing the DB', async () => {
   const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  const routine = await createRoutine('Original');
-  const bench = await addExerciseToRoutine(routine.id, 'ex1');
-  const squat = await addExerciseToRoutine(routine.id, 'ex2');
-  await addRoutineSet(bench.id, { target_weight: 80, target_reps: 8 });
+  const routine = await saveRoutineDraft({
+    name: 'Original',
+    notes: null,
+    exercises: [
+      {
+        exercise_id: 'ex1',
+        exercise_type: 'weight_reps',
+        notes: null,
+        sets: [
+          {
+            set_type: 'normal',
+            target_weight: 80,
+            target_reps: 8,
+            target_duration_seconds: null,
+            target_distance_meters: null,
+          },
+        ],
+      },
+      { exercise_id: 'ex2', exercise_type: 'weight_reps', notes: null, sets: [] },
+    ],
+  });
   const before = await getRoutineDetail(routine.id);
   const editor = await renderEditor({ routineId: routine.id });
 
@@ -151,14 +163,30 @@ test('existing routine edits can be discarded without changing the DB', async ()
 
   await waitFor(() => expect(editor.getByText('Home screen')).toBeTruthy());
   await expect(getRoutineDetail(routine.id)).resolves.toEqual(before);
-  expect(squat.id).toBeTruthy();
 });
 
 test('existing routine Save persists the full draft', async () => {
-  const routine = await createRoutine('Original');
-  const bench = await addExerciseToRoutine(routine.id, 'ex1');
-  await addExerciseToRoutine(routine.id, 'ex2');
-  await addRoutineSet(bench.id, { target_weight: 80, target_reps: 8 });
+  const routine = await saveRoutineDraft({
+    name: 'Original',
+    notes: null,
+    exercises: [
+      {
+        exercise_id: 'ex1',
+        exercise_type: 'weight_reps',
+        notes: null,
+        sets: [
+          {
+            set_type: 'normal',
+            target_weight: 80,
+            target_reps: 8,
+            target_duration_seconds: null,
+            target_distance_meters: null,
+          },
+        ],
+      },
+      { exercise_id: 'ex2', exercise_type: 'weight_reps', notes: null, sets: [] },
+    ],
+  });
   const editor = await renderEditor({ routineId: routine.id });
 
   await waitFor(() => expect(editor.getByDisplayValue('Original')).toBeTruthy());
@@ -188,8 +216,11 @@ test('existing routine Save persists the full draft', async () => {
 });
 
 test('picked exercise appends to a dirty draft without wiping unsaved edits', async () => {
-  const routine = await createRoutine('Original');
-  await addExerciseToRoutine(routine.id, 'ex1');
+  const routine = await saveRoutineDraft({
+    name: 'Original',
+    notes: null,
+    exercises: [{ exercise_id: 'ex1', exercise_type: 'weight_reps', notes: null, sets: [] }],
+  });
   const editor = await renderEditor({ routineId: routine.id }, RoutineEditorWithPickedParam);
 
   await waitFor(() => expect(editor.getByDisplayValue('Original')).toBeTruthy());
@@ -205,8 +236,11 @@ test('picked exercise appends to a dirty draft without wiping unsaved edits', as
 });
 
 test('picked exercise present during initial load is queued and appears after initialization', async () => {
-  const routine = await createRoutine('Original');
-  await addExerciseToRoutine(routine.id, 'ex1');
+  const routine = await saveRoutineDraft({
+    name: 'Original',
+    notes: null,
+    exercises: [{ exercise_id: 'ex1', exercise_type: 'weight_reps', notes: null, sets: [] }],
+  });
   const editor = await renderEditor({ routineId: routine.id, pickedExerciseId: 'ex2' });
 
   await waitFor(() => expect(editor.getByText('Bench Press')).toBeTruthy());

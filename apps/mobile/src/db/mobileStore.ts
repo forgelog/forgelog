@@ -9,15 +9,11 @@ import * as workouts from './repositories/workouts';
 import type { DatabaseExecutor } from './executor';
 import { getDb } from './index';
 
-export type { ExerciseFilters, NewCustomExercise } from './repositories/exercises';
+export type { ExerciseFilters } from './repositories/exercises';
 export type { ExerciseRecordRow } from './repositories/personalRecords';
 export type { ReplacedRecordState } from './personalRecordState';
 export type { Profile, ProfileUpdate, Sex, ThemeMode } from './repositories/profile';
-export type {
-  RoutineSetInput,
-  RoutineSummary,
-  SaveRoutineDraftInput,
-} from './repositories/routines';
+export type { RoutineSummary, SaveRoutineDraftInput } from './repositories/routines';
 export type {
   SyncSnapshot,
   WatchLoggedSetPayload,
@@ -60,8 +56,6 @@ function createBoundMobileStore(
     exercises: {
       list: bind(exercises.listExercises),
       get: bind(exercises.getExercise),
-      createCustom: bind(exercises.createCustomExercise),
-      setType: bind(exercises.setExerciseType),
       listMuscleGroups: bind(exercises.listMuscleGroups),
       listEquipment: bind(exercises.listEquipment),
     },
@@ -69,17 +63,8 @@ function createBoundMobileStore(
       list: bind(routines.listRoutines),
       getDetail: bind(routines.getRoutineDetail),
       getWithSummaries: bind(routines.getRoutinesWithSummaries),
-      create: bind(routines.createRoutine),
-      update: bind(routines.updateRoutine),
       remove: bind(routines.deleteRoutine),
-      addExercise: bind(routines.addExerciseToRoutine),
-      removeExercise: bind(routines.removeRoutineExercise),
-      updateExercise: bind(routines.updateRoutineExercise),
-      reorderExercises: bindTransaction(routines.reorderRoutineExercises),
       saveDraft: bindTransaction(routines.saveRoutineDraft),
-      addSet: bind(routines.addRoutineSet),
-      updateSet: bind(routines.updateRoutineSet),
-      removeSet: bind(routines.deleteRoutineSet),
     },
     workouts: {
       start: bindTransaction(workouts.startWorkout),
@@ -89,7 +74,6 @@ function createBoundMobileStore(
       getSessionsForExercise: bind(workouts.getSessionsForExercise),
       getSetRecordContext: bind(workouts.getLoggedSetRecordContext),
       addExercise: bind(workouts.addExerciseToWorkout),
-      updateExercise: bind(workouts.updateWorkoutExercise),
       removeExercise: bind(workouts.deleteWorkoutExercise),
       addSet: bind(workouts.addSet),
       updateSet: bind(workouts.updateLoggedSet),

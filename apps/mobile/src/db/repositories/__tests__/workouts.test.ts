@@ -6,11 +6,7 @@ import {
 } from '../../../test-utils/db';
 import type { LoggedSet } from '../../types';
 
-const {
-  addExercise: addExerciseToRoutine,
-  addSet: addRoutineSet,
-  create: createRoutine,
-} = mobileStore.routines;
+const { saveDraft: saveRoutineDraft } = mobileStore.routines;
 const {
   addExercise: addExerciseToWorkout,
   addSet,
@@ -65,10 +61,26 @@ test('starts from routines and reports detail, history, previous sets, and profi
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
-  const routine = await createRoutine('Strength A');
-  const routineExercise = await addExerciseToRoutine(routine.id, bench.id);
-  await mobileStore.routines.updateExercise(routineExercise.id, { notes: 'Snapshot this' });
-  await addRoutineSet(routineExercise.id, { target_weight: 100, target_reps: 5 });
+  const routine = await saveRoutineDraft({
+    name: 'Strength A',
+    notes: null,
+    exercises: [
+      {
+        exercise_id: bench.id,
+        exercise_type: 'weight_reps',
+        notes: 'Snapshot this',
+        sets: [
+          {
+            set_type: 'normal',
+            target_weight: 100,
+            target_reps: 5,
+            target_duration_seconds: null,
+            target_distance_meters: null,
+          },
+        ],
+      },
+    ],
+  });
 
   const firstWorkout = await startWorkout({ routineId: routine.id });
   const firstDetail = await getWorkoutDetail(firstWorkout.id);

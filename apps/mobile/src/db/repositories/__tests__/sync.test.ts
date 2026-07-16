@@ -4,11 +4,7 @@ import { getDb, resetDbForTests } from '../../index';
 import { mobileStore, type WatchWorkoutPayload } from '../../mobileStore';
 import { seededExercise } from '../../../test-utils/db';
 
-const {
-  addExercise: addExerciseToRoutine,
-  addSet: addRoutineSet,
-  create: createRoutine,
-} = mobileStore.routines;
+const { saveDraft: saveRoutineDraft } = mobileStore.routines;
 const { getSnapshot: getSyncSnapshot, ingestWatchWorkout } = mobileStore.sync;
 const { getDetail: getWorkoutDetail } = mobileStore.workouts;
 
@@ -57,9 +53,26 @@ async function personalRecordRows(): Promise<
 
 test('snapshots validate and duplicate watch deliveries keep row counts stable', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
-  const routine = await createRoutine('Watch Push');
-  const routineExercise = await addExerciseToRoutine(routine.id, bench.id);
-  await addRoutineSet(routineExercise.id, { target_weight: 60, target_reps: 8 });
+  await saveRoutineDraft({
+    name: 'Watch Push',
+    notes: null,
+    exercises: [
+      {
+        exercise_id: bench.id,
+        exercise_type: 'weight_reps',
+        notes: null,
+        sets: [
+          {
+            set_type: 'normal',
+            target_weight: 60,
+            target_reps: 8,
+            target_duration_seconds: null,
+            target_distance_meters: null,
+          },
+        ],
+      },
+    ],
+  });
 
   const db = await getDb();
   // todo: audit pending

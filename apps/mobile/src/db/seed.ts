@@ -40,30 +40,6 @@ export function toExerciseRow(raw: RawSeedExercise): ExerciseRow {
   };
 }
 
-// Existing installs seeded before the secondary_muscles column existed have
-// NULL there; backfill from the same seed JSON without touching anything else.
-export async function backfillSecondaryMuscles(db: SQLiteDatabase): Promise<void> {
-  const rows = seedData as RawSeedExercise[];
-
-  await db.withTransactionAsync(async () => {
-    // todo: audit pending
-    const stmt = await db.prepareAsync(
-      `UPDATE exercises SET secondary_muscles = $secondary_muscles
-       WHERE id = $id AND secondary_muscles IS NULL`
-    );
-    try {
-      for (const row of rows) {
-        await stmt.executeAsync({
-          $id: row.id,
-          $secondary_muscles: JSON.stringify(row.secondaryMuscles ?? []),
-        });
-      }
-    } finally {
-      await stmt.finalizeAsync();
-    }
-  });
-}
-
 export async function seedExercises(db: SQLiteDatabase): Promise<void> {
   // todo: audit pending
   const seeded = await db.getFirstAsync<{ count: number }>(

@@ -25,9 +25,26 @@ test('mobileStore exposes feature operations through one persistence entry point
   await mobileStore.profile.completeOnboarding({ name: 'Jordan', bodyweightKg: 75 });
   await expect(mobileStore.profile.get()).resolves.toMatchObject({ name: 'Jordan' });
 
-  const routine = await mobileStore.routines.create('Facade routine');
-  const routineExercise = await mobileStore.routines.addExercise(routine.id, bench?.id ?? 'missing');
-  await mobileStore.routines.addSet(routineExercise.id, { target_weight: 80, target_reps: 5 });
+  const routine = await mobileStore.routines.saveDraft({
+    name: 'Facade routine',
+    notes: null,
+    exercises: [
+      {
+        exercise_id: bench?.id ?? 'missing',
+        exercise_type: 'weight_reps',
+        notes: null,
+        sets: [
+          {
+            set_type: 'normal',
+            target_weight: 80,
+            target_reps: 5,
+            target_duration_seconds: null,
+            target_distance_meters: null,
+          },
+        ],
+      },
+    ],
+  });
 
   const workout = await runInMobileStoreTransaction((store) =>
     store.workouts.start({ routineId: routine.id })
@@ -40,7 +57,14 @@ test('mobileStore exposes feature operations through one persistence entry point
 
 test('transaction supplies a bound store and returns its result', async () => {
   const result = await runInMobileStoreTransaction(async (store) => {
-    const routine = await store.routines.create('Transactional routine');
+    const exercise = (await store.exercises.list({ search: 'Barbell Bench Press' }))[0];
+    const routine = await store.routines.saveDraft({
+      name: 'Transactional routine',
+      notes: null,
+      exercises: [
+        { exercise_id: exercise.id, exercise_type: 'weight_reps', notes: null, sets: [] },
+      ],
+    });
     return routine.name;
   });
 
@@ -73,7 +97,12 @@ test('overlapping exclusive transactions isolate rollback from the next commit',
   const events: string[] = [];
 
   const failingTransaction = runInMobileStoreTransaction(async (store) => {
-    await store.routines.create('Rolled back routine');
+    const exercise = (await store.exercises.list({ search: 'Barbell Bench Press' }))[0];
+    await store.routines.saveDraft({
+      name: 'Rolled back routine',
+      notes: null,
+      exercises: [{ exercise_id: exercise.id, exercise_type: 'weight_reps', notes: null, sets: [] }],
+    });
     events.push('first write');
     markFirstStarted();
     await firstCanFinish;
@@ -83,7 +112,12 @@ test('overlapping exclusive transactions isolate rollback from the next commit',
   await firstStarted;
   const successfulTransaction = runInMobileStoreTransaction(async (store) => {
     events.push('second start');
-    await store.routines.create('Committed routine');
+    const exercise = (await store.exercises.list({ search: 'Barbell Bench Press' }))[0];
+    await store.routines.saveDraft({
+      name: 'Committed routine',
+      notes: null,
+      exercises: [{ exercise_id: exercise.id, exercise_type: 'weight_reps', notes: null, sets: [] }],
+    });
   });
 
   await Promise.resolve();

@@ -304,26 +304,6 @@ export async function addExerciseToWorkout(
   return created;
 }
 
-export async function updateWorkoutExercise(
-  db: DatabaseExecutor,
-  workoutExerciseId: string,
-  fields: { superset_group_id?: string | null; notes?: string | null }
-): Promise<void> {
-  const sets: string[] = [];
-  const params: Record<string, string | null> = { $id: workoutExerciseId };
-  if (fields.superset_group_id !== undefined) {
-    sets.push('superset_group_id = $superset');
-    params.$superset = fields.superset_group_id;
-  }
-  if (fields.notes !== undefined) {
-    sets.push('notes = $notes');
-    params.$notes = fields.notes;
-  }
-  if (!sets.length) return;
-  // todo: audit pending
-  await db.runAsync(`UPDATE workout_exercises SET ${sets.join(', ')} WHERE id = $id`, params);
-}
-
 export async function addSet(
   db: DatabaseExecutor,
   workoutExerciseId: string,
