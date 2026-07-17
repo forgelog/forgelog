@@ -62,14 +62,14 @@ test('migration 2 creates and seeds measurement tables', async () => {
   expect(types).toHaveLength(18);
   expect(types[0]).toEqual({
     id: 'bodyweight',
-    name: 'Bodyweight',
+    name: 'Body Weight',
     dimension: 'mass',
     canonical_unit: 'kg',
     position: 0,
   });
   expect(types[17]).toEqual({
     id: 'right_calf',
-    name: 'Right calf',
+    name: 'Right Calf',
     dimension: 'length',
     canonical_unit: 'cm',
     position: 17,

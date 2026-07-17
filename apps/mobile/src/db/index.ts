@@ -53,24 +53,24 @@ const MIGRATIONS: readonly Migration[] = [
         INSERT INTO measurement_types
           (id, name, dimension, canonical_unit, position)
         VALUES
-          ('bodyweight',       'Bodyweight',       'mass',       'kg',  0),
-          ('body_fat',         'Body fat',         'percentage', '%',   1),
-          ('lean_body_mass',   'Lean body mass',   'mass',       'kg',  2),
+          ('bodyweight',       'Body Weight',      'mass',       'kg',  0),
+          ('body_fat',         'Body Fat',         'percentage', '%',   1),
+          ('lean_body_mass',   'Lean Body Mass',   'mass',       'kg',  2),
           ('waist',            'Waist',            'length',     'cm',  3),
           ('neck',             'Neck',             'length',     'cm',  4),
           ('shoulder',         'Shoulder',          'length',     'cm',  5),
           ('chest',            'Chest',             'length',     'cm',  6),
-          ('left_bicep',       'Left bicep',        'length',     'cm',  7),
-          ('right_bicep',      'Right bicep',       'length',     'cm',  8),
-          ('left_forearm',     'Left forearm',      'length',     'cm',  9),
-          ('right_forearm',    'Right forearm',     'length',     'cm', 10),
-          ('upper_abs',        'Upper abs',         'length',     'cm', 11),
-          ('lower_abs',        'Lower abs',         'length',     'cm', 12),
+          ('left_bicep',       'Left Bicep',        'length',     'cm',  7),
+          ('right_bicep',      'Right Bicep',       'length',     'cm',  8),
+          ('left_forearm',     'Left Forearm',      'length',     'cm',  9),
+          ('right_forearm',    'Right Forearm',     'length',     'cm', 10),
+          ('upper_abs',        'Upper Abs',         'length',     'cm', 11),
+          ('lower_abs',        'Lower Abs',         'length',     'cm', 12),
           ('hips',             'Hips',              'length',     'cm', 13),
-          ('left_thigh',       'Left thigh',        'length',     'cm', 14),
-          ('right_thigh',      'Right thigh',       'length',     'cm', 15),
-          ('left_calf',        'Left calf',         'length',     'cm', 16),
-          ('right_calf',       'Right calf',        'length',     'cm', 17);
+          ('left_thigh',       'Left Thigh',        'length',     'cm', 14),
+          ('right_thigh',      'Right Thigh',       'length',     'cm', 15),
+          ('left_calf',        'Left Calf',         'length',     'cm', 16),
+          ('right_calf',       'Right Calf',        'length',     'cm', 17);
       `);
     },
   },

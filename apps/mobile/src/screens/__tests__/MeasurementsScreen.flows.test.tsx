@@ -24,8 +24,8 @@ async function renderMeasurements() {
 test('shows every measurement type and an empty state for unrecorded values', async () => {
   const screen = await renderMeasurements();
 
-  await waitFor(() => expect(screen.getByText('Bodyweight')).toBeTruthy());
-  expect(screen.getByText('Right calf')).toBeTruthy();
+  await waitFor(() => expect(screen.getByText('Body Weight')).toBeTruthy());
+  expect(screen.getByText('Right Calf')).toBeTruthy();
   expect(screen.getAllByText('Not recorded')).toHaveLength(18);
 });
 
@@ -60,6 +60,6 @@ test('keeps the record screen open when a value is invalid', async () => {
   });
   await act(async () => fireEvent.press(screen.getByLabelText('Save measurements')));
 
-  await waitFor(() => expect(screen.getByText('Body fat must be a number.')).toBeTruthy());
+  await waitFor(() => expect(screen.getByText('Body Fat must be a number.')).toBeTruthy());
   expect(screen.getByLabelText('Save measurements')).toBeTruthy();
 });

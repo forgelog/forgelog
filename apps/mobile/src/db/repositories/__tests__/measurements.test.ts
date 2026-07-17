@@ -23,7 +23,7 @@ test('lists all types with their latest recorded values', async () => {
   expect(current).toHaveLength(18);
   expect(current[0]).toMatchObject({
     id: 'bodyweight',
-    name: 'Bodyweight',
+    name: 'Body Weight',
     dimension: 'mass',
     canonicalUnit: 'kg',
     position: 0,
