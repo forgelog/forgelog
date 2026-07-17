@@ -1,4 +1,3 @@
-import { id } from '../id';
 import { requireExerciseType } from '../../domain/setFields';
 import type { DatabaseExecutor } from '../executor';
 import type { Exercise } from '../types';

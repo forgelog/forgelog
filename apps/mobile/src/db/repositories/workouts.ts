@@ -36,16 +36,12 @@ export async function startWorkout(
   const workoutId = id();
   const startedAt = new Date().toISOString();
 
-  let name = options.name ?? 'Workout';
-  if (options.routineId) {
-    const routine = await getRoutineDetail(db, options.routineId);
-    if (routine) name = options.name ?? routine.name;
-  }
+  const routine = options.routineId ? await getRoutineDetail(db, options.routineId) : null;
+  const name = options.name ?? routine?.name ?? 'Workout';
   const profile = await db.getFirstAsync<{ bodyweight_kg: number | null }>(
     'SELECT bodyweight_kg FROM profile WHERE id = 0'
   );
 
-  // todo: audit pending
   await db.runAsync(
     `INSERT INTO workouts (id, routine_id, name, started_at, bodyweight_kg)
        VALUES ($id, $routine_id, $name, $started_at, $bodyweight_kg)`,
@@ -58,51 +54,45 @@ export async function startWorkout(
     }
   );
 
-  if (options.routineId) {
-    const routine = await getRoutineDetail(db, options.routineId);
-    if (routine) {
-      for (const re of routine.exercises) {
-        const weId = id();
-        // todo: audit pending
-        await db.runAsync(
-          `INSERT INTO workout_exercises
+  if (routine) {
+    for (const re of routine.exercises) {
+      const weId = id();
+      await db.runAsync(
+        `INSERT INTO workout_exercises
                (id, workout_id, exercise_id, position, superset_group_id, exercise_type, notes)
              VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $exercise_type, $notes)`,
-          {
-            $id: weId,
-            $workout_id: workoutId,
-            $exercise_id: re.exercise_id,
-            $position: re.position,
-            $superset_group_id: re.superset_group_id,
-            // Snapshot the routine exercise type so later routine/catalog edits
-            // never rewrites this logged workout.
-            $exercise_type: requireExerciseType(re.exercise_type),
-            $notes: re.notes,
-          }
-        );
-        for (const s of re.sets) {
-          // todo: audit pending
-          await db.runAsync(
-            `INSERT INTO logged_sets
+        {
+          $id: weId,
+          $workout_id: workoutId,
+          $exercise_id: re.exercise_id,
+          $position: re.position,
+          $superset_group_id: re.superset_group_id,
+          // Snapshot the routine exercise type so later routine/catalog edits
+          // never rewrites this logged workout.
+          $exercise_type: requireExerciseType(re.exercise_type),
+          $notes: re.notes,
+        }
+      );
+      for (const s of re.sets) {
+        await db.runAsync(
+          `INSERT INTO logged_sets
                  (id, workout_exercise_id, position, set_type, weight, reps, duration_seconds, distance_meters, completed)
                VALUES ($id, $we, $position, $set_type, $weight, $reps, $duration, $distance, 0)`,
-            {
-              $id: id(),
-              $we: weId,
-              $position: s.position,
-              $set_type: s.set_type,
-              $weight: s.target_weight,
-              $reps: s.target_reps,
-              $duration: s.target_duration_seconds,
-              $distance: s.target_distance_meters,
-            }
-          );
-        }
+          {
+            $id: id(),
+            $we: weId,
+            $position: s.position,
+            $set_type: s.set_type,
+            $weight: s.target_weight,
+            $reps: s.target_reps,
+            $duration: s.target_duration_seconds,
+            $distance: s.target_distance_meters,
+          }
+        );
       }
     }
   }
 
-  // todo: audit pending
   const created = await db.getFirstAsync<Workout>('SELECT * FROM workouts WHERE id = $id', {
     $id: workoutId,
   });

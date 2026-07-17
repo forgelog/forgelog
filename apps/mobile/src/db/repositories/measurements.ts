@@ -117,6 +117,7 @@ export async function recordMeasurements(
   }
 }
 
+// todo: can we avoid this by using Date type?
 function validateMeasuredAt(measuredAt: string): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(measuredAt)) {
     throw new Error('Measurement date is invalid.');

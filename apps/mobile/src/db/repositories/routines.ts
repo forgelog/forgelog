@@ -11,17 +11,16 @@ import type {
   SetType,
 } from '../types';
 
-type ExerciseRow = {
-  id: string;
-  name: string;
-  muscle_group: string;
-  equipment: string;
-  exercise_type: string;
-  is_custom: number;
-  instructions: string | null;
-  images: string | null;
-  secondary_muscles: string | null;
-  created_at: string;
+type RoutineExerciseRow = RoutineExercise & {
+  exercise_name: string;
+  exercise_muscle_group: string;
+  exercise_equipment: string;
+  catalog_exercise_type: string;
+  exercise_is_custom: number;
+  exercise_instructions: string | null;
+  exercise_images: string | null;
+  exercise_secondary_muscles: string | null;
+  exercise_created_at: string;
 };
 
 export async function listRoutines(db: DatabaseExecutor): Promise<Routine[]> {
@@ -33,49 +32,75 @@ export async function getRoutineDetail(
   db: DatabaseExecutor,
   routineId: string
 ): Promise<RoutineDetail | null> {
-  // todo: audit pending
   const routine = await db.getFirstAsync<Routine>('SELECT * FROM routines WHERE id = $id', {
     $id: routineId,
   });
   if (!routine) return null;
 
-  // todo: audit pending
-  const routineExercises = await db.getAllAsync<RoutineExercise>(
-    'SELECT * FROM routine_exercises WHERE routine_id = $id ORDER BY position',
+  const routineExercises = await db.getAllAsync<RoutineExerciseRow>(
+    `SELECT re.*,
+            e.name AS exercise_name,
+            e.muscle_group AS exercise_muscle_group,
+            e.equipment AS exercise_equipment,
+            e.exercise_type AS catalog_exercise_type,
+            e.is_custom AS exercise_is_custom,
+            e.instructions AS exercise_instructions,
+            e.images AS exercise_images,
+            e.secondary_muscles AS exercise_secondary_muscles,
+            e.created_at AS exercise_created_at
+       FROM routine_exercises re
+       JOIN exercises e ON e.id = re.exercise_id
+      WHERE re.routine_id = $id
+      ORDER BY re.position`,
     { $id: routineId }
   );
 
-  const exercises: RoutineExerciseDetail[] = [];
-  for (const re of routineExercises) {
-    // todo: audit pending
-    const exRow = await db.getFirstAsync<ExerciseRow>('SELECT * FROM exercises WHERE id = $id', {
-      $id: re.exercise_id,
-    });
-    // todo: audit pending
-    const sets = await db.getAllAsync<RoutineSet>(
-      'SELECT * FROM routine_sets WHERE routine_exercise_id = $id ORDER BY position',
-      { $id: re.id }
-    );
-    if (!exRow) continue;
-    exercises.push({
-      ...re,
-      exercise: {
-        id: exRow.id,
-        name: exRow.name,
-        muscle_group: exRow.muscle_group,
-        equipment: exRow.equipment,
-        exercise_type: requireExerciseType(exRow.exercise_type),
-        is_custom: exRow.is_custom === 1,
-        instructions: exRow.instructions ? (JSON.parse(exRow.instructions) as string[]) : [],
-        images: exRow.images ? (JSON.parse(exRow.images) as string[]) : [],
-        secondary_muscles: exRow.secondary_muscles
-          ? (JSON.parse(exRow.secondary_muscles) as string[])
-          : [],
-        created_at: exRow.created_at,
-      },
-      sets,
-    });
+  const routineSets = await db.getAllAsync<RoutineSet>(
+    `SELECT rs.*
+       FROM routine_sets rs
+       JOIN routine_exercises re ON re.id = rs.routine_exercise_id
+      WHERE re.routine_id = $id
+      ORDER BY re.position, rs.position`,
+    { $id: routineId }
+  );
+  const setsByExercise = new Map<string, RoutineSet[]>();
+  for (const set of routineSets) {
+    const sets = setsByExercise.get(set.routine_exercise_id) ?? [];
+    sets.push(set);
+    setsByExercise.set(set.routine_exercise_id, sets);
   }
+
+  const exercises: RoutineExerciseDetail[] = routineExercises.map(
+    ({
+      exercise_name,
+      exercise_muscle_group,
+      exercise_equipment,
+      catalog_exercise_type,
+      exercise_is_custom,
+      exercise_instructions,
+      exercise_images,
+      exercise_secondary_muscles,
+      exercise_created_at,
+      ...routineExercise
+    }) => ({
+      ...routineExercise,
+      exercise: {
+        id: routineExercise.exercise_id,
+        name: exercise_name,
+        muscle_group: exercise_muscle_group,
+        equipment: exercise_equipment,
+        exercise_type: requireExerciseType(catalog_exercise_type),
+        is_custom: exercise_is_custom === 1,
+        instructions: exercise_instructions ? (JSON.parse(exercise_instructions) as string[]) : [],
+        images: exercise_images ? (JSON.parse(exercise_images) as string[]) : [],
+        secondary_muscles: exercise_secondary_muscles
+          ? (JSON.parse(exercise_secondary_muscles) as string[])
+          : [],
+        created_at: exercise_created_at,
+      },
+      sets: setsByExercise.get(routineExercise.id) ?? [],
+    })
+  );
 
   return { ...routine, exercises };
 }
