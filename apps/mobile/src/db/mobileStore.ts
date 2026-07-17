@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 
 import * as exercises from './repositories/exercises';
+import * as measurements from './repositories/measurements';
 import * as personalRecords from './repositories/personalRecords';
 import * as profile from './repositories/profile';
 import * as routines from './repositories/routines';
@@ -10,6 +11,11 @@ import type { DatabaseExecutor } from './executor';
 import { getDb } from './index';
 
 export type { ExerciseFilters } from './repositories/exercises';
+export type {
+  CurrentMeasurement,
+  MeasurementDimension,
+  RecordMeasurementsInput,
+} from './repositories/measurements';
 export type { ExerciseRecordRow } from './repositories/personalRecords';
 export type { ReplacedRecordState } from './personalRecordState';
 export type { Profile, ProfileUpdate, Sex, ThemeMode } from './repositories/profile';
@@ -98,6 +104,10 @@ function createBoundMobileStore(
       ),
       clearSetReferencesForWorkout: bind(personalRecords.clearSetReferencesForWorkout),
     },
+    measurements: {
+      listCurrent: bind(measurements.listCurrentMeasurements),
+      record: bindTransaction(measurements.recordMeasurements),
+    },
     profile: {
       hasCompletedOnboarding: bind(profile.hasCompletedOnboarding),
       completeOnboarding: bind(profile.completeOnboarding),
@@ -156,6 +166,7 @@ export const mobileStore = {
     getEventsForWorkout: defaultStore.records.getEventsForWorkout,
     listAll: defaultStore.records.listAll,
   },
+  measurements: defaultStore.measurements,
   profile: defaultStore.profile,
   sync: defaultStore.sync,
 } as const;

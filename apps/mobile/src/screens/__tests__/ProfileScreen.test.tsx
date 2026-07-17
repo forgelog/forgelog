@@ -1,6 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Text } from 'react-native';
 
 import { listAllRecords } from '../../db/repositories/personalRecords';
 import {
@@ -24,9 +25,13 @@ const mockSetThemeMode = setThemeMode as jest.MockedFunction<typeof setThemeMode
 const mockSetProfileName = setProfileName as jest.MockedFunction<typeof setProfileName>;
 const mockGetProfile = getProfile as jest.MockedFunction<typeof getProfile>;
 
-type TestParamList = { Profile: undefined };
+type TestParamList = { Profile: undefined; Measurements: undefined };
 
 const Stack = createNativeStackNavigator<TestParamList>();
+
+function MeasurementsStub() {
+  return <Text>Measurements destination</Text>;
+}
 
 async function renderProfile() {
   return await render(
@@ -34,6 +39,7 @@ async function renderProfile() {
       <NavigationContainer>
         <Stack.Navigator>
           <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="Measurements" component={MeasurementsStub} />
         </Stack.Navigator>
       </NavigationContainer>
     </ThemeProvider>
@@ -126,4 +132,13 @@ test('trims whitespace before saving a new name', async () => {
   await waitFor(() =>
     expect(mockSetProfileName).toHaveBeenCalledWith(expect.anything(), 'Jamie Lee')
   );
+});
+
+test('opens measurements from the profile options', async () => {
+  const { getByLabelText, getByText } = await renderProfile();
+
+  await waitFor(() => expect(getByLabelText('Open measurements')).toBeTruthy());
+  fireEvent.press(getByLabelText('Open measurements'));
+
+  await waitFor(() => expect(getByText('Measurements destination')).toBeTruthy());
 });

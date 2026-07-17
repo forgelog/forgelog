@@ -25,7 +25,7 @@ test('migration 1 creates unconstrained exercise_type columns', async () => {
   const db = await getDb();
   const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
 
-  expect(version?.user_version).toBe(1);
+  expect(version?.user_version).toBeGreaterThanOrEqual(1);
 
   for (const table of ['exercises', 'routine_exercises', 'workout_exercises']) {
     // todo: audit pending
@@ -43,4 +43,40 @@ test('migration 1 creates unconstrained exercise_type columns', async () => {
     expect(schema?.sql).toContain('NOT NULL');
     expect(schema?.sql).not.toContain('CHECK');
   }
+});
+
+test('migration 2 creates and seeds measurement tables', async () => {
+  const db = await getDb();
+  const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  const types = await db.getAllAsync<{
+    id: string;
+    name: string;
+    dimension: string;
+    canonical_unit: string;
+    position: number;
+  }>(
+    'SELECT id, name, dimension, canonical_unit, position FROM measurement_types ORDER BY position'
+  );
+
+  expect(version?.user_version).toBe(2);
+  expect(types).toHaveLength(18);
+  expect(types[0]).toEqual({
+    id: 'bodyweight',
+    name: 'Bodyweight',
+    dimension: 'mass',
+    canonical_unit: 'kg',
+    position: 0,
+  });
+  expect(types[17]).toEqual({
+    id: 'right_calf',
+    name: 'Right calf',
+    dimension: 'length',
+    canonical_unit: 'cm',
+    position: 17,
+  });
+
+  const measurementSchema = await db.getFirstAsync<{ sql: string }>(
+    `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'measurements'`
+  );
+  expect(measurementSchema?.sql).toContain('CHECK (canonical_value >= 0)');
 });
