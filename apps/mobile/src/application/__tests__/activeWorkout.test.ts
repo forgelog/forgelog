@@ -16,7 +16,12 @@ const {
   getForExercise: getRecordsForExercise,
   replaceForExercise: replaceRecordStateForExercise,
 } = mobileStore.records;
-const { addSet, start: startWorkout, updateSet: updateLoggedSet } = mobileStore.workouts;
+const {
+  addSet,
+  setSetCompletion,
+  start: startWorkout,
+  updateSetValues: updateLoggedSetValues,
+} = mobileStore.workouts;
 
 async function insertExercise(exerciseId = 'ex1') {
   const db = await getDb();
@@ -45,7 +50,8 @@ async function insertWeightedWorkout(exerciseId = 'ex1') {
 async function seedBaseline(exerciseId = 'ex1') {
   const { workout, weId } = await insertWeightedWorkout(exerciseId);
   const set = await addSet(weId);
-  await updateLoggedSet(set.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(set.id, { weight: 100, reps: 5 });
+  await setSetCompletion(set.id, true);
   await replaceRecordStateForExercise(exerciseId);
   const db = await getDb();
   // todo: audit pending
@@ -77,7 +83,7 @@ beforeEach(async () => {
 test('complete a weighted set → record exists; uncomplete it → record gone', async () => {
   const { weId } = await insertWeightedWorkout();
   const set = await addSet(weId);
-  await updateLoggedSet(set.id, { weight: 100, reps: 5 });
+  await updateLoggedSetValues(set.id, { weight: 100, reps: 5 });
 
   await completeSet(set.id, 'ex1');
   const after = await getRecordsForExercise('ex1');
@@ -92,8 +98,8 @@ test('complete two sets, delete the heavier → max_weight drops', async () => {
   const { weId } = await insertWeightedWorkout();
   const s1 = await addSet(weId);
   const s2 = await addSet(weId);
-  await updateLoggedSet(s1.id, { weight: 100, reps: 5 });
-  await updateLoggedSet(s2.id, { weight: 120, reps: 3 });
+  await updateLoggedSetValues(s1.id, { weight: 100, reps: 5 });
+  await updateLoggedSetValues(s2.id, { weight: 120, reps: 3 });
 
   await completeSet(s1.id, 'ex1');
   await completeSet(s2.id, 'ex1');
@@ -109,7 +115,7 @@ test('complete two sets, delete the heavier → max_weight drops', async () => {
 test('discard a workout → its contribution to records disappears', async () => {
   const { workout, weId } = await insertWeightedWorkout();
   const set = await addSet(weId);
-  await updateLoggedSet(set.id, { weight: 100, reps: 5 });
+  await updateLoggedSetValues(set.id, { weight: 100, reps: 5 });
   await completeSet(set.id, 'ex1');
 
   const before = await getRecordsForExercise('ex1');
@@ -124,8 +130,8 @@ test('completeSet returns improved records only when a record actually improved'
   const { weId } = await insertWeightedWorkout();
   const s1 = await addSet(weId);
   const s2 = await addSet(weId);
-  await updateLoggedSet(s1.id, { weight: 100, reps: 5 });
-  await updateLoggedSet(s2.id, { weight: 80, reps: 3 });
+  await updateLoggedSetValues(s1.id, { weight: 100, reps: 5 });
+  await updateLoggedSetValues(s2.id, { weight: 80, reps: 3 });
 
   const first = await completeSet(s1.id, 'ex1');
   expect(first.improvedRecords).toHaveLength(0);
@@ -140,7 +146,7 @@ test('completeSet reports historical events only after baseline exists', async (
   await seedBaseline();
   const { weId } = await insertWeightedWorkout();
   const set = await addSet(weId);
-  await updateLoggedSet(set.id, { weight: 110, reps: 5 });
+  await updateLoggedSetValues(set.id, { weight: 110, reps: 5 });
 
   const result = await completeSet(set.id, 'ex1');
 
@@ -157,8 +163,8 @@ test('completeSet reports each PR type at most once per exercise occurrence', as
   const { weId } = await insertWeightedWorkout();
   const firstSet = await addSet(weId);
   const laterSet = await addSet(weId);
-  await updateLoggedSet(firstSet.id, { weight: 110, reps: 5 });
-  await updateLoggedSet(laterSet.id, { weight: 120, reps: 5 });
+  await updateLoggedSetValues(firstSet.id, { weight: 110, reps: 5 });
+  await updateLoggedSetValues(laterSet.id, { weight: 120, reps: 5 });
 
   const first = await completeSet(firstSet.id, 'ex1');
   const second = await completeSet(laterSet.id, 'ex1');
@@ -188,7 +194,7 @@ test('uncompleteSet removes provisional events from an active workout', async ()
   await seedBaseline();
   const { weId } = await insertWeightedWorkout();
   const set = await addSet(weId);
-  await updateLoggedSet(set.id, { weight: 110, reps: 5 });
+  await updateLoggedSetValues(set.id, { weight: 110, reps: 5 });
   await completeSet(set.id, 'ex1');
   expect(
     (await getRecordEventsForExercise('ex1')).some((event) => event.logged_set_id === set.id)
@@ -206,7 +212,7 @@ test('updating a completed set recomputes and removes stale events', async () =>
   await seedBaseline();
   const { weId } = await insertWeightedWorkout();
   const set = await addSet(weId);
-  await updateLoggedSet(set.id, { weight: 110, reps: 5 });
+  await updateLoggedSetValues(set.id, { weight: 110, reps: 5 });
   await completeSet(set.id, 'ex1');
 
   await updateSetAndRecomputeRecords(set.id, 'ex1', { weight: 90 });
@@ -237,13 +243,13 @@ test('updating an incomplete set persists values without recomputing PR state', 
   ).toBe(100);
 });
 
-test('updateSetAndRecomputeRecords can complete a set and report new events', async () => {
+test('completeSet reports new events', async () => {
   await seedBaseline();
   const { weId } = await insertWeightedWorkout();
   const set = await addSet(weId);
-  await updateLoggedSet(set.id, { weight: 110, reps: 5 });
+  await updateLoggedSetValues(set.id, { weight: 110, reps: 5 });
 
-  const result = await updateSetAndRecomputeRecords(set.id, 'ex1', { completed: true });
+  const result = await completeSet(set.id, 'ex1');
 
   expect(result.recordEvents).toEqual(
     expect.arrayContaining([
@@ -261,7 +267,7 @@ test('missing set mutations are no-ops for PR reporting', async () => {
     recordEvents: [],
   });
   await expect(
-    updateSetAndRecomputeRecords('missing-set', 'ex1', { completed: true })
+    updateSetAndRecomputeRecords('missing-set', 'ex1', { weight: 110 })
   ).resolves.toEqual({ recordEvents: [] });
 });
 
@@ -269,7 +275,7 @@ test('deleting a completed exercise removes its provisional contribution', async
   await seedBaseline();
   const { weId } = await insertWeightedWorkout();
   const set = await addSet(weId);
-  await updateLoggedSet(set.id, { weight: 110, reps: 5 });
+  await updateLoggedSetValues(set.id, { weight: 110, reps: 5 });
   await completeSet(set.id, 'ex1');
 
   await deleteExerciseFromWorkout(weId, 'ex1');
@@ -284,7 +290,7 @@ test('discarding an active workout removes provisional record events', async () 
   await seedBaseline();
   const { workout, weId } = await insertWeightedWorkout();
   const set = await addSet(weId);
-  await updateLoggedSet(set.id, { weight: 110, reps: 5 });
+  await updateLoggedSetValues(set.id, { weight: 110, reps: 5 });
   await completeSet(set.id, 'ex1');
 
   await discardWorkout(workout.id);

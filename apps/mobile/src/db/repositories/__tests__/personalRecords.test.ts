@@ -13,7 +13,8 @@ const {
   addSet,
   finish: finishWorkout,
   start: startWorkout,
-  updateSet: updateLoggedSet,
+  setSetCompletion,
+  updateSetValues: updateLoggedSetValues,
 } = mobileStore.workouts;
 
 beforeEach(() => {
@@ -55,7 +56,8 @@ test('bodyweight exercise calculations use the workout bodyweight snapshot', asy
 
   expect(workout.bodyweight_kg).toBe(80);
 
-  await updateLoggedSet(set.id, { weight: 10, reps: 5, completed: true });
+  await updateLoggedSetValues(set.id, { weight: 10, reps: 5 });
+  await setSetCompletion(set.id, true);
   await finishWorkout(workout.id);
   await mobileStore.profile.update({ bodyweightKg: 100 });
 
@@ -74,9 +76,11 @@ test('replacement uses completed sets and earliest timing tie-breaks', async () 
   const earlierTie = await addSet(workoutExercise.id);
   const ignoredIncomplete = await addSet(workoutExercise.id);
 
-  await updateLoggedSet(laterTie.id, { weight: 100, reps: 5, completed: true });
-  await updateLoggedSet(earlierTie.id, { weight: 100, reps: 5, completed: true });
-  await updateLoggedSet(ignoredIncomplete.id, { weight: 200, reps: 1, completed: false });
+  await updateLoggedSetValues(laterTie.id, { weight: 100, reps: 5 });
+  await setSetCompletion(laterTie.id, true);
+  await updateLoggedSetValues(earlierTie.id, { weight: 100, reps: 5 });
+  await setSetCompletion(earlierTie.id, true);
+  await updateLoggedSetValues(ignoredIncomplete.id, { weight: 200, reps: 1 });
   await finishWorkout(workout.id);
   await setCompletedAt(laterTie.id, '2026-07-11T10:00:00.000Z');
   await setCompletedAt(earlierTie.id, '2026-07-11T09:00:00.000Z');
@@ -107,7 +111,8 @@ test('replacement keeps completed sets eligible when completed_at is missing', a
   const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
   const legacyCompleted = await addSet(workoutExercise.id);
 
-  await updateLoggedSet(legacyCompleted.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(legacyCompleted.id, { weight: 100, reps: 5 });
+  await setSetCompletion(legacyCompleted.id, true);
   await finishWorkout(workout.id);
   await clearCompletedAt(legacyCompleted.id);
 
@@ -134,7 +139,8 @@ test('record state baselines first occurrence and writes later historical events
   const firstWorkout = await startWorkout({ name: 'Baseline' });
   const firstExercise = await addExerciseToWorkout(firstWorkout.id, bench.id);
   const firstSet = await addSet(firstExercise.id);
-  await updateLoggedSet(firstSet.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(firstSet.id, { weight: 100, reps: 5 });
+  await setSetCompletion(firstSet.id, true);
   await finishWorkout(firstWorkout.id);
   await setWorkoutStartedAt(firstWorkout.id, '2026-07-01T10:00:00.000Z');
   await setCompletedAt(firstSet.id, '2026-07-01T10:05:00.000Z');
@@ -143,8 +149,10 @@ test('record state baselines first occurrence and writes later historical events
   const secondExercise = await addExerciseToWorkout(secondWorkout.id, bench.id);
   const ramp = await addSet(secondExercise.id);
   const top = await addSet(secondExercise.id);
-  await updateLoggedSet(ramp.id, { weight: 105, reps: 3, completed: true });
-  await updateLoggedSet(top.id, { weight: 110, reps: 5, completed: true });
+  await updateLoggedSetValues(ramp.id, { weight: 105, reps: 3 });
+  await setSetCompletion(ramp.id, true);
+  await updateLoggedSetValues(top.id, { weight: 110, reps: 5 });
+  await setSetCompletion(top.id, true);
   await finishWorkout(secondWorkout.id);
   await setWorkoutStartedAt(secondWorkout.id, '2026-07-08T10:00:00.000Z');
   await setCompletedAt(ramp.id, '2026-07-08T10:05:00.000Z');
@@ -174,7 +182,8 @@ test('personal record backfill rebuilds current records and historical events', 
   const firstWorkout = await startWorkout({ name: 'Baseline' });
   const firstExercise = await addExerciseToWorkout(firstWorkout.id, bench.id);
   const firstSet = await addSet(firstExercise.id);
-  await updateLoggedSet(firstSet.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(firstSet.id, { weight: 100, reps: 5 });
+  await setSetCompletion(firstSet.id, true);
   await finishWorkout(firstWorkout.id);
   await setWorkoutStartedAt(firstWorkout.id, '2026-07-01T10:00:00.000Z');
   await setCompletedAt(firstSet.id, '2026-07-01T10:05:00.000Z');
@@ -182,7 +191,8 @@ test('personal record backfill rebuilds current records and historical events', 
   const secondWorkout = await startWorkout({ name: 'Improve' });
   const secondExercise = await addExerciseToWorkout(secondWorkout.id, bench.id);
   const top = await addSet(secondExercise.id);
-  await updateLoggedSet(top.id, { weight: 110, reps: 5, completed: true });
+  await updateLoggedSetValues(top.id, { weight: 110, reps: 5 });
+  await setSetCompletion(top.id, true);
   await finishWorkout(secondWorkout.id);
   await setWorkoutStartedAt(secondWorkout.id, '2026-07-08T10:00:00.000Z');
   await setCompletedAt(top.id, '2026-07-08T10:05:00.000Z');
@@ -216,7 +226,8 @@ test('record state removes or moves events after completed set edits', async () 
   const firstWorkout = await startWorkout({ name: 'Baseline' });
   const firstExercise = await addExerciseToWorkout(firstWorkout.id, bench.id);
   const firstSet = await addSet(firstExercise.id);
-  await updateLoggedSet(firstSet.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(firstSet.id, { weight: 100, reps: 5 });
+  await setSetCompletion(firstSet.id, true);
   await finishWorkout(firstWorkout.id);
   await setWorkoutStartedAt(firstWorkout.id, '2026-07-01T10:00:00.000Z');
   await setCompletedAt(firstSet.id, '2026-07-01T10:05:00.000Z');
@@ -224,7 +235,8 @@ test('record state removes or moves events after completed set edits', async () 
   const secondWorkout = await startWorkout({ name: 'Improve' });
   const secondExercise = await addExerciseToWorkout(secondWorkout.id, bench.id);
   const top = await addSet(secondExercise.id);
-  await updateLoggedSet(top.id, { weight: 110, reps: 5, completed: true });
+  await updateLoggedSetValues(top.id, { weight: 110, reps: 5 });
+  await setSetCompletion(top.id, true);
   await finishWorkout(secondWorkout.id);
   await setWorkoutStartedAt(secondWorkout.id, '2026-07-08T10:00:00.000Z');
   await setCompletedAt(top.id, '2026-07-08T10:05:00.000Z');
@@ -234,7 +246,7 @@ test('record state removes or moves events after completed set edits', async () 
     (await getRecordEventsForExercise(bench.id)).some((event) => event.logged_set_id === top.id)
   ).toBe(true);
 
-  await updateLoggedSet(top.id, { weight: 90, reps: 5 });
+  await updateLoggedSetValues(top.id, { weight: 90, reps: 5 });
   await replaceRecordStateForExercise(bench.id);
 
   expect(await getRecordEventsForExercise(bench.id)).toEqual([]);

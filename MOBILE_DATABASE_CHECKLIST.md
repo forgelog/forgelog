@@ -92,7 +92,6 @@ Wear OS persistence is intentionally out of scope. Complete items in order unles
 - [ ] Replace `listRoutineSummaries` detail hydration with an aggregate or batched query.
 - [ ] Batch workout detail loading instead of querying each exercise and its sets separately.
 - [ ] Batch sync snapshot reads rather than loading every routine and record individually.
-- [ ] Apply the `getSessionsForExercise` limit in SQL before loading sets and events.
 - [ ] Add keyset or bounded pagination to workout history.
 - [ ] Avoid loading all historical dates and sets when only summary data is needed.
 - [ ] Add representative query-count or performance regression tests.

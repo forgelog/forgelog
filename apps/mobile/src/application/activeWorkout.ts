@@ -1,6 +1,6 @@
 import {
   runInMobileStoreTransaction,
-  type LoggedSetUpdate,
+  type LoggedSetValueUpdate,
 } from '../db/mobileStore';
 import type { PersonalRecord, PersonalRecordEvent, RecordType, Workout } from '../db/types';
 
@@ -13,7 +13,7 @@ export async function completeSet(
     const existingOccurrenceEventTypes = setContext
       ? await store.records.getEventTypesForOccurrence(setContext.workout_exercise_id)
       : new Set<RecordType>();
-    await store.workouts.updateSet(setId, { completed: true });
+    await store.workouts.setSetCompletion(setId, true);
     const state = await store.records.replaceForExercise(exerciseId);
     const recordEvents = eventsForSetExcludingExistingTypes(
       state.events,
@@ -30,7 +30,7 @@ export async function completeSet(
 
 export async function uncompleteSet(setId: string, exerciseId: string): Promise<void> {
   await runInMobileStoreTransaction(async (store) => {
-    await store.workouts.updateSet(setId, { completed: false });
+    await store.workouts.setSetCompletion(setId, false);
     await store.records.replaceForExercise(exerciseId);
   });
 }
@@ -38,15 +38,15 @@ export async function uncompleteSet(setId: string, exerciseId: string): Promise<
 export async function updateSetAndRecomputeRecords(
   setId: string,
   exerciseId: string,
-  fields: LoggedSetUpdate
+  fields: LoggedSetValueUpdate
 ): Promise<{ recordEvents: PersonalRecordEvent[] }> {
   return runInMobileStoreTransaction(async (store) => {
     const setContext = await store.workouts.getSetRecordContext(setId);
-    const shouldRecompute = setContext?.completed === 1 || fields.completed === true;
+    const shouldRecompute = setContext?.completed === 1;
     const existingOccurrenceEventTypes = setContext
       ? await store.records.getEventTypesForOccurrence(setContext.workout_exercise_id)
       : new Set<RecordType>();
-    await store.workouts.updateSet(setId, fields);
+    await store.workouts.updateSetValues(setId, fields);
     if (!shouldRecompute) return { recordEvents: [] };
     const state = await store.records.replaceForExercise(exerciseId);
     const recordEvents = eventsForSetExcludingExistingTypes(

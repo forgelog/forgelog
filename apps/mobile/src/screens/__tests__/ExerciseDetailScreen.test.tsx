@@ -19,7 +19,8 @@ const {
   addSet,
   finish: finishWorkout,
   start: startWorkout,
-  updateSet: updateLoggedSet,
+  setSetCompletion,
+  updateSetValues: updateLoggedSetValues,
 } = mobileStore.workouts;
 
 type TestStackParamList = RootStackParamList;
@@ -38,14 +39,16 @@ async function createFinishedBenchWorkout(name = 'Bench PR Day') {
   const baseline = await startWorkout({ name: 'Baseline Bench' });
   const baselineExercise = await addExerciseToWorkout(baseline.id, bench.id);
   const baselineSet = await addSet(baselineExercise.id);
-  await updateLoggedSet(baselineSet.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(baselineSet.id, { weight: 100, reps: 5 });
+  await setSetCompletion(baselineSet.id, true);
   await finishWorkout(baseline.id);
   await setWorkoutTimestamps(baseline.id, '2026-07-04T09:00:00.000Z', '2026-07-04T10:05:00.000Z');
 
   const workout = await startWorkout({ name });
   const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
   const set = await addSet(workoutExercise.id);
-  await updateLoggedSet(set.id, { weight: 110, reps: 5, completed: true });
+  await updateLoggedSetValues(set.id, { weight: 110, reps: 5 });
+  await setSetCompletion(set.id, true);
   await finishWorkout(workout.id);
   await setWorkoutTimestamps(workout.id, '2026-07-11T09:00:00.000Z', '2026-07-11T10:05:00.000Z');
   await replaceRecordsForExercise(bench.id);
@@ -81,13 +84,13 @@ test('shows logged history with PR badges', async () => {
   expect(detail.getAllByText(/PR/).length).toBeGreaterThan(0);
 });
 
-test('shows empty history for an exercise with no sessions', async () => {
+test('shows empty history for an exercise with no history entries', async () => {
   const squat = await seededExercise('Barbell Squat');
   const empty = await renderExerciseDetail(squat.id);
 
   await waitFor(() => expect(empty.getByText('MUSCLES WORKED')).toBeTruthy());
   fireEvent.press(empty.getByLabelText('History tab'));
-  await waitFor(() => expect(empty.getByText('No sessions logged yet.')).toBeTruthy());
+  await waitFor(() => expect(empty.getByText('No exercise history yet.')).toBeTruthy());
 });
 
 test('keeps the about tab available when history loading fails', async () => {

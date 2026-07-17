@@ -26,7 +26,11 @@ export type {
   WatchWorkoutExercisePayload,
   WatchWorkoutPayload,
 } from './repositories/sync';
-export type { ExerciseSession, LoggedSetUpdate, ProfileStats } from './repositories/workouts';
+export type {
+  ExerciseHistoryEntry,
+  LoggedSetValueUpdate,
+  ProfileStats,
+} from './repositories/workouts';
 
 /**
  * Public persistence entry point for the mobile app.
@@ -76,13 +80,14 @@ function createBoundMobileStore(
       start: bindTransaction(workouts.startWorkout),
       getActive: bind(workouts.getActiveWorkout),
       getDetail: bind(workouts.getWorkoutDetail),
-      getPreviousSessionSets: bind(workouts.getPreviousSessionSets),
-      getSessionsForExercise: bind(workouts.getSessionsForExercise),
+      getPreviousExerciseSets: bind(workouts.getPreviousExerciseSets),
+      listExerciseHistory: bind(workouts.listExerciseHistory),
       getSetRecordContext: bind(workouts.getLoggedSetRecordContext),
       addExercise: bind(workouts.addExerciseToWorkout),
       removeExercise: bind(workouts.deleteWorkoutExercise),
       addSet: bind(workouts.addSet),
-      updateSet: bind(workouts.updateLoggedSet),
+      updateSetValues: bind(workouts.updateLoggedSetValues),
+      setSetCompletion: bind(workouts.setLoggedSetCompletion),
       removeSet: bind(workouts.deleteLoggedSet),
       finish: bind(workouts.finishWorkout),
       remove: bind(workouts.deleteWorkout),
@@ -151,8 +156,8 @@ export const mobileStore = {
   workouts: {
     getActive: defaultStore.workouts.getActive,
     getDetail: defaultStore.workouts.getDetail,
-    getPreviousSessionSets: defaultStore.workouts.getPreviousSessionSets,
-    getSessionsForExercise: defaultStore.workouts.getSessionsForExercise,
+    getPreviousExerciseSets: defaultStore.workouts.getPreviousExerciseSets,
+    listExerciseHistory: defaultStore.workouts.listExerciseHistory,
     addExercise: defaultStore.workouts.addExercise,
     addSet: defaultStore.workouts.addSet,
     finish: defaultStore.workouts.finish,

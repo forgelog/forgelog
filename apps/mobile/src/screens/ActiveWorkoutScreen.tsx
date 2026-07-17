@@ -27,7 +27,7 @@ import {
   uncompleteSet,
   updateSetAndRecomputeRecords,
 } from '../application/activeWorkout';
-import { mobileStore, type LoggedSetUpdate } from '../db/mobileStore';
+import { mobileStore, type LoggedSetValueUpdate } from '../db/mobileStore';
 import type { LoggedSet, PersonalRecordEvent, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
 import { formatElapsed } from '../domain/elapsed';
 import {
@@ -99,7 +99,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         const entries = await Promise.all(
           d.exercises.map(async (we) => [
             we.exercise.id,
-            await mobileStore.workouts.getPreviousSessionSets(we.exercise.id, workoutId),
+            await mobileStore.workouts.getPreviousExerciseSets(we.exercise.id, workoutId),
           ] as const)
         );
         const recordEvents = await mobileStore.records.getEventsForWorkout(workoutId);
@@ -194,7 +194,9 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       sets: w.sets.map((s) => (s.id === setId ? { ...s, [column]: value } : s)),
     }));
     try {
-      await updateSetAndRecomputeRecords(setId, exerciseId, { [column]: value } as LoggedSetUpdate);
+      await updateSetAndRecomputeRecords(setId, exerciseId, {
+        [column]: value,
+      } as LoggedSetValueUpdate);
       await refreshPrSetIds(workoutId, setPrSetIds);
     } catch {
       Alert.alert('Save failed', 'Could not save field value.');

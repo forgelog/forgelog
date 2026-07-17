@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ScreenHeader } from '../components/ScreenHeader';
-import { mobileStore, type ExerciseSession } from '../db/mobileStore';
+import { mobileStore, type ExerciseHistoryEntry } from '../db/mobileStore';
 import type { Exercise } from '../db/types';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
@@ -18,8 +18,8 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
   const c = useTheme();
   const [tab, setTab] = useState<Tab>('about');
   const [exercise, setExercise] = useState<Exercise | null>(null);
-  const [sessions, setSessions] = useState<ExerciseSession[]>([]);
-  const [sessionsExerciseId, setSessionsExerciseId] = useState<string | null>(null);
+  const [history, setHistory] = useState<ExerciseHistoryEntry[]>([]);
+  const [historyExerciseId, setHistoryExerciseId] = useState<string | null>(null);
   const [loadedExerciseId, setLoadedExerciseId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [historyLoadFailed, setHistoryLoadFailed] = useState(false);
@@ -39,17 +39,17 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
         setLoadError('Could not load exercise.');
         setLoadedExerciseId(exerciseId);
       });
-    mobileStore.workouts.getSessionsForExercise(exerciseId)
-      .then((sessionRows) => {
+    mobileStore.workouts.listExerciseHistory(exerciseId)
+      .then((historyEntries) => {
         if (!current) return;
-        setSessions(sessionRows);
-        setSessionsExerciseId(exerciseId);
+        setHistory(historyEntries);
+        setHistoryExerciseId(exerciseId);
         setHistoryLoadFailed(false);
       })
       .catch(() => {
         if (!current) return;
-        setSessions([]);
-        setSessionsExerciseId(exerciseId);
+        setHistory([]);
+        setHistoryExerciseId(exerciseId);
         setHistoryLoadFailed(true);
       });
     return () => {
@@ -74,8 +74,8 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  const visibleSessions = sessionsExerciseId === exerciseId ? sessions : [];
-  const visibleHistoryLoadFailed = sessionsExerciseId === exerciseId && historyLoadFailed;
+  const visibleHistory = historyExerciseId === exerciseId ? history : [];
+  const visibleHistoryLoadFailed = historyExerciseId === exerciseId && historyLoadFailed;
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
@@ -87,7 +87,7 @@ export function ExerciseDetailScreen({ route, navigation }: Props) {
       {tab === 'about' ? (
         <AboutTab exercise={exercise} />
       ) : (
-        <HistoryTab sessions={visibleSessions} loadFailed={visibleHistoryLoadFailed} />
+        <HistoryTab history={visibleHistory} loadFailed={visibleHistoryLoadFailed} />
       )}
     </View>
   );
@@ -178,12 +178,12 @@ function AboutTab({ exercise }: AboutTabProps) {
 }
 
 type HistoryTabProps = Readonly<{
-  sessions: ExerciseSession[];
+  history: ExerciseHistoryEntry[];
   loadFailed: boolean;
 }>;
 
 function HistoryTab({
-  sessions,
+  history,
   loadFailed,
 }: HistoryTabProps) {
   const c = useTheme();
@@ -192,28 +192,28 @@ function HistoryTab({
     return <Text style={[styles.empty, { color: c.sub }]}>Could not load exercise history.</Text>;
   }
 
-  if (sessions.length === 0) {
-    return <Text style={[styles.empty, { color: c.sub }]}>No sessions logged yet.</Text>;
+  if (history.length === 0) {
+    return <Text style={[styles.empty, { color: c.sub }]}>No exercise history yet.</Text>;
   }
 
   return (
     <ScrollView>
-      {sessions.map((session, i) => {
+      {history.map((entry, i) => {
         const recordSetIds = new Set(
-          session.recordEvents.flatMap((event) => (event.logged_set_id ? [event.logged_set_id] : []))
+          entry.recordEvents.flatMap((event) => (event.logged_set_id ? [event.logged_set_id] : []))
         );
         return (
           <View
-            key={session.workoutId}
-            style={[styles.session, i > 0 && { borderTopColor: c.sep, borderTopWidth: 1 }]}
+            key={entry.workoutId}
+            style={[styles.historyEntry, i > 0 && { borderTopColor: c.sep, borderTopWidth: 1 }]}
           >
-            <Text style={[styles.sessionName, { color: c.fg }]}>{session.workoutName}</Text>
-            <Text style={[styles.sessionDate, { color: c.accent }]}>{formatDate(session.startedAt)}</Text>
-            {session.sets.map((set, setIndex) => (
+            <Text style={[styles.historyEntryName, { color: c.fg }]}>{entry.workoutName}</Text>
+            <Text style={[styles.historyEntryDate, { color: c.accent }]}>{formatDate(entry.startedAt)}</Text>
+            {entry.sets.map((set, setIndex) => (
               <View key={set.id} style={styles.setRow}>
                 <Text style={[styles.setIndex, { color: c.sub }]}>{setIndex + 1}</Text>
                 <Text style={[styles.setText, { color: c.fg }]}>
-                  {formatSet(session.exerciseType, set)}
+                  {formatSet(entry.exerciseType, set)}
                 </Text>
                 {recordSetIds.has(set.id) ? (
                   <View style={[styles.prBadge, { backgroundColor: c.asoft }]}>
@@ -263,9 +263,9 @@ const styles = StyleSheet.create({
   stepIndexText: { fontSize: 13, fontWeight: '700' },
   stepText: { flex: 1, fontSize: 15, lineHeight: 21 },
   empty: { textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
-  session: { padding: 16 },
-  sessionName: { fontSize: 16, fontWeight: '700' },
-  sessionDate: { fontSize: 13, fontWeight: '600', marginTop: 2, marginBottom: 8 },
+  historyEntry: { padding: 16 },
+  historyEntryName: { fontSize: 16, fontWeight: '700' },
+  historyEntryDate: { fontSize: 13, fontWeight: '600', marginTop: 2, marginBottom: 8 },
   setRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
   setIndex: { width: 20, fontSize: 13 },
   setText: { fontSize: 15, flex: 1 },

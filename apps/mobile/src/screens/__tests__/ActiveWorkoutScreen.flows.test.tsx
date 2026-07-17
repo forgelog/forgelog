@@ -19,7 +19,8 @@ const {
   finish: finishWorkout,
   getDetail: getWorkoutDetail,
   start: startWorkout,
-  updateSet: updateLoggedSet,
+  setSetCompletion,
+  updateSetValues: updateLoggedSetValues,
 } = mobileStore.workouts;
 
 type TestStackParamList = RootStackParamList & {
@@ -96,7 +97,8 @@ test('completes PR sets', async () => {
   const baselineWorkout = await startWorkout({ name: 'Baseline Day' });
   const baselineExercise = await addExerciseToWorkout(baselineWorkout.id, bench.id);
   const baselineSet = await addSet(baselineExercise.id);
-  await updateLoggedSet(baselineSet.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(baselineSet.id, { weight: 100, reps: 5 });
+  await setSetCompletion(baselineSet.id, true);
   await finishWorkout(baselineWorkout.id);
   const db = await getDb();
   // todo: audit pending
@@ -118,7 +120,7 @@ test('completes PR sets', async () => {
   });
   const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
   const set = await addSet(workoutExercise.id);
-  await updateLoggedSet(set.id, { weight: 110, reps: 5 });
+  await updateLoggedSetValues(set.id, { weight: 110, reps: 5 });
   const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
   const active = await renderActiveWorkout(workout.id);
@@ -178,7 +180,8 @@ test('finishes a workout', async () => {
   const finishWorkoutRow = await startWorkout({ name: 'Finish Me' });
   const finishExercise = await addExerciseToWorkout(finishWorkoutRow.id, finishBench.id);
   const finishSet = await addSet(finishExercise.id);
-  await updateLoggedSet(finishSet.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(finishSet.id, { weight: 100, reps: 5 });
+  await setSetCompletion(finishSet.id, true);
   const finish = await renderActiveWorkout(finishWorkoutRow.id);
   const finishAlertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 

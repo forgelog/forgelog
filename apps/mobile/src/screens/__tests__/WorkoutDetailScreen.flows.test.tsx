@@ -16,7 +16,8 @@ const {
   addSet,
   finish: finishWorkout,
   start: startWorkout,
-  updateSet: updateLoggedSet,
+  setSetCompletion,
+  updateSetValues: updateLoggedSetValues,
 } = mobileStore.workouts;
 
 type TestStackParamList = RootStackParamList;
@@ -41,14 +42,16 @@ test('shows PR badges from persisted record events', async () => {
   const baseline = await startWorkout({ name: 'Baseline Bench' });
   const baselineExercise = await addExerciseToWorkout(baseline.id, bench.id);
   const baselineSet = await addSet(baselineExercise.id);
-  await updateLoggedSet(baselineSet.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(baselineSet.id, { weight: 100, reps: 5 });
+  await setSetCompletion(baselineSet.id, true);
   await finishWorkout(baseline.id);
   await setWorkoutTimestamps(baseline.id, '2026-07-04T09:00:00.000Z', '2026-07-04T10:05:00.000Z');
 
   const workout = await startWorkout({ name: 'Bench PR Day' });
   const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
   const set = await addSet(workoutExercise.id);
-  await updateLoggedSet(set.id, { weight: 110, reps: 5, completed: true });
+  await updateLoggedSetValues(set.id, { weight: 110, reps: 5 });
+  await setSetCompletion(set.id, true);
   await finishWorkout(workout.id);
   await setWorkoutTimestamps(workout.id, '2026-07-11T09:00:00.000Z', '2026-07-11T10:05:00.000Z');
   await replaceRecordsForExercise(bench.id);

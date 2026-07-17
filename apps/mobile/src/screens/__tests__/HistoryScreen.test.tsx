@@ -18,7 +18,8 @@ const {
   addSet,
   finish: finishWorkout,
   start: startWorkout,
-  updateSet: updateLoggedSet,
+  setSetCompletion,
+  updateSetValues: updateLoggedSetValues,
 } = mobileStore.workouts;
 
 type TestStackParamList = RootStackParamList & {
@@ -39,7 +40,8 @@ async function createFinishedBenchWorkout(name = 'Phase Six Push') {
   const workout = await startWorkout({ name });
   const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
   const set = await addSet(workoutExercise.id);
-  await updateLoggedSet(set.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(set.id, { weight: 100, reps: 5 });
+  await setSetCompletion(set.id, true);
   await finishWorkout(workout.id);
   await setWorkoutTimestamps(workout.id, '2026-07-11T09:00:00.000Z', '2026-07-11T10:05:00.000Z');
   await replaceRecordsForExercise(bench.id);

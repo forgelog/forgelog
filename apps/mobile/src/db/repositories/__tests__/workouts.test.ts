@@ -11,13 +11,14 @@ const {
   addExercise: addExerciseToWorkout,
   addSet,
   finish: finishWorkout,
-  getPreviousSessionSets,
+  getPreviousExerciseSets,
   getProfileStats,
-  getSessionsForExercise,
+  listExerciseHistory,
   getDetail: getWorkoutDetail,
   hasCompletedSet,
   start: startWorkout,
-  updateSet: updateLoggedSet,
+  setSetCompletion,
+  updateSetValues: updateLoggedSetValues,
 } = mobileStore.workouts;
 
 beforeEach(() => {
@@ -98,7 +99,8 @@ test('starts from routines and reports detail, history, previous sets, and profi
       }),
     ],
   });
-  await updateLoggedSet(firstSet.id, { weight: 100, reps: 5, completed: true });
+  await updateLoggedSetValues(firstSet.id, { weight: 100, reps: 5 });
+  await setSetCompletion(firstSet.id, true);
   await finishWorkout(firstWorkout.id);
   await setWorkoutTimestamps(
     firstWorkout.id,
@@ -110,7 +112,8 @@ test('starts from routines and reports detail, history, previous sets, and profi
   const secondWorkout = await startWorkout({ name: 'Follow-up' });
   const secondWorkoutExercise = await addExerciseToWorkout(secondWorkout.id, bench.id);
   const secondSet = await addSet(secondWorkoutExercise.id);
-  await updateLoggedSet(secondSet.id, { weight: 80, reps: 3, completed: true });
+  await updateLoggedSetValues(secondSet.id, { weight: 80, reps: 3 });
+  await setSetCompletion(secondSet.id, true);
   await finishWorkout(secondWorkout.id);
   await setWorkoutTimestamps(
     secondWorkout.id,
@@ -119,12 +122,12 @@ test('starts from routines and reports detail, history, previous sets, and profi
   );
   await setCompletedAt(secondSet.id, addHours(today, 0.25).toISOString());
 
-  await expect(getPreviousSessionSets(bench.id, secondWorkout.id)).resolves.toEqual([
+  await expect(getPreviousExerciseSets(bench.id, secondWorkout.id)).resolves.toEqual([
     expect.objectContaining({ id: firstSet.id, weight: 100, reps: 5, completed: true }),
   ]);
-  const sessions = await getSessionsForExercise(bench.id);
-  expect(sessions.map((session) => session.workoutId)).toEqual([secondWorkout.id, firstWorkout.id]);
-  expect(sessions[0].sets).toEqual([
+  const history = await listExerciseHistory(bench.id);
+  expect(history.map((entry) => entry.workoutId)).toEqual([secondWorkout.id, firstWorkout.id]);
+  expect(history[0].sets).toEqual([
     expect.objectContaining({ id: secondSet.id, weight: 80, reps: 3, completed: true }),
   ]);
 
@@ -133,4 +136,56 @@ test('starts from routines and reports detail, history, previous sets, and profi
     totalVolume: 740,
     streakDays: 2,
   });
+});
+
+test('lists complete exercise history without an implicit limit', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+
+  for (let index = 0; index < 21; index += 1) {
+    const workout = await startWorkout({ name: `Workout ${index + 1}` });
+    await addExerciseToWorkout(workout.id, bench.id);
+    await finishWorkout(workout.id);
+  }
+
+  await expect(listExerciseHistory(bench.id)).resolves.toHaveLength(21);
+});
+
+test('completion changes preserve an existing timestamp until the set is uncompleted', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const workout = await startWorkout({ name: 'Timestamp test' });
+  const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
+  const set = await addSet(workoutExercise.id);
+  const originalCompletedAt = '2026-01-01T10:00:00.000Z';
+  const db = await getDb();
+
+  await setSetCompletion(set.id, true);
+  await db.runAsync('UPDATE logged_sets SET completed_at = $completedAt WHERE id = $id', {
+    $completedAt: originalCompletedAt,
+    $id: set.id,
+  });
+  await setSetCompletion(set.id, true);
+
+  await expect(
+    db.getFirstAsync<{ completed: number; completed_at: string | null }>(
+      'SELECT completed, completed_at FROM logged_sets WHERE id = $id',
+      { $id: set.id }
+    )
+  ).resolves.toEqual({ completed: 1, completed_at: originalCompletedAt });
+
+  await setSetCompletion(set.id, false);
+  await expect(
+    db.getFirstAsync<{ completed: number; completed_at: string | null }>(
+      'SELECT completed, completed_at FROM logged_sets WHERE id = $id',
+      { $id: set.id }
+    )
+  ).resolves.toEqual({ completed: 0, completed_at: null });
+
+  await setSetCompletion(set.id, true);
+  const recompleted = await db.getFirstAsync<{ completed: number; completed_at: string | null }>(
+    'SELECT completed, completed_at FROM logged_sets WHERE id = $id',
+    { $id: set.id }
+  );
+  expect(recompleted?.completed).toBe(1);
+  expect(recompleted?.completed_at).not.toBeNull();
+  expect(recompleted?.completed_at).not.toBe(originalCompletedAt);
 });

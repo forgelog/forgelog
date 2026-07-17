@@ -26,6 +26,20 @@ type ExerciseRow = {
   created_at: string;
 };
 
+/**
+ * Creates a new active workout and returns its persisted workout row.
+ *
+ * The workout snapshots the profile's current bodyweight. When `routineId` is
+ * provided, it also copies the routine's ordered exercises, exercise types,
+ * notes, superset groups, and set targets into new workout rows. These copies
+ * keep an in-progress or historical workout independent from later routine and
+ * exercise-catalog edits. `name` overrides the routine name; workouts without
+ * either use "Workout".
+ *
+ * Exposed as `store.workouts.start` and run in a transaction by the mobile
+ * store. `startOrResumeWorkout` uses it after confirming there is no active
+ * workout, which powers the empty-workout and routine start actions on Home.
+ */
 export async function startWorkout(
   db: DatabaseExecutor,
   options: {
@@ -100,25 +114,43 @@ export async function startWorkout(
   return created;
 }
 
+/**
+ * Returns the most recently started workout that has not been finished.
+ *
+ * Exposed as `store.workouts.getActive`. Home uses it to show an existing
+ * workout, and `startOrResumeWorkout` uses it to enforce the app's single-active-
+ * workout behavior before creating another workout. Returns `null` when every
+ * workout has an `ended_at` timestamp.
+ */
 export async function getActiveWorkout(db: DatabaseExecutor): Promise<Workout | null> {
-  // todo: audit pending
   const row = await db.getFirstAsync<Workout>(
     'SELECT * FROM workouts WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1'
   );
   return row ?? null;
 }
 
+/**
+ * Loads a workout together with its ordered exercises, catalog metadata, and
+ * ordered logged sets.
+ *
+ * SQLite exercise fields stored as JSON are decoded into arrays, integer
+ * booleans are converted to JavaScript booleans, and missing catalog exercises
+ * are omitted from the detail rather than failing the whole read. Returns
+ * `null` when the workout itself does not exist.
+ *
+ * Exposed as `store.workouts.getDetail`. The active and historical workout
+ * screens use it for rendering; `discardWorkout` also uses it to collect the
+ * exercise IDs whose personal records must be recomputed after deletion.
+ */
 export async function getWorkoutDetail(
   db: DatabaseExecutor,
   workoutId: string
 ): Promise<WorkoutDetail | null> {
-  // todo: audit pending
   const workout = await db.getFirstAsync<Workout>('SELECT * FROM workouts WHERE id = $id', {
     $id: workoutId,
   });
   if (!workout) return null;
 
-  // todo: audit pending
   const workoutExercises = await db.getAllAsync<WorkoutExercise>(
     'SELECT * FROM workout_exercises WHERE workout_id = $id ORDER BY position',
     { $id: workoutId }
@@ -126,11 +158,9 @@ export async function getWorkoutDetail(
 
   const exercises: WorkoutExerciseDetail[] = [];
   for (const we of workoutExercises) {
-    // todo: audit pending
     const exRow = await db.getFirstAsync<ExerciseRow>('SELECT * FROM exercises WHERE id = $id', {
       $id: we.exercise_id,
     });
-    // todo: audit pending
     const sets = await db.getAllAsync<RawLoggedSet>(
       'SELECT * FROM logged_sets WHERE workout_exercise_id = $id ORDER BY position',
       { $id: we.id }
@@ -159,14 +189,20 @@ export async function getWorkoutDetail(
   return { ...workout, exercises };
 }
 
-// Sets from the most recent other completed workout that logged this
-// exercise — used to show "PREV" reference values while actively logging.
-export async function getPreviousSessionSets(
+/**
+ * Returns the ordered sets from the latest completed workout-exercise row for
+ * an exercise, excluding a specified workout.
+ *
+ * The exclusion prevents the active workout from becoming its own reference.
+ * An empty array means no earlier completed workout exists. Exposed as
+ * `store.workouts.getPreviousExerciseSets`; Active Workout calls it for every
+ * displayed exercise to populate the "PREV" reference values.
+ */
+export async function getPreviousExerciseSets(
   db: DatabaseExecutor,
   exerciseId: string,
   excludeWorkoutId: string
 ): Promise<LoggedSet[]> {
-  // todo: audit pending
   const we = await db.getFirstAsync<{ we_id: string }>(
     `SELECT we.id AS we_id
        FROM workout_exercises we
@@ -177,7 +213,6 @@ export async function getPreviousSessionSets(
     { $exerciseId: exerciseId, $excludeWorkoutId: excludeWorkoutId }
   );
   if (!we) return [];
-  // todo: audit pending
   const sets = await db.getAllAsync<RawLoggedSet>(
     'SELECT * FROM logged_sets WHERE workout_exercise_id = $id ORDER BY position',
     { $id: we.we_id }
@@ -185,7 +220,7 @@ export async function getPreviousSessionSets(
   return sets.map(mapLoggedSet);
 }
 
-export type ExerciseSession = {
+export type ExerciseHistoryEntry = {
   workoutId: string;
   workoutName: string;
   startedAt: string;
@@ -194,16 +229,33 @@ export type ExerciseSession = {
   recordEvents: PersonalRecordEvent[];
 };
 
-// Past completed sessions that logged this exercise, most recent first —
-// powers the exercise detail screen's History tab. A workout that logs the
-// same exercise more than once (e.g. two separate blocks) folds into a
-// single session with all of its sets combined.
-export async function getSessionsForExercise(
+type NonEmptyArray<T> = [T, ...T[]];
+
+function groupBy<T, K>(values: T[], keyOf: (value: T) => K): Map<K, NonEmptyArray<T>> {
+  return values.reduce<Map<K, NonEmptyArray<T>>>((groups, value) => {
+    const key = keyOf(value);
+    const group = groups.get(key);
+    if (group) group.push(value);
+    else groups.set(key, [value]);
+    return groups;
+  }, new Map());
+}
+
+/**
+ * Builds complete workout history for one exercise, newest workout first.
+ *
+ * Each result includes workout identity, the exercise-type snapshot, logged
+ * sets, and personal-record events achieved in that workout. If an exercise
+ * appears in multiple blocks in one workout, their sets are folded into one
+ * history entry.
+ *
+ * Exposed as `store.workouts.listExerciseHistory` and used to populate the
+ * History tab on Exercise Detail.
+ */
+export async function listExerciseHistory(
   db: DatabaseExecutor,
-  exerciseId: string,
-  limit = 20
-): Promise<ExerciseSession[]> {
-  // todo: audit pending
+  exerciseId: string
+): Promise<ExerciseHistoryEntry[]> {
   const workoutExercises = await db.getAllAsync<{
     we_id: string;
     workout_id: string;
@@ -218,62 +270,64 @@ export async function getSessionsForExercise(
       ORDER BY w.started_at DESC, we.position`,
     { $id: exerciseId }
   );
-  // todo: audit pending
   const recordEvents = await db.getAllAsync<PersonalRecordEvent>(
     `SELECT * FROM personal_record_events
       WHERE exercise_id = $id
       ORDER BY achieved_at, record_type`,
     { $id: exerciseId }
   );
-  const eventsByWorkout = new Map<string, PersonalRecordEvent[]>();
-  for (const event of recordEvents) {
-    const events = eventsByWorkout.get(event.workout_id) ?? [];
-    events.push(event);
-    eventsByWorkout.set(event.workout_id, events);
-  }
+  const sets = await db.getAllAsync<RawLoggedSet>(
+    `SELECT ls.*
+       FROM logged_sets ls
+       JOIN workout_exercises we ON we.id = ls.workout_exercise_id
+       JOIN workouts w ON w.id = we.workout_id
+      WHERE we.exercise_id = $id AND w.ended_at IS NOT NULL
+      ORDER BY w.started_at DESC, we.position, ls.position`,
+    { $id: exerciseId }
+  );
 
-  const byWorkout = new Map<string, ExerciseSession>();
-  for (const we of workoutExercises) {
-    // todo: audit pending
-    const sets = await db.getAllAsync<RawLoggedSet>(
-      'SELECT * FROM logged_sets WHERE workout_exercise_id = $id ORDER BY position',
-      { $id: we.we_id }
-    );
-    const existing = byWorkout.get(we.workout_id);
-    if (existing) {
-      existing.sets.push(...sets.map(mapLoggedSet));
-    } else {
-      byWorkout.set(we.workout_id, {
-        workoutId: we.workout_id,
-        workoutName: we.workout_name,
-        startedAt: we.started_at,
-        exerciseType: requireExerciseType(we.exercise_type),
-        sets: sets.map(mapLoggedSet),
-        recordEvents: eventsByWorkout.get(we.workout_id) ?? [],
-      });
-    }
-  }
-  return [...byWorkout.values()].slice(0, limit);
+  const eventsByWorkout = groupBy(recordEvents, (event) => event.workout_id);
+  const setsByWorkoutExercise = groupBy(sets, (set) => set.workout_exercise_id);
+  const exercisesByWorkout = groupBy(workoutExercises, (exercise) => exercise.workout_id);
+
+  return [...exercisesByWorkout.values()].map(([firstExercise, ...workoutExerciseRows]) => ({
+    workoutId: firstExercise.workout_id,
+    workoutName: firstExercise.workout_name,
+    startedAt: firstExercise.started_at,
+    exerciseType: requireExerciseType(firstExercise.exercise_type),
+    sets: [firstExercise, ...workoutExerciseRows].flatMap((exercise) =>
+      (setsByWorkoutExercise.get(exercise.we_id) ?? []).map(mapLoggedSet)
+    ),
+    recordEvents: eventsByWorkout.get(firstExercise.workout_id) ?? [],
+  }));
 }
 
+/**
+ * Appends an exercise to a workout and returns the new workout-exercise row.
+ *
+ * Its position follows the workout's current final exercise. The exercise type
+ * is copied from the catalog so subsequent catalog edits cannot change how the
+ * logged exercise is interpreted. Throws when the catalog exercise is missing
+ * or the inserted row cannot be read back.
+ *
+ * Exposed as `store.workouts.addExercise`; Active Workout calls it when the
+ * exercise picker returns a selection.
+ */
 export async function addExerciseToWorkout(
   db: DatabaseExecutor,
   workoutId: string,
   exerciseId: string
 ): Promise<WorkoutExercise> {
   const newId = id();
-  // todo: audit pending
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM workout_exercises WHERE workout_id = $id',
     { $id: workoutId }
   );
-  // todo: audit pending
   const exercise = await db.getFirstAsync<{ exercise_type: string }>(
     'SELECT exercise_type FROM exercises WHERE id = $id',
     { $id: exerciseId }
   );
   if (!exercise) throw new Error('Exercise not found');
-  // todo: audit pending
   await db.runAsync(
     `INSERT INTO workout_exercises (id, workout_id, exercise_id, position, exercise_type)
      VALUES ($id, $workout_id, $exercise_id, $position, $exercise_type)`,
@@ -285,7 +339,6 @@ export async function addExerciseToWorkout(
       $exercise_type: requireExerciseType(exercise.exercise_type),
     }
   );
-  // todo: audit pending
   const created = await db.getFirstAsync<WorkoutExercise>(
     'SELECT * FROM workout_exercises WHERE id = $id',
     { $id: newId }
@@ -294,24 +347,28 @@ export async function addExerciseToWorkout(
   return created;
 }
 
+/**
+ * Appends an incomplete set to a workout exercise and returns the mapped set.
+ *
+ * The set is positioned after all existing sets and defaults to the `normal`
+ * set type. Exposed as `store.workouts.addSet`; Active Workout uses the returned
+ * row to update its local exercise state immediately after the user adds a set.
+ */
 export async function addSet(
   db: DatabaseExecutor,
   workoutExerciseId: string,
   setType: SetType = 'normal'
 ): Promise<LoggedSet> {
   const newId = id();
-  // todo: audit pending
   const row = await db.getFirstAsync<{ next: number }>(
     'SELECT COALESCE(MAX(position) + 1, 0) AS next FROM logged_sets WHERE workout_exercise_id = $id',
     { $id: workoutExerciseId }
   );
-  // todo: audit pending
   await db.runAsync(
     `INSERT INTO logged_sets (id, workout_exercise_id, position, set_type, completed)
      VALUES ($id, $we, $position, $set_type, 0)`,
     { $id: newId, $we: workoutExerciseId, $position: row?.next ?? 0, $set_type: setType }
   );
-  // todo: audit pending
   const created = await db.getFirstAsync<RawLoggedSet>('SELECT * FROM logged_sets WHERE id = $id', {
     $id: newId,
   });
@@ -319,21 +376,22 @@ export async function addSet(
   return mapLoggedSet(created);
 }
 
-export type LoggedSetUpdate = {
-  set_type?: SetType;
-  weight?: number | null;
-  reps?: number | null;
-  duration_seconds?: number | null;
-  distance_meters?: number | null;
-  rpe?: number | null;
-  completed?: boolean;
-};
-
 export type LoggedSetRecordContext = {
   workout_exercise_id: string;
   completed: number;
 };
 
+/**
+ * Reads the minimal context needed before mutating a logged set.
+ *
+ * The workout-exercise ID identifies the occurrence used by personal-record
+ * events, while the raw completion flag tells application services whether an
+ * edit can affect existing records. Returns `null` for an unknown set.
+ *
+ * Exposed only on the transaction-bound store as
+ * `store.workouts.getSetRecordContext`. The complete-set and edit-set use cases
+ * call it before updating the set and recomputing personal records atomically.
+ */
 export async function getLoggedSetRecordContext(
   db: DatabaseExecutor,
   loggedSetId: string
@@ -347,42 +405,103 @@ export async function getLoggedSetRecordContext(
   );
 }
 
-export async function updateLoggedSet(
+export type LoggedSetValueUpdate = {
+  set_type?: SetType;
+  weight?: number | null;
+  reps?: number | null;
+  duration_seconds?: number | null;
+  distance_meters?: number | null;
+  rpe?: number | null;
+};
+
+const EDITABLE_SET_COLUMNS = [
+  'set_type',
+  'weight',
+  'reps',
+  'duration_seconds',
+  'distance_meters',
+  'rpe',
+] as const satisfies readonly (keyof LoggedSetValueUpdate)[];
+
+/**
+ * Partially updates a logged set's editable values using bound SQL parameters.
+ *
+ * Only properties explicitly present in `fields` are written; `null` clears a
+ * nullable value and an empty object is a no-op. Completion is handled separately
+ * by `setLoggedSetCompletion` because it also owns the completion timestamp.
+ *
+ * Exposed only on the transaction-bound store as `store.workouts.updateSetValues`.
+ * The active-workout edit use case combines it with personal-record recalculation.
+ */
+export async function updateLoggedSetValues(
   db: DatabaseExecutor,
   loggedSetId: string,
-  fields: LoggedSetUpdate
+  fields: LoggedSetValueUpdate
 ): Promise<void> {
-  const sets: string[] = [];
+  const updates = EDITABLE_SET_COLUMNS.flatMap<{
+    column: (typeof EDITABLE_SET_COLUMNS)[number];
+    value: string | number | null;
+  }>((column) => {
+    const value = fields[column];
+    return value === undefined ? [] : [{ column, value }];
+  });
+  if (!updates.length) return;
+
+  const assignments = updates.map(({ column }) => `${column} = $${column}`);
   const params: Record<string, string | number | null> = { $id: loggedSetId };
+  for (const { column, value } of updates) params[`$${column}`] = value;
 
-  const assign = (col: string, key: string, value: string | number | null) => {
-    sets.push(`${col} = ${key}`);
-    params[key] = value;
-  };
-
-  if (fields.set_type !== undefined) assign('set_type', '$set_type', fields.set_type);
-  if (fields.weight !== undefined) assign('weight', '$weight', fields.weight);
-  if (fields.reps !== undefined) assign('reps', '$reps', fields.reps);
-  if (fields.duration_seconds !== undefined)
-    assign('duration_seconds', '$duration', fields.duration_seconds);
-  if (fields.distance_meters !== undefined)
-    assign('distance_meters', '$distance', fields.distance_meters);
-  if (fields.rpe !== undefined) assign('rpe', '$rpe', fields.rpe);
-  if (fields.completed !== undefined) {
-    assign('completed', '$completed', fields.completed ? 1 : 0);
-    assign('completed_at', '$completed_at', fields.completed ? new Date().toISOString() : null);
-  }
-
-  if (!sets.length) return;
   // todo: audit pending
-  await db.runAsync(`UPDATE logged_sets SET ${sets.join(', ')} WHERE id = $id`, params);
+  await db.runAsync(`UPDATE logged_sets SET ${assignments.join(', ')} WHERE id = $id`, params);
 }
 
+/**
+ * Changes a logged set's completion state while keeping its timestamp consistent.
+ *
+ * Completing an already-completed set preserves its original timestamp. Clearing
+ * completion removes the timestamp, while completing it again records a new one.
+ * Exposed only on the transaction-bound store as `store.workouts.setSetCompletion`.
+ */
+export async function setLoggedSetCompletion(
+  db: DatabaseExecutor,
+  loggedSetId: string,
+  completed: boolean
+): Promise<void> {
+  const completedAt = completed ? new Date().toISOString() : null;
+  await db.runAsync(
+    `UPDATE logged_sets
+        SET completed = $completed,
+            completed_at = CASE
+              WHEN $completed = 0 THEN NULL
+              WHEN completed = 0 OR completed_at IS NULL THEN $completed_at
+              ELSE completed_at
+            END
+      WHERE id = $id`,
+    { $id: loggedSetId, $completed: completed ? 1 : 0, $completed_at: completedAt }
+  );
+}
+
+/**
+ * Permanently deletes one logged set.
+ *
+ * Exposed only on the transaction-bound store as `store.workouts.removeSet`.
+ * It is intentionally called through the `deleteSet` application use case,
+ * which first clears personal-record references and then recomputes records for
+ * the affected exercise in the same transaction.
+ */
 export async function deleteLoggedSet(db: DatabaseExecutor, loggedSetId: string): Promise<void> {
   // todo: audit pending
   await db.runAsync('DELETE FROM logged_sets WHERE id = $id', { $id: loggedSetId });
 }
 
+/**
+ * Permanently deletes a workout-exercise row and its cascade-owned logged sets.
+ *
+ * Exposed only on the transaction-bound store as
+ * `store.workouts.removeExercise`. Active Workout reaches it through
+ * `deleteExerciseFromWorkout`, which clears set references and recomputes
+ * personal records in the same transaction.
+ */
 export async function deleteWorkoutExercise(
   db: DatabaseExecutor,
   workoutExerciseId: string
@@ -391,10 +510,24 @@ export async function deleteWorkoutExercise(
   await db.runAsync('DELETE FROM workout_exercises WHERE id = $id', { $id: workoutExerciseId });
 }
 
+/**
+ * Reports whether any exercise in a workout contains a completed set.
+ *
+ * This is a pure helper exposed as `store.workouts.hasCompletedSet`. Active
+ * Workout uses it to prevent finishing an empty workout or one containing only
+ * incomplete sets.
+ */
 export function hasCompletedSet(exercises: { sets: { completed: boolean }[] }[]): boolean {
   return exercises.some((we) => we.sets.some((s) => s.completed));
 }
 
+/**
+ * Marks a workout complete by recording the current time in `ended_at`.
+ *
+ * Exposed as `store.workouts.finish`. Active Workout calls it after the user
+ * confirms finishing and after `hasCompletedSet` validates that some work was
+ * logged. The operation does not itself validate completed sets.
+ */
 export async function finishWorkout(db: DatabaseExecutor, workoutId: string): Promise<void> {
   // todo: audit pending
   await db.runAsync('UPDATE workouts SET ended_at = $ended WHERE id = $id', {
@@ -403,11 +536,26 @@ export async function finishWorkout(db: DatabaseExecutor, workoutId: string): Pr
   });
 }
 
+/**
+ * Permanently deletes a workout and its cascade-owned exercise and set rows.
+ *
+ * Exposed only on the transaction-bound store as `store.workouts.remove`. Home,
+ * Active Workout, and Workout Detail reach it through `discardWorkout`, which
+ * first clears personal-record references and later rebuilds affected records
+ * within the same transaction.
+ */
 export async function deleteWorkout(db: DatabaseExecutor, workoutId: string): Promise<void> {
   // todo: audit pending
   await db.runAsync('DELETE FROM workouts WHERE id = $id', { $id: workoutId });
 }
 
+/**
+ * Lists completed workouts in reverse chronological order.
+ *
+ * Active workouts are excluded by requiring a non-null `ended_at`. Exposed as
+ * `store.workouts.list`; History uses the result for its calendar markers and
+ * month-grouped workout list.
+ */
 export async function listWorkouts(db: DatabaseExecutor): Promise<Workout[]> {
   // todo: audit pending
   return db.getAllAsync<Workout>(
@@ -421,6 +569,17 @@ export type ProfileStats = {
   streakDays: number;
 };
 
+/**
+ * Calculates the workout summary displayed on Profile.
+ *
+ * `workoutCount` counts completed workouts. `totalVolume` sums `weight * reps`
+ * only for completed sets with both values inside completed workouts.
+ * `streakDays` is calculated from distinct local workout dates relative to
+ * today. Missing aggregate rows are normalized to zero.
+ *
+ * Exposed as `store.workouts.getProfileStats` and refreshed whenever Profile
+ * gains focus.
+ */
 export async function getProfileStats(db: DatabaseExecutor): Promise<ProfileStats> {
   // todo: audit pending
   const countRow = await db.getFirstAsync<{ count: number }>(
@@ -454,6 +613,12 @@ export async function getProfileStats(db: DatabaseExecutor): Promise<ProfileStat
 
 type RawLoggedSet = Omit<LoggedSet, 'completed'> & { completed: number };
 
+/**
+ * Converts SQLite's integer completion flag into the boolean used by the app.
+ *
+ * Used whenever this repository returns logged sets from workout detail,
+ * previous exercise sets, exercise history, or set creation.
+ */
 function mapLoggedSet(row: RawLoggedSet): LoggedSet {
   return { ...row, completed: row.completed === 1 };
 }
