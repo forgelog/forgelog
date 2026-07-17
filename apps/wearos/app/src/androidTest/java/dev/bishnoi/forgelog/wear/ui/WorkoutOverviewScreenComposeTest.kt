@@ -34,8 +34,8 @@ class WorkoutOverviewScreenComposeTest {
             )
         }
 
-        compose.scrollToText("2:05")
-        compose.onNodeWithText("2:05").assertIsDisplayed()
+        compose.scrollToText("00:02:05")
+        compose.onNodeWithText("00:02:05").assertIsDisplayed()
         compose.onNodeWithText("Bench Press").assertIsDisplayed()
         compose.onNodeWithText("1/3 sets").assertIsDisplayed()
         compose.scrollToText("Plank")

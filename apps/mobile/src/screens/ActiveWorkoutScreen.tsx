@@ -29,6 +29,7 @@ import {
 } from '../application/activeWorkout';
 import { mobileStore, type LoggedSetUpdate } from '../db/mobileStore';
 import type { LoggedSet, PersonalRecordEvent, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
+import { formatElapsed } from '../domain/elapsed';
 import {
   fieldsForExerciseType,
   formatCompactSet,
@@ -351,7 +352,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         }
       />
       <Text style={[styles.timer, { color: c.accent }]} onLayout={handleTimerLayout}>
-        {formatTime(elapsed)}
+        {formatElapsed(elapsed)}
       </Text>
       <FlatList
         data={detail.exercises}
@@ -708,12 +709,6 @@ function ActiveWorkoutSetRow({
       </Pressable>
     </View>
   );
-}
-
-function formatTime(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 function label(recordType: string): string {
