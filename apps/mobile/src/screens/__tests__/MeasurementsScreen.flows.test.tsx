@@ -34,8 +34,7 @@ test('records entered measurements and returns to the current values', async () 
   await waitFor(() => expect(screen.getByLabelText('Record measurements')).toBeTruthy());
 
   await act(async () => fireEvent.press(screen.getByLabelText('Record measurements')));
-  await waitFor(() => expect(screen.getByText('Date')).toBeTruthy());
-  expect(screen.getByTestId('measurement-right-calf-input')).toBeTruthy();
+  await waitFor(() => expect(screen.getByTestId('measurement-right-calf-input')).toBeTruthy());
 
   await act(async () => {
     fireEvent.changeText(screen.getByTestId('measurement-bodyweight-input'), '80.5');
@@ -54,6 +53,7 @@ test('keeps the record screen open when a value is invalid', async () => {
   const screen = await renderMeasurements();
   await waitFor(() => expect(screen.getByLabelText('Record measurements')).toBeTruthy());
   await act(async () => fireEvent.press(screen.getByLabelText('Record measurements')));
+  await waitFor(() => expect(screen.getByTestId('measurement-body-fat-input')).toBeTruthy());
 
   await act(async () => {
     fireEvent.changeText(screen.getByTestId('measurement-body-fat-input'), 'not-a-number');

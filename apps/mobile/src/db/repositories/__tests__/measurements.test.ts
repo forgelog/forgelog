@@ -7,15 +7,15 @@ beforeEach(() => {
 
 test('lists all types with their latest recorded values', async () => {
   await mobileStore.measurements.record({
+    measuredAt: '2026-07-17',
+    values: [{ measurementTypeId: 'bodyweight', canonicalValue: 80.5 }],
+  });
+  await mobileStore.measurements.record({
     measuredAt: '2026-07-16',
     values: [
       { measurementTypeId: 'bodyweight', canonicalValue: 81.2 },
       { measurementTypeId: 'waist', canonicalValue: 90 },
     ],
-  });
-  await mobileStore.measurements.record({
-    measuredAt: '2026-07-17',
-    values: [{ measurementTypeId: 'bodyweight', canonicalValue: 80.5 }],
   });
 
   const current = await mobileStore.measurements.listCurrent();
@@ -64,4 +64,19 @@ test('records only valid values for known measurement types', async () => {
       values: [{ measurementTypeId: 'unknown', canonicalValue: 80 }],
     })
   ).rejects.toThrow('Measurement type not found.');
+});
+
+test('rolls back the entire batch when one value is invalid', async () => {
+  await expect(
+    mobileStore.measurements.record({
+      measuredAt: '2026-07-17',
+      values: [
+        { measurementTypeId: 'bodyweight', canonicalValue: 80 },
+        { measurementTypeId: 'unknown', canonicalValue: 90 },
+      ],
+    })
+  ).rejects.toThrow('Measurement type not found.');
+
+  const current = await mobileStore.measurements.listCurrent();
+  expect(current.find((type) => type.id === 'bodyweight')?.current).toBeNull();
 });

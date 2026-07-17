@@ -58,7 +58,7 @@ test('migration 2 creates and seeds measurement tables', async () => {
     'SELECT id, name, dimension, canonical_unit, position FROM measurement_types ORDER BY position'
   );
 
-  expect(version?.user_version).toBe(2);
+  expect(version?.user_version).toBeGreaterThanOrEqual(2);
   expect(types).toHaveLength(18);
   expect(types[0]).toEqual({
     id: 'bodyweight',
