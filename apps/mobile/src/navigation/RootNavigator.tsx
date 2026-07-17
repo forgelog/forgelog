@@ -8,7 +8,9 @@ import { ActiveWorkoutScreen } from '../screens/ActiveWorkoutScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { ExerciseDetailScreen } from '../screens/ExerciseDetailScreen';
 import { ExerciseLibraryScreen } from '../screens/ExerciseLibraryScreen';
+import { MeasurementsScreen } from '../screens/MeasurementsScreen';
 import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { RecordMeasurementsScreen } from '../screens/RecordMeasurementsScreen';
 import { RoutineDetailScreen } from '../screens/RoutineDetailScreen';
 import { RoutineEditorScreen } from '../screens/RoutineEditorScreen';
 import { WorkoutDetailScreen } from '../screens/WorkoutDetailScreen';
@@ -19,7 +21,10 @@ export type RootStackParamList = {
   ActiveWorkout: { workoutId: string; pickedExerciseId?: string };
   EditProfile: undefined;
   ExerciseDetail: { exerciseId: string };
-  ExerciseLibrary: { mode?: 'browse' | 'pick'; returnTo?: 'ActiveWorkout' | 'RoutineEditor' } | undefined;
+  ExerciseLibrary:
+    { mode?: 'browse' | 'pick'; returnTo?: 'ActiveWorkout' | 'RoutineEditor' } | undefined;
+  Measurements: undefined;
+  RecordMeasurements: undefined;
   RoutineDetail: { routineId: string };
   RoutineEditor: { routineId?: string; pickedExerciseId?: string };
   WorkoutDetail: { workoutId: string };
@@ -68,6 +73,8 @@ export function RootNavigator() {
         <Stack.Screen name="ActiveWorkout" component={ActiveWorkoutScreen} />
         <Stack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+        <Stack.Screen name="Measurements" component={MeasurementsScreen} />
+        <Stack.Screen name="RecordMeasurements" component={RecordMeasurementsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

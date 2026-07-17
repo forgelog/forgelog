@@ -7,7 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
-import { mobileStore, type ExerciseRecordRow, type Profile, type ProfileStats } from '../db/mobileStore';
+import {
+  mobileStore,
+  type ExerciseRecordRow,
+  type Profile,
+  type ProfileStats,
+} from '../db/mobileStore';
 import { computeAge, initials } from '../domain/profile';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme, type ThemeMode } from '../theme/ThemeContext';
@@ -42,7 +47,11 @@ export function ProfileScreen() {
   const c = useTheme();
   const navigation = useNavigation<Nav>();
   const [groups, setGroups] = useState<ExerciseGroup[]>([]);
-  const [stats, setStats] = useState<ProfileStats>({ workoutCount: 0, totalVolume: 0, streakDays: 0 });
+  const [stats, setStats] = useState<ProfileStats>({
+    workoutCount: 0,
+    totalVolume: 0,
+    streakDays: 0,
+  });
   const [name, setName] = useState('');
   const [body, setBody] = useState<Profile | null>(null);
   const nameInputRef = useRef<TextInput>(null);
@@ -154,7 +163,9 @@ export function ProfileScreen() {
 
         <Text style={[styles.sectionTitle, { color: c.fg }]}>Personal Records</Text>
         {groups.length === 0 ? (
-          <Text style={[styles.empty, { color: c.sub }]}>No records yet. Complete a set to set a PR.</Text>
+          <Text style={[styles.empty, { color: c.sub }]}>
+            No records yet. Complete a set to set a PR.
+          </Text>
         ) : (
           groups.map((group) => (
             <Card key={group.exerciseId} style={styles.recordCard}>
@@ -185,11 +196,23 @@ export function ProfileScreen() {
         </View>
 
         <Pressable
-          style={[styles.libraryRow, { borderTopColor: c.sep }]}
+          style={[styles.optionRow, { borderTopColor: c.sep }]}
           onPress={() => navigation.navigate('ExerciseLibrary', { mode: 'browse' })}
+          accessibilityLabel="Open exercise library"
+          accessibilityRole="button"
         >
           <Icon name="dumbbell" variant="sub" size={20} />
-          <Text style={[styles.libraryText, { color: c.fg }]}>Exercise Library</Text>
+          <Text style={[styles.optionText, { color: c.fg }]}>Exercise Library</Text>
+          <Icon name="chevron-right" variant="sub" size={20} />
+        </Pressable>
+        <Pressable
+          style={[styles.optionRow, styles.lastOptionRow, { borderTopColor: c.sep }]}
+          onPress={() => navigation.navigate('Measurements')}
+          accessibilityLabel="Open measurements"
+          accessibilityRole="button"
+        >
+          <Icon name="tape-measure" variant="sub" size={20} />
+          <Text style={[styles.optionText, { color: c.fg }]}>Measurements</Text>
           <Icon name="chevron-right" variant="sub" size={20} />
         </Pressable>
       </ScrollView>
@@ -217,7 +240,13 @@ function round(value: number): number {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-  avatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatarText: { fontSize: 18, fontWeight: '700' },
   identity: { flex: 1 },
   name: { fontSize: 18, fontWeight: '700' },
@@ -246,14 +275,14 @@ const styles = StyleSheet.create({
   bodyLabel: { fontSize: 13 },
   bodyValue: { fontSize: 13, fontWeight: '700' },
   themeRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
-  libraryRow: {
+  optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: 16,
     marginTop: 16,
-    marginBottom: 32,
     borderTopWidth: 1,
   },
-  libraryText: { flex: 1, fontSize: 15, fontWeight: '600' },
+  lastOptionRow: { marginTop: 0, marginBottom: 32 },
+  optionText: { flex: 1, fontSize: 15, fontWeight: '600' },
 });
