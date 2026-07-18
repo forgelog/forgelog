@@ -25,7 +25,6 @@ const {
 
 async function insertExercise(exerciseId = 'ex1') {
   const db = await getDb();
-  // todo: audit pending
   await db.runAsync(
     `INSERT INTO exercises (id, name, muscle_group, equipment, exercise_type, is_custom)
      VALUES ($id, 'Squat', 'legs', 'barbell', 'weight_reps', 1)`,
@@ -38,7 +37,6 @@ async function insertWeightedWorkout(exerciseId = 'ex1') {
   const db = await getDb();
   const workout = await startWorkout({ name: 'Test' });
   const weId = id();
-  // todo: audit pending
   await db.runAsync(
     `INSERT INTO workout_exercises (id, workout_id, exercise_id, position, exercise_type)
      VALUES ($id, $workout_id, $exercise_id, 0, 'weight_reps')`,
@@ -54,17 +52,14 @@ async function seedBaseline(exerciseId = 'ex1') {
   await setSetCompletion(set.id, true);
   await replaceRecordStateForExercise(exerciseId);
   const db = await getDb();
-  // todo: audit pending
   await db.runAsync('UPDATE workouts SET ended_at = $ended WHERE id = $id', {
     $ended: '2026-07-01T11:00:00.000Z',
     $id: workout.id,
   });
-  // todo: audit pending
   await db.runAsync('UPDATE workouts SET started_at = $started WHERE id = $id', {
     $started: '2026-07-01T10:00:00.000Z',
     $id: workout.id,
   });
-  // todo: audit pending
   await db.runAsync('UPDATE logged_sets SET completed_at = $completed WHERE id = $id', {
     $completed: '2026-07-01T10:05:00.000Z',
     $id: set.id,
@@ -232,7 +227,6 @@ test('updating an incomplete set persists values without recomputing PR state', 
 
   expect(result.recordEvents).toEqual([]);
   const db = await getDb();
-  // todo: audit pending
   const row = await db.getFirstAsync<{ weight: number | null; completed: number }>(
     'SELECT weight, completed FROM logged_sets WHERE id = $id',
     { $id: set.id }
@@ -321,7 +315,6 @@ test('startOrResumeWorkout with an active workout → returns active, no new row
   expect(resumed).toBe(true);
 
   const db = await getDb();
-  // todo: audit pending
   const count = await db.getFirstAsync<{ n: number }>(
     'SELECT COUNT(*) AS n FROM workouts WHERE ended_at IS NULL'
   );

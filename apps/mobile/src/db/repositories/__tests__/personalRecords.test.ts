@@ -23,7 +23,6 @@ beforeEach(() => {
 
 async function setCompletedAt(setId: string, completedAt: string): Promise<void> {
   const db = await getDb();
-  // todo: audit pending
   await db.runAsync('UPDATE logged_sets SET completed_at = $completedAt WHERE id = $id', {
     $completedAt: completedAt,
     $id: setId,
@@ -32,7 +31,6 @@ async function setCompletedAt(setId: string, completedAt: string): Promise<void>
 
 async function clearCompletedAt(setId: string): Promise<void> {
   const db = await getDb();
-  // todo: audit pending
   await db.runAsync('UPDATE logged_sets SET completed_at = NULL WHERE id = $id', {
     $id: setId,
   });
@@ -40,7 +38,6 @@ async function clearCompletedAt(setId: string): Promise<void> {
 
 async function setWorkoutStartedAt(workoutId: string, startedAt: string): Promise<void> {
   const db = await getDb();
-  // todo: audit pending
   await db.runAsync('UPDATE workouts SET started_at = $startedAt WHERE id = $id', {
     $startedAt: startedAt,
     $id: workoutId,
@@ -198,9 +195,7 @@ test('personal record backfill rebuilds current records and historical events', 
   await setCompletedAt(top.id, '2026-07-08T10:05:00.000Z');
 
   const db = await getDb();
-  // todo: audit pending
   await db.runAsync('DELETE FROM personal_records WHERE exercise_id = $id', { $id: bench.id });
-  // todo: audit pending
   await db.runAsync('DELETE FROM personal_record_events WHERE exercise_id = $id', {
     $id: bench.id,
   });

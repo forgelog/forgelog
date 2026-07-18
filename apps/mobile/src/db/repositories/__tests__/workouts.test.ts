@@ -26,7 +26,6 @@ beforeEach(() => {
 
 async function setCompletedAt(setId: string, completedAt: string): Promise<void> {
   const db = await getDb();
-  // todo: audit pending
   await db.runAsync('UPDATE logged_sets SET completed_at = $completedAt WHERE id = $id', {
     $completedAt: completedAt,
     $id: setId,
