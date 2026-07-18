@@ -1,26 +1,4 @@
-import { computeStreakDays, currentWeekDays, localDateKey } from '../dates';
-
-const TODAY = '2026-07-10';
-
-test('no workouts → streak 0', () => {
-  expect(computeStreakDays([], TODAY)).toBe(0);
-});
-
-test('counts consecutive days ending today', () => {
-  expect(computeStreakDays(['2026-07-10', '2026-07-09', '2026-07-08'], TODAY)).toBe(3);
-});
-
-test('counts streak ending yesterday when today not logged', () => {
-  expect(computeStreakDays(['2026-07-09', '2026-07-08'], TODAY)).toBe(2);
-});
-
-test('breaks streak on gap', () => {
-  expect(computeStreakDays(['2026-07-10', '2026-07-08'], TODAY)).toBe(1);
-});
-
-test('resets to 0 if neither today nor yesterday logged', () => {
-  expect(computeStreakDays(['2026-07-07', '2026-07-06'], TODAY)).toBe(0);
-});
+import { currentWeekDays, localDateKey } from '../dates';
 
 test('localDateKey formats date in local time', () => {
   const d = new Date(2026, 6, 10); // local: July 10, 2026

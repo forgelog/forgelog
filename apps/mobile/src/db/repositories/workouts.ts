@@ -1,4 +1,3 @@
-import { computeStreakDays, localDateKey } from '../../domain/dates';
 import { requireExerciseType } from '../../domain/setFields';
 import type { DatabaseExecutor } from '../executor';
 import { id } from '../id';
@@ -396,7 +395,6 @@ export async function getLoggedSetRecordContext(
   db: DatabaseExecutor,
   loggedSetId: string
 ): Promise<LoggedSetRecordContext | null> {
-  // todo: audit pending
   return db.getFirstAsync<LoggedSetRecordContext>(
     `SELECT workout_exercise_id, completed
        FROM logged_sets
@@ -451,7 +449,6 @@ export async function updateLoggedSetValues(
   const params: Record<string, string | number | null> = { $id: loggedSetId };
   for (const { column, value } of updates) params[`$${column}`] = value;
 
-  // todo: audit pending
   await db.runAsync(`UPDATE logged_sets SET ${assignments.join(', ')} WHERE id = $id`, params);
 }
 
@@ -490,7 +487,6 @@ export async function setLoggedSetCompletion(
  * the affected exercise in the same transaction.
  */
 export async function deleteLoggedSet(db: DatabaseExecutor, loggedSetId: string): Promise<void> {
-  // todo: audit pending
   await db.runAsync('DELETE FROM logged_sets WHERE id = $id', { $id: loggedSetId });
 }
 
@@ -506,7 +502,6 @@ export async function deleteWorkoutExercise(
   db: DatabaseExecutor,
   workoutExerciseId: string
 ): Promise<void> {
-  // todo: audit pending
   await db.runAsync('DELETE FROM workout_exercises WHERE id = $id', { $id: workoutExerciseId });
 }
 
@@ -529,7 +524,6 @@ export function hasCompletedSet(exercises: { sets: { completed: boolean }[] }[])
  * logged. The operation does not itself validate completed sets.
  */
 export async function finishWorkout(db: DatabaseExecutor, workoutId: string): Promise<void> {
-  // todo: audit pending
   await db.runAsync('UPDATE workouts SET ended_at = $ended WHERE id = $id', {
     $ended: new Date().toISOString(),
     $id: workoutId,
@@ -545,7 +539,6 @@ export async function finishWorkout(db: DatabaseExecutor, workoutId: string): Pr
  * within the same transaction.
  */
 export async function deleteWorkout(db: DatabaseExecutor, workoutId: string): Promise<void> {
-  // todo: audit pending
   await db.runAsync('DELETE FROM workouts WHERE id = $id', { $id: workoutId });
 }
 
@@ -557,58 +550,9 @@ export async function deleteWorkout(db: DatabaseExecutor, workoutId: string): Pr
  * month-grouped workout list.
  */
 export async function listWorkouts(db: DatabaseExecutor): Promise<Workout[]> {
-  // todo: audit pending
   return db.getAllAsync<Workout>(
     'SELECT * FROM workouts WHERE ended_at IS NOT NULL ORDER BY started_at DESC'
   );
-}
-
-export type ProfileStats = {
-  workoutCount: number;
-  totalVolume: number;
-  streakDays: number;
-};
-
-/**
- * Calculates the workout summary displayed on Profile.
- *
- * `workoutCount` counts completed workouts. `totalVolume` sums `weight * reps`
- * only for completed sets with both values inside completed workouts.
- * `streakDays` is calculated from distinct local workout dates relative to
- * today. Missing aggregate rows are normalized to zero.
- *
- * Exposed as `store.workouts.getProfileStats` and refreshed whenever Profile
- * gains focus.
- */
-export async function getProfileStats(db: DatabaseExecutor): Promise<ProfileStats> {
-  // todo: audit pending
-  const countRow = await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) AS count FROM workouts WHERE ended_at IS NOT NULL'
-  );
-
-  // todo: audit pending
-  const volumeRow = await db.getFirstAsync<{ volume: number | null }>(
-    `SELECT SUM(ls.weight * ls.reps) AS volume
-       FROM logged_sets ls
-       JOIN workout_exercises we ON we.id = ls.workout_exercise_id
-       JOIN workouts w ON w.id = we.workout_id
-      WHERE ls.completed = 1 AND w.ended_at IS NOT NULL
-        AND ls.weight IS NOT NULL AND ls.reps IS NOT NULL`
-  );
-
-  // todo: audit pending
-  const dateRows = await db.getAllAsync<{ day: string }>(
-    `SELECT DISTINCT date(started_at, 'localtime') AS day FROM workouts WHERE ended_at IS NOT NULL ORDER BY day DESC`
-  );
-
-  return {
-    workoutCount: countRow?.count ?? 0,
-    totalVolume: volumeRow?.volume ?? 0,
-    streakDays: computeStreakDays(
-      dateRows.map((r) => r.day),
-      localDateKey(new Date())
-    ),
-  };
 }
 
 type RawLoggedSet = Omit<LoggedSet, 'completed'> & { completed: number };

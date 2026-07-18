@@ -29,7 +29,6 @@ export type {
 export type {
   ExerciseHistoryEntry,
   LoggedSetValueUpdate,
-  ProfileStats,
 } from './repositories/workouts';
 
 /**
@@ -92,7 +91,6 @@ function createBoundMobileStore(
       finish: bind(workouts.finishWorkout),
       remove: bind(workouts.deleteWorkout),
       list: bind(workouts.listWorkouts),
-      getProfileStats: bind(workouts.getProfileStats),
       hasCompletedSet: workouts.hasCompletedSet,
     },
     records: {
@@ -162,7 +160,6 @@ export const mobileStore = {
     addSet: defaultStore.workouts.addSet,
     finish: defaultStore.workouts.finish,
     list: defaultStore.workouts.list,
-    getProfileStats: defaultStore.workouts.getProfileStats,
     hasCompletedSet: defaultStore.workouts.hasCompletedSet,
   },
   records: {

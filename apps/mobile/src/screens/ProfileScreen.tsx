@@ -11,7 +11,6 @@ import {
   mobileStore,
   type ExerciseRecordRow,
   type Profile,
-  type ProfileStats,
 } from '../db/mobileStore';
 import { computeAge, initials } from '../domain/profile';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -47,11 +46,6 @@ export function ProfileScreen() {
   const c = useTheme();
   const navigation = useNavigation<Nav>();
   const [groups, setGroups] = useState<ExerciseGroup[]>([]);
-  const [stats, setStats] = useState<ProfileStats>({
-    workoutCount: 0,
-    totalVolume: 0,
-    streakDays: 0,
-  });
   const [name, setName] = useState('');
   const [body, setBody] = useState<Profile | null>(null);
   const nameInputRef = useRef<TextInput>(null);
@@ -59,7 +53,6 @@ export function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       mobileStore.records.listAll().then((rows) => setGroups(groupByExercise(rows)));
-      mobileStore.workouts.getProfileStats().then(setStats);
       mobileStore.profile.get().then((profile) => {
         setName(profile.name);
         setBody(profile);
@@ -106,21 +99,6 @@ export function ProfileScreen() {
           >
             <Icon name="pencil" variant="sub" size={20} />
           </Pressable>
-        </View>
-
-        <View style={styles.statsRow}>
-          <Card style={styles.statCard}>
-            <Text style={[styles.statValue, { color: c.fg }]}>{stats.workoutCount}</Text>
-            <Text style={[styles.statLabel, { color: c.sub }]}>Workouts</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={[styles.statValue, { color: c.fg }]}>{round(stats.totalVolume)}</Text>
-            <Text style={[styles.statLabel, { color: c.sub }]}>Volume kg</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <Text style={[styles.statValue, { color: c.accent }]}>{stats.streakDays}</Text>
-            <Text style={[styles.statLabel, { color: c.sub }]}>Streak days</Text>
-          </Card>
         </View>
 
         <View style={styles.bodySectionHeader}>
@@ -251,10 +229,6 @@ const styles = StyleSheet.create({
   identity: { flex: 1 },
   name: { fontSize: 18, fontWeight: '700' },
   since: { fontSize: 13, marginTop: 2 },
-  statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
-  statCard: { flex: 1, alignItems: 'center', paddingVertical: 14 },
-  statValue: { fontSize: 20, fontWeight: '700' },
-  statLabel: { fontSize: 12, marginTop: 4 },
   sectionTitle: { fontSize: 16, fontWeight: '700', margin: 16, marginBottom: 8 },
   empty: { textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
   recordCard: { marginHorizontal: 16, marginBottom: 10 },

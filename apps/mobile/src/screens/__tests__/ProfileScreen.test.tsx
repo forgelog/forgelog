@@ -10,16 +10,13 @@ import {
   setProfileName,
   setThemeMode,
 } from '../../db/repositories/profile';
-import { getProfileStats } from '../../db/repositories/workouts';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { ProfileScreen } from '../ProfileScreen';
 
 jest.mock('../../db/repositories/personalRecords');
-jest.mock('../../db/repositories/workouts');
 jest.mock('../../db/repositories/profile');
 
 const mockListAllRecords = listAllRecords as jest.MockedFunction<typeof listAllRecords>;
-const mockGetProfileStats = getProfileStats as jest.MockedFunction<typeof getProfileStats>;
 const mockGetThemeMode = getThemeMode as jest.MockedFunction<typeof getThemeMode>;
 const mockSetThemeMode = setThemeMode as jest.MockedFunction<typeof setThemeMode>;
 const mockSetProfileName = setProfileName as jest.MockedFunction<typeof setProfileName>;
@@ -48,7 +45,6 @@ async function renderProfile() {
 
 beforeEach(() => {
   mockListAllRecords.mockResolvedValue([]);
-  mockGetProfileStats.mockResolvedValue({ workoutCount: 0, totalVolume: 0, streakDays: 0 });
   mockGetThemeMode.mockResolvedValue('system');
   mockSetThemeMode.mockResolvedValue(undefined);
   mockSetProfileName.mockResolvedValue(undefined);

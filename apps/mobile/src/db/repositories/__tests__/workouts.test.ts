@@ -12,7 +12,6 @@ const {
   addSet,
   finish: finishWorkout,
   getPreviousExerciseSets,
-  getProfileStats,
   listExerciseHistory,
   getDetail: getWorkoutDetail,
   hasCompletedSet,
@@ -57,7 +56,7 @@ test('hasCompletedSet is true when at least one set is completed', () => {
   ).toBe(true);
 });
 
-test('starts from routines and reports detail, history, previous sets, and profile stats', async () => {
+test('starts from routines and reports detail, history, and previous sets', async () => {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
@@ -130,12 +129,6 @@ test('starts from routines and reports detail, history, previous sets, and profi
   expect(history[0].sets).toEqual([
     expect.objectContaining({ id: secondSet.id, weight: 80, reps: 3, completed: true }),
   ]);
-
-  await expect(getProfileStats()).resolves.toEqual({
-    workoutCount: 2,
-    totalVolume: 740,
-    streakDays: 2,
-  });
 });
 
 test('lists complete exercise history without an implicit limit', async () => {
