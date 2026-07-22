@@ -22,6 +22,7 @@ const {
   setSetCompletion,
   updateSetValues: updateLoggedSetValues,
 } = mobileStore.workouts;
+const { getDetail: getRoutineDetail, saveDraft: saveRoutineDraft } = mobileStore.routines;
 
 type TestStackParamList = RootStackParamList & {
   Home: undefined;
@@ -192,10 +193,14 @@ test('removes an exercise through its options menu', async () => {
   const removeFlow = await renderActiveWorkout(workout.id);
   const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
-  await waitFor(() => expect(removeFlow.getByLabelText(`Exercise options ${bench.name}`)).toBeTruthy());
+  await waitFor(() =>
+    expect(removeFlow.getByLabelText(`Exercise options ${bench.name}`)).toBeTruthy()
+  );
   fireEvent.press(removeFlow.getByLabelText(`Exercise options ${bench.name}`));
 
-  await waitFor(() => expect(removeFlow.getByTestId('workout-exercise-options-sheet')).toBeTruthy());
+  await waitFor(() =>
+    expect(removeFlow.getByTestId('workout-exercise-options-sheet')).toBeTruthy()
+  );
   fireEvent.press(removeFlow.getByLabelText(`Remove ${bench.name} from workout`));
 
   const removeButton = latestAlertButtons(alertSpy).find((button) => button.text === 'Remove');
@@ -214,21 +219,109 @@ test('finishes a workout', async () => {
   await updateLoggedSetValues(finishSet.id, { weight: 100, reps: 5 });
   await setSetCompletion(finishSet.id, true);
   const finish = await renderActiveWorkout(finishWorkoutRow.id);
-  const finishAlertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
   await waitFor(() => expect(finish.getByText('Finish')).toBeTruthy());
   await act(async () => {
     fireEvent.press(finish.getByText('Finish'));
   });
-  const finishButton = latestAlertButtons(finishAlertSpy).find(
-    (button) => button.text === 'Finish'
-  );
+  await waitFor(() => expect(finish.getByTestId('finish-workout-sheet')).toBeTruthy());
   await act(async () => {
-    await finishButton?.onPress?.();
+    fireEvent.press(finish.getByTestId('finish-without-routine'));
   });
   await waitFor(async () =>
     expect((await getWorkoutDetail(finishWorkoutRow.id))?.ended_at).not.toBeNull()
   );
+});
+
+test('finishes a freestyle workout and saves its structure as a routine', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const workout = await startWorkout({ name: 'Workout' });
+  const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
+  const set = await addSet(workoutExercise.id);
+  await updateLoggedSetValues(set.id, { weight: 105, reps: 6 });
+  await setSetCompletion(set.id, true);
+  const active = await renderActiveWorkout(workout.id);
+
+  await waitFor(() => expect(active.getByText('Finish')).toBeTruthy());
+  await act(async () => {
+    fireEvent.press(active.getByText('Finish'));
+  });
+  await waitFor(() => expect(active.getByTestId('finish-workout-sheet')).toBeTruthy());
+  await act(async () => {
+    fireEvent.changeText(active.getByTestId('finish-routine-name'), 'Bench Day');
+  });
+  await waitFor(() =>
+    expect(active.getByTestId('finish-save-routine').props.accessibilityState?.disabled).toBe(false)
+  );
+  await act(async () => {
+    fireEvent.press(active.getByTestId('finish-save-routine'));
+  });
+
+  await waitFor(async () => expect((await getWorkoutDetail(workout.id))?.ended_at).not.toBeNull());
+  const routines = await mobileStore.routines.list();
+  expect(routines).toHaveLength(1);
+  await expect(getRoutineDetail(routines[0].id)).resolves.toMatchObject({
+    name: 'Bench Day',
+    exercises: [
+      expect.objectContaining({
+        exercise_id: bench.id,
+        sets: [expect.objectContaining({ target_weight: null, target_reps: null })],
+      }),
+    ],
+  });
+});
+
+test('offers to update a routine when workout structure changed', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const routine = await saveRoutineDraft({
+    name: 'Push Day',
+    notes: null,
+    exercises: [
+      {
+        exercise_id: bench.id,
+        exercise_type: 'weight_reps',
+        notes: null,
+        sets: [
+          {
+            set_type: 'normal',
+            target_weight: 100,
+            target_reps: 5,
+            target_duration_seconds: null,
+            target_distance_meters: null,
+          },
+        ],
+      },
+    ],
+  });
+  const workout = await startWorkout({ routineId: routine.id });
+  const detail = await getWorkoutDetail(workout.id);
+  const workoutExercise = detail?.exercises[0];
+  const firstSet = workoutExercise?.sets[0];
+  if (!workoutExercise || !firstSet) throw new Error('Expected routine snapshot');
+  await setSetCompletion(firstSet.id, true);
+  await addSet(workoutExercise.id, 'warmup');
+  const active = await renderActiveWorkout(workout.id);
+
+  await waitFor(() => expect(active.getByText('Finish')).toBeTruthy());
+  await act(async () => {
+    fireEvent.press(active.getByText('Finish'));
+  });
+  await waitFor(() => expect(active.getByText('Sets were added or removed')).toBeTruthy());
+  await act(async () => {
+    fireEvent.press(active.getByTestId('finish-update-routine'));
+  });
+
+  await waitFor(async () => expect((await getWorkoutDetail(workout.id))?.ended_at).not.toBeNull());
+  await expect(getRoutineDetail(routine.id)).resolves.toMatchObject({
+    exercises: [
+      expect.objectContaining({
+        sets: [
+          expect.objectContaining({ target_weight: 100, target_reps: 5 }),
+          expect.objectContaining({ set_type: 'warmup', target_weight: null, target_reps: null }),
+        ],
+      }),
+    ],
+  });
 });
 
 test('discards a workout', async () => {

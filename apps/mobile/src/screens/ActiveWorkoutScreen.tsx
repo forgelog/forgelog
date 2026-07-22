@@ -24,11 +24,20 @@ import {
   deleteExerciseFromWorkout,
   deleteSet,
   discardWorkout,
+  finishWorkoutWithRoutineAction,
+  getWorkoutFinishPlan,
   uncompleteSet,
   updateSetAndRecomputeRecords,
+  type WorkoutFinishAction,
 } from '../application/activeWorkout';
+import { FinishWorkoutSheet, type FinishWorkoutSheetState } from '../components/FinishWorkoutSheet';
 import { mobileStore, type LoggedSetValueUpdate } from '../db/mobileStore';
-import type { LoggedSet, PersonalRecordEvent, WorkoutDetail, WorkoutExerciseDetail } from '../db/types';
+import type {
+  LoggedSet,
+  PersonalRecordEvent,
+  WorkoutDetail,
+  WorkoutExerciseDetail,
+} from '../db/types';
 import { formatElapsed } from '../domain/elapsed';
 import {
   fieldsForExerciseType,
@@ -74,9 +83,13 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const [prevSets, setPrevSets] = useState<Record<string, LoggedSet[]>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [personalRecordNotice, setPersonalRecordNotice] = useState<PersonalRecordNotice | null>(null);
+  const [personalRecordNotice, setPersonalRecordNotice] = useState<PersonalRecordNotice | null>(
+    null
+  );
   const [toastTop, setToastTop] = useState<number | null>(null);
   const [exerciseOptions, setExerciseOptions] = useState<ExerciseOptionsState | null>(null);
+  const [finishSheet, setFinishSheet] = useState<FinishWorkoutSheetState | null>(null);
+  const [preparingFinish, setPreparingFinish] = useState(false);
   const reloadRequestId = useRef(0);
   const personalRecordNoticeId = useRef(0);
 
@@ -87,7 +100,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     const isCurrent = () => current && reloadRequestId.current === requestId;
     setLoading(true);
     setLoadError(null);
-    mobileStore.workouts.getDetail(workoutId)
+    mobileStore.workouts
+      .getDetail(workoutId)
       .then(async (d) => {
         if (!isCurrent()) return;
         if (!d) {
@@ -97,10 +111,13 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           return;
         }
         const entries = await Promise.all(
-          d.exercises.map(async (we) => [
-            we.exercise.id,
-            await mobileStore.workouts.getPreviousExerciseSets(we.exercise.id, workoutId),
-          ] as const)
+          d.exercises.map(
+            async (we) =>
+              [
+                we.exercise.id,
+                await mobileStore.workouts.getPreviousExerciseSets(we.exercise.id, workoutId),
+              ] as const
+          )
         );
         const recordEvents = await mobileStore.records.getEventsForWorkout(workoutId);
         if (!isCurrent()) return;
@@ -145,7 +162,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!pickedExerciseId) return;
     navigation.setParams({ pickedExerciseId: undefined });
-    mobileStore.workouts.addExercise(workoutId, pickedExerciseId)
+    mobileStore.workouts
+      .addExercise(workoutId, pickedExerciseId)
       .then(() => reload())
       .catch(() => {
         Alert.alert('Save failed', 'Could not add exercise.');
@@ -282,21 +300,47 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     ]);
   }
 
-  function handleFinish() {
+  async function handleFinish() {
     if (!detail || !mobileStore.workouts.hasCompletedSet(detail.exercises)) {
       Alert.alert('No sets completed', 'Complete at least one set before finishing.');
       return;
     }
-    Alert.alert('Finish workout', 'Mark this workout as complete?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Finish',
-        onPress: async () => {
-          await mobileStore.workouts.finish(workoutId);
-          navigation.popToTop();
-        },
-      },
-    ]);
+    setPreparingFinish(true);
+    try {
+      const plan = await getWorkoutFinishPlan(workoutId);
+      setFinishSheet({
+        plan,
+        routineName: plan.kind === 'freestyle' ? plan.suggestedName : '',
+      });
+    } catch {
+      Alert.alert('Finish failed', 'Could not prepare this workout for finishing.');
+    } finally {
+      setPreparingFinish(false);
+    }
+  }
+
+  function closeFinishSheet() {
+    setFinishSheet((current) => (current ? { ...current, closing: true } : current));
+  }
+
+  async function finishWithAction(action: WorkoutFinishAction) {
+    setFinishSheet((current) =>
+      current ? { ...current, saving: true, error: undefined } : current
+    );
+    try {
+      await finishWorkoutWithRoutineAction(workoutId, action);
+      navigation.popToTop();
+    } catch {
+      setFinishSheet((current) =>
+        current
+          ? {
+              ...current,
+              saving: false,
+              error: 'Could not finish this workout. Your workout is still active.',
+            }
+          : current
+      );
+    }
   }
 
   function handleDiscard() {
@@ -349,7 +393,12 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             >
               <Icon name="trash-can-outline" variant="sub" size={20} />
             </Pressable>
-            <PillButton label="Finish" onPress={handleFinish} variant="filled" />
+            <PillButton
+              label={preparingFinish ? 'Loading...' : 'Finish'}
+              onPress={handleFinish}
+              variant="filled"
+              disabled={preparingFinish}
+            />
           </View>
         }
       />
@@ -390,6 +439,15 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         onClose={closeExerciseOptions}
         onClosed={() => setExerciseOptions(null)}
         onRemove={confirmRemoveExercise}
+      />
+      <FinishWorkoutSheet
+        state={finishSheet}
+        onClose={closeFinishSheet}
+        onClosed={() => setFinishSheet(null)}
+        onNameChange={(routineName) =>
+          setFinishSheet((current) => (current ? { ...current, routineName } : current))
+        }
+        onFinish={finishWithAction}
       />
       {personalRecordNotice ? (
         <PersonalRecordToast
@@ -512,7 +570,11 @@ function ActiveWorkoutExerciseItem({
           onPress={() => onOpenExercise(item.exercise.id)}
           hitSlop={8}
         >
-          <Text style={[styles.exerciseName, { color: c.fg }]} numberOfLines={1} ellipsizeMode="tail">
+          <Text
+            style={[styles.exerciseName, { color: c.fg }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {item.exercise.name}
           </Text>
           <Icon name="information-outline" variant="sub" size={18} />
@@ -664,10 +726,7 @@ function ActiveWorkoutSetRow({
 
   return (
     <View
-      style={[
-        styles.setRow,
-        set.completed ? { backgroundColor: c.asoft, borderRadius: 10 } : null,
-      ]}
+      style={[styles.setRow, set.completed ? { backgroundColor: c.asoft, borderRadius: 10 } : null]}
     >
       <Text style={[styles.setIndex, { color: c.sub }]}>{setIndex + 1}</Text>
       <Text style={[styles.prevValue, { color: c.sub }]} numberOfLines={1}>
@@ -715,13 +774,18 @@ function ActiveWorkoutSetRow({
 
 function label(recordType: string): string {
   return (
-    { max_weight: 'Max weight', max_reps: 'Max reps', max_volume: 'Max volume', est_1rm: 'Est. 1RM' }[
-      recordType
-    ] ?? recordType
+    {
+      max_weight: 'Max weight',
+      max_reps: 'Max reps',
+      max_volume: 'Max volume',
+      est_1rm: 'Est. 1RM',
+    }[recordType] ?? recordType
   );
 }
 
-function noticeForRecordEvents(recordEvents: PersonalRecordEvent[]): Omit<PersonalRecordNotice, 'id'> {
+function noticeForRecordEvents(
+  recordEvents: PersonalRecordEvent[]
+): Omit<PersonalRecordNotice, 'id'> {
   if (recordEvents.length === 1) {
     const [event] = recordEvents;
     return {
@@ -750,7 +814,10 @@ function eventSetIds(events: { logged_set_id: string | null }[]): Set<string> {
   return new Set(events.flatMap((event) => (event.logged_set_id ? [event.logged_set_id] : [])));
 }
 
-async function refreshPrSetIds(workoutId: string, setIds: (ids: Set<string>) => void): Promise<void> {
+async function refreshPrSetIds(
+  workoutId: string,
+  setIds: (ids: Set<string>) => void
+): Promise<void> {
   setIds(eventSetIds(await mobileStore.records.getEventsForWorkout(workoutId)));
 }
 
@@ -759,7 +826,13 @@ const styles = StyleSheet.create({
   center: { justifyContent: 'center' },
   empty: { textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  timer: { fontSize: 28, fontWeight: '700', textAlign: 'center', paddingVertical: 8, fontVariant: ['tabular-nums'] },
+  timer: {
+    fontSize: 28,
+    fontWeight: '700',
+    textAlign: 'center',
+    paddingVertical: 8,
+    fontVariant: ['tabular-nums'],
+  },
   toastLayer: {
     position: 'absolute',
     left: 12,

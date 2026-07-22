@@ -56,14 +56,17 @@ export async function startWorkout(
   );
 
   await db.runAsync(
-    `INSERT INTO workouts (id, routine_id, name, started_at, bodyweight_kg)
-       VALUES ($id, $routine_id, $name, $started_at, $bodyweight_kg)`,
+    `INSERT INTO workouts
+         (id, routine_id, name, started_at, bodyweight_kg, routine_structure_version)
+       VALUES
+         ($id, $routine_id, $name, $started_at, $bodyweight_kg, $routine_structure_version)`,
     {
       $id: workoutId,
       $routine_id: options.routineId ?? null,
       $name: name,
       $started_at: startedAt,
       $bodyweight_kg: profile?.bodyweight_kg ?? null,
+      $routine_structure_version: routine ? 1 : null,
     }
   );
 
@@ -72,13 +75,16 @@ export async function startWorkout(
       const weId = id();
       await db.runAsync(
         `INSERT INTO workout_exercises
-               (id, workout_id, exercise_id, position, superset_group_id, exercise_type, notes)
-             VALUES ($id, $workout_id, $exercise_id, $position, $superset_group_id, $exercise_type, $notes)`,
+               (id, workout_id, exercise_id, position, source_routine_exercise_id,
+                superset_group_id, exercise_type, notes)
+             VALUES ($id, $workout_id, $exercise_id, $position, $source_routine_exercise_id,
+                $superset_group_id, $exercise_type, $notes)`,
         {
           $id: weId,
           $workout_id: workoutId,
           $exercise_id: re.exercise_id,
           $position: re.position,
+          $source_routine_exercise_id: re.id,
           $superset_group_id: re.superset_group_id,
           // Snapshot the routine exercise type so later routine/catalog edits
           // never rewrites this logged workout.
@@ -89,12 +95,15 @@ export async function startWorkout(
       for (const s of re.sets) {
         await db.runAsync(
           `INSERT INTO logged_sets
-                 (id, workout_exercise_id, position, set_type, weight, reps, duration_seconds, distance_meters, completed)
-               VALUES ($id, $we, $position, $set_type, $weight, $reps, $duration, $distance, 0)`,
+                 (id, workout_exercise_id, position, source_routine_set_id, set_type,
+                  weight, reps, duration_seconds, distance_meters, completed)
+               VALUES ($id, $we, $position, $source_routine_set_id, $set_type,
+                  $weight, $reps, $duration, $distance, 0)`,
           {
             $id: id(),
             $we: weId,
             $position: s.position,
+            $source_routine_set_id: s.id,
             $set_type: s.set_type,
             $weight: s.target_weight,
             $reps: s.target_reps,

@@ -6,6 +6,8 @@ import {
   deleteExerciseFromWorkout,
   deleteSet,
   discardWorkout,
+  finishWorkoutWithRoutineAction,
+  getWorkoutFinishPlan,
   startOrResumeWorkout,
   uncompleteSet,
   updateSetAndRecomputeRecords,
@@ -17,11 +19,14 @@ const {
   replaceForExercise: replaceRecordStateForExercise,
 } = mobileStore.records;
 const {
+  addExercise: addExerciseToWorkout,
   addSet,
+  getDetail: getWorkoutDetail,
   setSetCompletion,
   start: startWorkout,
   updateSetValues: updateLoggedSetValues,
 } = mobileStore.workouts;
+const { getDetail: getRoutineDetail, saveDraft: saveRoutineDraft } = mobileStore.routines;
 
 async function insertExercise(exerciseId = 'ex1') {
   const db = await getDb();
@@ -319,4 +324,183 @@ test('startOrResumeWorkout with an active workout → returns active, no new row
     'SELECT COUNT(*) AS n FROM workouts WHERE ended_at IS NULL'
   );
   expect(count?.n).toBe(1);
+});
+
+test('routine target values and workout-only fields do not make the finish plan changed', async () => {
+  const routine = await saveRoutineDraft({
+    name: 'Strength',
+    notes: 'Routine note',
+    exercises: [
+      {
+        exercise_id: 'ex1',
+        exercise_type: 'weight_reps',
+        notes: 'Exercise note',
+        sets: [
+          {
+            set_type: 'normal',
+            target_weight: 100,
+            target_reps: 5,
+            target_duration_seconds: null,
+            target_distance_meters: null,
+          },
+        ],
+      },
+    ],
+  });
+  const workout = await startWorkout({ routineId: routine.id });
+  const detail = await getWorkoutDetail(workout.id);
+  const set = detail?.exercises[0].sets[0];
+  if (!set) throw new Error('Expected copied routine set');
+  await updateLoggedSetValues(set.id, { weight: 130, reps: 3, rpe: 9 });
+  await setSetCompletion(set.id, true);
+
+  await expect(getWorkoutFinishPlan(workout.id)).resolves.toEqual({
+    kind: 'routine-unchanged',
+    routineName: 'Strength',
+  });
+});
+
+test('structural edits produce a routine-changed finish plan', async () => {
+  const routine = await saveRoutineDraft({
+    name: 'Strength',
+    notes: null,
+    exercises: [
+      {
+        exercise_id: 'ex1',
+        exercise_type: 'weight_reps',
+        notes: null,
+        sets: [],
+      },
+    ],
+  });
+  const workout = await startWorkout({ routineId: routine.id });
+  const detail = await getWorkoutDetail(workout.id);
+  if (!detail?.exercises[0]) throw new Error('Expected copied routine exercise');
+  await addSet(detail.exercises[0].id, 'warmup');
+
+  await expect(getWorkoutFinishPlan(workout.id)).resolves.toMatchObject({
+    kind: 'routine-changed',
+    routineName: 'Strength',
+    changes: [{ kind: 'sets-added-or-removed' }],
+  });
+});
+
+test('legacy routine snapshots finish without offering an unsafe routine update', async () => {
+  const routine = await saveRoutineDraft({
+    name: 'Legacy Strength',
+    notes: null,
+    exercises: [
+      {
+        exercise_id: 'ex1',
+        exercise_type: 'weight_reps',
+        notes: null,
+        sets: [],
+      },
+    ],
+  });
+  const workout = await startWorkout({ routineId: routine.id });
+  const detail = await getWorkoutDetail(workout.id);
+  if (!detail?.exercises[0]) throw new Error('Expected routine snapshot');
+  await addSet(detail.exercises[0].id);
+  const db = await getDb();
+  await db.runAsync('UPDATE workouts SET routine_structure_version = NULL WHERE id = $id', {
+    $id: workout.id,
+  });
+
+  await expect(getWorkoutFinishPlan(workout.id)).resolves.toEqual({
+    kind: 'routine-update-unavailable',
+    routineName: 'Legacy Strength',
+  });
+  await expect(
+    finishWorkoutWithRoutineAction(workout.id, { kind: 'update-routine' })
+  ).rejects.toThrow('Routine structure provenance unavailable');
+});
+
+test('finishing freestyle can create a structure-only routine without changing its origin', async () => {
+  const workout = await startWorkout({ name: 'Workout' });
+  const workoutExercise = await addExerciseToWorkout(workout.id, 'ex1');
+  const set = await addSet(workoutExercise.id);
+  await updateLoggedSetValues(set.id, { weight: 120, reps: 8 });
+  await setSetCompletion(set.id, true);
+
+  const result = await finishWorkoutWithRoutineAction(workout.id, {
+    kind: 'create-routine',
+    name: 'Tuesday Strength',
+  });
+
+  expect(result).toMatchObject({ routineId: expect.any(String) });
+  await expect(getWorkoutDetail(workout.id)).resolves.toMatchObject({
+    routine_id: null,
+    ended_at: expect.any(String),
+  });
+  await expect(getRoutineDetail(result.routineId as string)).resolves.toMatchObject({
+    name: 'Tuesday Strength',
+    notes: null,
+    exercises: [
+      expect.objectContaining({
+        exercise_id: 'ex1',
+        notes: null,
+        sets: [
+          expect.objectContaining({
+            set_type: 'normal',
+            target_weight: null,
+            target_reps: null,
+          }),
+        ],
+      }),
+    ],
+  });
+});
+
+test('finishing with a routine update applies structure but preserves targets and notes', async () => {
+  const routine = await saveRoutineDraft({
+    name: 'Strength',
+    notes: 'Keep routine note',
+    exercises: [
+      {
+        exercise_id: 'ex1',
+        exercise_type: 'weight_reps',
+        notes: 'Keep exercise note',
+        sets: [
+          {
+            set_type: 'normal',
+            target_weight: 100,
+            target_reps: 5,
+            target_duration_seconds: null,
+            target_distance_meters: null,
+          },
+        ],
+      },
+    ],
+  });
+  const workout = await startWorkout({ routineId: routine.id });
+  const detail = await getWorkoutDetail(workout.id);
+  const workoutExercise = detail?.exercises[0];
+  const existingSet = workoutExercise?.sets[0];
+  if (!workoutExercise || !existingSet) throw new Error('Expected routine snapshot');
+  await updateLoggedSetValues(existingSet.id, { weight: 140, reps: 2 });
+  await addSet(workoutExercise.id, 'dropset');
+
+  await finishWorkoutWithRoutineAction(workout.id, { kind: 'update-routine' });
+
+  await expect(getWorkoutDetail(workout.id)).resolves.toMatchObject({
+    ended_at: expect.any(String),
+  });
+  await expect(getRoutineDetail(routine.id)).resolves.toMatchObject({
+    name: 'Strength',
+    notes: 'Keep routine note',
+    exercises: [
+      expect.objectContaining({
+        notes: 'Keep exercise note',
+        sets: [
+          expect.objectContaining({ target_weight: 100, target_reps: 5 }),
+          expect.objectContaining({
+            set_type: 'dropset',
+            target_weight: null,
+            target_reps: null,
+          }),
+        ],
+      }),
+    ],
+  });
 });

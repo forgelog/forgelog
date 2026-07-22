@@ -1,8 +1,19 @@
-import {
-  runInMobileStoreTransaction,
-  type LoggedSetValueUpdate,
-} from '../db/mobileStore';
+import { runInMobileStoreTransaction, type LoggedSetValueUpdate } from '../db/mobileStore';
 import type { PersonalRecord, PersonalRecordEvent, RecordType, Workout } from '../db/types';
+import {
+  buildRoutineDraftFromWorkout,
+  findRoutineStructureChanges,
+  type RoutineStructureChange,
+} from '../domain/routineWorkoutStructure';
+
+export type WorkoutFinishPlan =
+  | { kind: 'freestyle'; suggestedName: string }
+  | { kind: 'routine-unchanged'; routineName: string }
+  | { kind: 'routine-update-unavailable'; routineName: string }
+  | { kind: 'routine-changed'; routineName: string; changes: RoutineStructureChange[] };
+
+export type WorkoutFinishAction =
+  { kind: 'finish-only' } | { kind: 'create-routine'; name: string } | { kind: 'update-routine' };
 
 export async function completeSet(
   setId: string,
@@ -101,6 +112,66 @@ export async function startOrResumeWorkout(
     }
     const workout = await store.workouts.start({ routineId });
     return { workout, resumed: false };
+  });
+}
+
+export async function getWorkoutFinishPlan(workoutId: string): Promise<WorkoutFinishPlan> {
+  return runInMobileStoreTransaction(async (store) => {
+    const workout = await store.workouts.getDetail(workoutId);
+    if (!workout) throw new Error('Workout not found');
+    if (!workout.routine_id) {
+      return {
+        kind: 'freestyle',
+        suggestedName: workout.name === 'Workout' ? '' : workout.name,
+      };
+    }
+
+    const routine = await store.routines.getDetail(workout.routine_id);
+    if (!routine) {
+      return {
+        kind: 'freestyle',
+        suggestedName: workout.name === 'Workout' ? '' : workout.name,
+      };
+    }
+    if (workout.routine_structure_version !== 1) {
+      return { kind: 'routine-update-unavailable', routineName: routine.name };
+    }
+    const changes = findRoutineStructureChanges(routine, workout);
+    return changes.length > 0
+      ? { kind: 'routine-changed', routineName: routine.name, changes }
+      : { kind: 'routine-unchanged', routineName: routine.name };
+  });
+}
+
+export async function finishWorkoutWithRoutineAction(
+  workoutId: string,
+  action: WorkoutFinishAction
+): Promise<{ routineId?: string }> {
+  return runInMobileStoreTransaction(async (store) => {
+    const workout = await store.workouts.getDetail(workoutId);
+    if (!workout) throw new Error('Workout not found');
+
+    let routineId: string | undefined;
+    if (action.kind === 'create-routine') {
+      const saved = await store.routines.saveDraft(
+        buildRoutineDraftFromWorkout(workout, { name: action.name })
+      );
+      routineId = saved.id;
+    } else if (action.kind === 'update-routine') {
+      if (!workout.routine_id) throw new Error('Workout has no source routine');
+      if (workout.routine_structure_version !== 1) {
+        throw new Error('Routine structure provenance unavailable');
+      }
+      const routine = await store.routines.getDetail(workout.routine_id);
+      if (!routine) throw new Error('Source routine not found');
+      const saved = await store.routines.saveDraft(
+        buildRoutineDraftFromWorkout(workout, { existingRoutine: routine })
+      );
+      routineId = saved.id;
+    }
+
+    await store.workouts.finish(workoutId);
+    return routineId ? { routineId } : {};
   });
 }
 

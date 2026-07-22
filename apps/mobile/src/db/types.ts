@@ -51,6 +51,7 @@ export type Workout = {
   ended_at: string | null;
   notes: string | null;
   bodyweight_kg: number | null;
+  routine_structure_version?: number | null;
 };
 
 export type WorkoutExercise = {
@@ -58,6 +59,7 @@ export type WorkoutExercise = {
   workout_id: string;
   exercise_id: string;
   position: number;
+  source_routine_exercise_id?: string | null;
   superset_group_id: string | null;
   exercise_type: string;
   notes: string | null;
@@ -67,6 +69,7 @@ export type LoggedSet = {
   id: string;
   workout_exercise_id: string;
   position: number;
+  source_routine_set_id?: string | null;
   set_type: SetType;
   weight: number | null;
   reps: number | null;
