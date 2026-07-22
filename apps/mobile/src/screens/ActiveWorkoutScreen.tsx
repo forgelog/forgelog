@@ -92,6 +92,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const [preparingFinish, setPreparingFinish] = useState(false);
   const reloadRequestId = useRef(0);
   const personalRecordNoticeId = useRef(0);
+  const reorderPending = useRef(false);
 
   const reload = useCallback(() => {
     let current = true;
@@ -195,6 +196,41 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   async function handleAddSet(we: WorkoutExerciseDetail) {
     const created = await mobileStore.workouts.addSet(we.id);
     patchExercise(we.id, (w) => ({ ...w, sets: [...w.sets, created] }));
+  }
+
+  function moveExercise(exerciseId: string, delta: -1 | 1) {
+    if (reorderPending.current || !detail) return;
+    const index = detail.exercises.findIndex((exercise) => exercise.id === exerciseId);
+    const targetIndex = index + delta;
+    if (index < 0 || targetIndex < 0 || targetIndex >= detail.exercises.length) return;
+    reorderPending.current = true;
+    setDetail((current) => {
+      if (!current) return current;
+      const currentIndex = current.exercises.findIndex((exercise) => exercise.id === exerciseId);
+      const currentTargetIndex = currentIndex + delta;
+      if (
+        currentIndex < 0 ||
+        currentTargetIndex < 0 ||
+        currentTargetIndex >= current.exercises.length
+      ) {
+        return current;
+      }
+      const exercises = [...current.exercises];
+      [exercises[currentIndex], exercises[currentTargetIndex]] = [
+        exercises[currentTargetIndex],
+        exercises[currentIndex],
+      ];
+      return { ...current, exercises };
+    });
+    void mobileStore.workouts
+      .moveExercise(exerciseId, delta)
+      .catch(() => {
+        Alert.alert('Save failed', 'Could not reorder exercise.');
+        reload();
+      })
+      .finally(() => {
+        reorderPending.current = false;
+      });
   }
 
   async function editSetField(
@@ -416,6 +452,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             prevSets={prevSets}
             prSetIds={prSetIds}
             onOpenExercise={(exerciseId) => navigation.navigate('ExerciseDetail', { exerciseId })}
+            onMoveExercise={moveExercise}
             onOpenOptions={showExerciseOptions}
             onEditSetField={editSetField}
             onToggleComplete={toggleComplete}
@@ -533,6 +570,7 @@ type ActiveWorkoutExerciseItemProps = Readonly<{
   prevSets: Record<string, LoggedSet[]>;
   prSetIds: Set<string>;
   onOpenExercise: (exerciseId: string) => void;
+  onMoveExercise: (exerciseId: string, delta: -1 | 1) => void;
   onOpenOptions: (exercise: WorkoutExerciseDetail) => void;
   onEditSetField: (
     weId: string,
@@ -552,6 +590,7 @@ function ActiveWorkoutExerciseItem({
   prevSets,
   prSetIds,
   onOpenExercise,
+  onMoveExercise,
   onOpenOptions,
   onEditSetField,
   onToggleComplete,
@@ -569,25 +608,48 @@ function ActiveWorkoutExerciseItem({
           style={styles.exerciseNameRow}
           onPress={() => onOpenExercise(item.exercise.id)}
           hitSlop={8}
+          accessibilityLabel={`View ${item.exercise.name} details`}
+          accessibilityRole="button"
         >
           <Text
             style={[styles.exerciseName, { color: c.fg }]}
             numberOfLines={1}
             ellipsizeMode="tail"
+            testID={`workout-exercise-${index}-name`}
           >
             {item.exercise.name}
           </Text>
           <Icon name="information-outline" variant="sub" size={18} />
         </Pressable>
-        <Pressable
-          onPress={() => onOpenOptions(item)}
-          hitSlop={8}
-          accessibilityLabel={`Exercise options ${item.exercise.name}`}
-          accessibilityRole="button"
-          testID={`workout-exercise-${index}-options`}
-        >
-          <Icon name="dots-vertical" variant="sub" size={20} />
-        </Pressable>
+        <View style={styles.exerciseHeaderActions}>
+          <Pressable
+            onPress={() => onMoveExercise(item.id, -1)}
+            hitSlop={8}
+            accessibilityLabel={`Move ${item.exercise.name} up`}
+            accessibilityRole="button"
+            testID={`workout-exercise-${index}-move-up`}
+          >
+            <Icon name="chevron-up" variant="sub" size={20} />
+          </Pressable>
+          <Pressable
+            onPress={() => onMoveExercise(item.id, 1)}
+            hitSlop={8}
+            accessibilityLabel={`Move ${item.exercise.name} down`}
+            accessibilityRole="button"
+            testID={`workout-exercise-${index}-move-down`}
+          >
+            <Icon name="chevron-down" variant="sub" size={20} />
+          </Pressable>
+          <Pressable
+            onPress={() => onOpenOptions(item)}
+            hitSlop={8}
+            accessibilityLabel={`Exercise options ${item.exercise.name}`}
+            accessibilityRole="button"
+            testID={`workout-exercise-${index}-options`}
+          >
+            <Icon name="dots-vertical" variant="sub" size={20} />
+          </Pressable>
+        </View>
       </View>
       <View style={styles.columnHeader}>
         <Text style={[styles.columnLabel, styles.setColumn, { color: c.sub }]}>SET</Text>
@@ -862,6 +924,7 @@ const styles = StyleSheet.create({
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseNameRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
   exerciseName: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
+  exerciseHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   sheet: { paddingHorizontal: 16, paddingTop: 8 },
   sheetSafeArea: { gap: 4 },
   sheetHeader: {

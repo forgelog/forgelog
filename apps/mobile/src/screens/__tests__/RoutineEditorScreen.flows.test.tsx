@@ -8,6 +8,7 @@ import { getDb, resetDbForTests } from '../../db/index';
 import { mobileStore } from '../../db/mobileStore';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { latestAlertButtons } from '../../test-utils/async';
+import { ExerciseDetailScreen } from '../ExerciseDetailScreen';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 
 const { getDetail: getRoutineDetail, saveDraft: saveRoutineDraft } = mobileStore.routines;
@@ -61,6 +62,7 @@ function renderEditor(
       <Stack.Navigator>
         <Stack.Screen name="Home" component={HomeStub} />
         <Stack.Screen name="RoutineEditor" component={editor} />
+        <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -97,6 +99,33 @@ test('new routine with a picked exercise can be discarded without DB writes', as
   await expect(countRows('routines')).resolves.toBe(0);
   await expect(countRows('routine_exercises')).resolves.toBe(0);
 });
+
+test.each([
+  ['create', {}, 'Bench Press'],
+  ['edit', { routineId: 'existing-routine' }, 'Squat'],
+] as const)(
+  'opens exercise details from the %s routine screen',
+  async (_, params, exerciseName) => {
+    if ('routineId' in params) {
+      const routine = await saveRoutineDraft({
+        name: 'Leg Day',
+        notes: null,
+        exercises: [{ exercise_id: 'ex2', exercise_type: 'weight_reps', notes: null, sets: [] }],
+      });
+      params = { routineId: routine.id };
+    } else {
+      params = { pickedExerciseId: 'ex1' };
+    }
+
+    const editor = await renderEditor(params);
+
+    const infoButton = await waitFor(() => editor.getByLabelText(`View ${exerciseName} details`));
+    await act(async () => fireEvent.press(infoButton));
+
+    await waitFor(() => expect(editor.getByLabelText('About tab')).toBeTruthy());
+    expect(editor.getAllByText(exerciseName).length).toBeGreaterThan(0);
+  }
+);
 
 test('new routine with a picked exercise saves the routine and children', async () => {
   const editor = await renderEditor({ pickedExerciseId: 'ex1' });

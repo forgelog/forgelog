@@ -13,6 +13,7 @@ const {
   finish: finishWorkout,
   getPreviousExerciseSets,
   listExerciseHistory,
+  moveExercise,
   getDetail: getWorkoutDetail,
   hasCompletedSet,
   start: startWorkout,
@@ -53,6 +54,30 @@ test('hasCompletedSet is true when at least one set is completed', () => {
       { sets: [{ completed: false }, { completed: true }] },
     ])
   ).toBe(true);
+});
+
+test('moves workout exercises within their workout and ignores boundary moves', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const squat = await seededExercise('Barbell Squat');
+  const workout = await startWorkout({ name: 'Reorder Test' });
+  const first = await addExerciseToWorkout(workout.id, bench.id);
+  const second = await addExerciseToWorkout(workout.id, squat.id);
+
+  await moveExercise(second.id, -1);
+  await expect(getWorkoutDetail(workout.id)).resolves.toMatchObject({
+    exercises: [
+      expect.objectContaining({ id: second.id, position: 0 }),
+      expect.objectContaining({ id: first.id, position: 1 }),
+    ],
+  });
+
+  await moveExercise(second.id, -1);
+  await expect(getWorkoutDetail(workout.id)).resolves.toMatchObject({
+    exercises: [
+      expect.objectContaining({ id: second.id }),
+      expect.objectContaining({ id: first.id }),
+    ],
+  });
 });
 
 test('starts from routines and reports detail, history, and previous sets', async () => {

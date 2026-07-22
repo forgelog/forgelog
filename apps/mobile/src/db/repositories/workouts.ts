@@ -356,6 +356,45 @@ export async function addExerciseToWorkout(
 }
 
 /**
+ * Moves one exercise by a single position within its workout.
+ *
+ * Boundary moves are no-ops. Positions are normalized after a successful move
+ * so ordering stays deterministic even when earlier deletions left gaps.
+ * Exposed as `store.workouts.moveExercise`; Active Workout uses it to persist
+ * the order shown by its up and down controls.
+ */
+export async function moveWorkoutExercise(
+  db: DatabaseExecutor,
+  workoutExerciseId: string,
+  delta: -1 | 1
+): Promise<void> {
+  const exercise = await db.getFirstAsync<Pick<WorkoutExercise, 'workout_id'>>(
+    'SELECT workout_id FROM workout_exercises WHERE id = $id',
+    { $id: workoutExerciseId }
+  );
+  if (!exercise) throw new Error('Workout exercise not found');
+
+  const exercises = await db.getAllAsync<Pick<WorkoutExercise, 'id'>>(
+    'SELECT id FROM workout_exercises WHERE workout_id = $workoutId ORDER BY position, id',
+    { $workoutId: exercise.workout_id }
+  );
+  const currentIndex = exercises.findIndex((item) => item.id === workoutExerciseId);
+  const targetIndex = currentIndex + delta;
+  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= exercises.length) return;
+
+  [exercises[currentIndex], exercises[targetIndex]] = [
+    exercises[targetIndex],
+    exercises[currentIndex],
+  ];
+  for (const [position, item] of exercises.entries()) {
+    await db.runAsync('UPDATE workout_exercises SET position = $position WHERE id = $id', {
+      $id: item.id,
+      $position: position,
+    });
+  }
+}
+
+/**
  * Appends an incomplete set to a workout exercise and returns the mapped set.
  *
  * The set is positioned after all existing sets and defaults to the `normal`

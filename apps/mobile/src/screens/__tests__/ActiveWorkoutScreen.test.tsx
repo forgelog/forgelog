@@ -1,10 +1,16 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { getRecordEventsForWorkout } from '../../db/repositories/personalRecords';
-import { getPreviousExerciseSets, getWorkoutDetail } from '../../db/repositories/workouts';
+import {
+  getPreviousExerciseSets,
+  getWorkoutDetail,
+  moveWorkoutExercise,
+} from '../../db/repositories/workouts';
+import { mobileStore } from '../../db/mobileStore';
 import type { WorkoutDetail } from '../../db/types';
+import { deferred } from '../../test-utils/async';
 import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 
 jest.mock('../../db/repositories/personalRecords');
@@ -17,6 +23,9 @@ const mockGetPreviousExerciseSets = getPreviousExerciseSets as jest.MockedFuncti
 >;
 const mockGetRecordEventsForWorkout = getRecordEventsForWorkout as jest.MockedFunction<
   typeof getRecordEventsForWorkout
+>;
+const mockMoveWorkoutExercise = moveWorkoutExercise as jest.MockedFunction<
+  typeof moveWorkoutExercise
 >;
 
 type TestParamList = { ActiveWorkout: { workoutId: string } };
@@ -78,6 +87,7 @@ beforeEach(() => {
   mockGetWorkoutDetail.mockResolvedValue(workoutDetail);
   mockGetPreviousExerciseSets.mockResolvedValue([]);
   mockGetRecordEventsForWorkout.mockResolvedValue([]);
+  mockMoveWorkoutExercise.mockResolvedValue();
 });
 
 test('truncates a long exercise name and renders descriptor-driven set fields', async () => {
@@ -150,4 +160,56 @@ test('does not show a superset tag even when exercises share a superset_group_id
 
   await waitFor(() => expect(getByText('Second Exercise')).toBeTruthy());
   expect(queryByText(/Superset/)).toBeNull();
+});
+
+test('gates repeated reorder presses while persistence is pending', async () => {
+  const groupedDetail: WorkoutDetail = {
+    ...workoutDetail,
+    exercises: [
+      workoutDetail.exercises[0],
+      {
+        ...workoutDetail.exercises[0],
+        id: 'we2',
+        exercise_id: 'e2',
+        exercise: { ...workoutDetail.exercises[0].exercise, id: 'e2', name: 'Second Exercise' },
+        position: 1,
+        sets: [],
+      },
+    ],
+  };
+  const pendingMove = deferred<void>();
+  mockGetWorkoutDetail.mockResolvedValue(groupedDetail);
+  const moveExercise = jest
+    .spyOn(mobileStore.workouts, 'moveExercise')
+    .mockReturnValue(pendingMove.promise);
+
+  const active = await render(
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen
+          name="ActiveWorkout"
+          component={ActiveWorkoutScreen}
+          initialParams={{ workoutId: 'w1' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+
+  const moveUp = await waitFor(() => active.getByLabelText('Move Second Exercise up'));
+  await act(async () => fireEvent.press(moveUp));
+  await act(async () => fireEvent.press(moveUp));
+
+  expect(moveExercise).toHaveBeenCalledTimes(1);
+  await waitFor(() =>
+    expect(
+      active.getAllByTestId(/workout-exercise-\d+-name/).map((node) => node.props.children)
+    ).toEqual(['Second Exercise', LONG_EXERCISE_NAME])
+  );
+
+  await act(async () => {
+    pendingMove.resolve();
+    await pendingMove.promise;
+    await Promise.resolve();
+  });
+  active.unmount();
 });
