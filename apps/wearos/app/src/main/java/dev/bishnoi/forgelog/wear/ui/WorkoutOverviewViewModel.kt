@@ -3,18 +3,16 @@ package dev.bishnoi.forgelog.wear.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.bishnoi.forgelog.wear.application.FinishWorkout
-import dev.bishnoi.forgelog.wear.data.ReferenceDao
-import dev.bishnoi.forgelog.wear.data.WorkoutDao
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
+import java.time.Duration
+import java.time.Instant
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.Duration
-import java.time.Instant
 
 data class ExerciseProgress(
     val workoutExerciseId: String,
@@ -26,31 +24,19 @@ data class ExerciseProgress(
     val isDone: Boolean get() = totalSets > 0 && completedSets >= totalSets
 }
 
-/** Active Workout overview (issue #28 screen 3): per-exercise progress + finish/discard. */
 class WorkoutOverviewViewModel(
-    private val workoutDao: WorkoutDao,
-    private val referenceDao: ReferenceDao,
-    private val workoutRepository: WorkoutRepository,
+    private val workouts: WorkoutRepository,
     private val finishWorkoutUseCase: FinishWorkout,
     private val workoutId: String,
 ) : ViewModel() {
-    private val nameCache = mutableMapOf<String, String>()
-
-    val exercises: StateFlow<List<ExerciseProgress>> = combine(
-        workoutDao.observeWorkoutExercises(workoutId),
-        workoutDao.observeLoggedSetsForWorkout(workoutId),
-    ) { workoutExercises, sets ->
-        val setsByExercise = sets.groupBy { it.workoutExerciseId }
-        val rows = workoutExercises.map { we ->
-            val exerciseSets = setsByExercise[we.id].orEmpty()
-            val name = nameCache.getOrPut(we.exerciseId) {
-                referenceDao.exercise(we.exerciseId)?.name ?: we.exerciseId
-            }
+    val exercises: StateFlow<List<ExerciseProgress>> = workouts.activeWorkout.map { workout ->
+        if (workout?.id != workoutId) return@map emptyList()
+        val rows = workout.exercises.sortedBy { it.position }.map { exercise ->
             ExerciseProgress(
-                workoutExerciseId = we.id,
-                name = name,
-                completedSets = exerciseSets.count { it.completed },
-                totalSets = exerciseSets.size,
+                workoutExerciseId = exercise.id,
+                name = exercise.exerciseName,
+                completedSets = exercise.sets.count { it.completed },
+                totalSets = exercise.sets.size,
                 isCurrent = false,
             )
         }
@@ -59,7 +45,7 @@ class WorkoutOverviewViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val elapsedSeconds: StateFlow<Long> = flow {
-        val start = workoutDao.getWorkout(workoutId)
+        val start = workouts.currentActiveWorkout()?.takeIf { it.id == workoutId }
             ?.let { runCatching { Instant.parse(it.startedAt) }.getOrNull() }
         while (true) {
             emit(start?.let { Duration.between(it, Instant.now()).seconds.coerceAtLeast(0) } ?: 0L)
@@ -76,7 +62,7 @@ class WorkoutOverviewViewModel(
 
     fun discardWorkout(onDone: () -> Unit) {
         viewModelScope.launch {
-            workoutRepository.discardWorkout(workoutId)
+            workouts.discardWorkout(workoutId)
             onDone()
         }
     }

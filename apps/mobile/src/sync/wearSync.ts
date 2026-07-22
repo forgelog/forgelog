@@ -5,7 +5,7 @@ import { validateWatchWorkoutPayload } from './watchWorkoutValidator';
 
 let started = false;
 
-// Subscribes once to the watch's WAL flush and republishes it into the
+// Subscribes once to the watch's durable workout outbox and republishes it into the
 // phone's SQLite DB via the existing repositories (single writer, so PR
 // logic stays sourced from recalcRecordsForExercise). Also subscribes to the
 // watch's on-demand "/request-sync" ping and answers it with the same
@@ -23,6 +23,7 @@ export function initWearSync(): void {
     }
     if (!validateWatchWorkoutPayload(raw)) return;
     await mobileStore.sync.ingestWatchWorkout(raw);
+    await WearSync.ackWorkout(raw.id);
   });
   WearSync.addListener('onSyncRequested', () => {
     publishSyncSnapshot();

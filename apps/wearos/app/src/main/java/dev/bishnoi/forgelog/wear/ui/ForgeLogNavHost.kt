@@ -15,10 +15,7 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import dev.bishnoi.forgelog.wear.application.FinishWorkout
-import dev.bishnoi.forgelog.wear.data.AppDatabase
-import dev.bishnoi.forgelog.wear.data.PersonalRecordsTracker
-import dev.bishnoi.forgelog.wear.data.WorkoutRepository
-import dev.bishnoi.forgelog.wear.sync.SyncRepository
+import dev.bishnoi.forgelog.wear.data.WearStoreProvider
 import dev.bishnoi.forgelog.wear.sync.SyncRequestClient
 import dev.bishnoi.forgelog.wear.sync.WearDataClient
 
@@ -32,36 +29,44 @@ fun ForgeLogNavHost() {
     val navController = rememberSwipeDismissableNavController()
     val application = LocalContext.current.applicationContext as Application
 
-    val db = remember { AppDatabase.get(application) }
-    val workoutDao = remember { db.workoutDao() }
-    val referenceDao = remember { db.referenceDao() }
-    val workoutRepository = remember { WorkoutRepository(workoutDao, referenceDao) }
-    val syncRepository = remember { SyncRepository(referenceDao, workoutDao) }
+    val stores = remember { WearStoreProvider.get(application) }
+    val references = stores.references
+    val workoutRepository = stores.workouts
     val finishWorkout = remember {
-        FinishWorkout(workoutRepository, syncRepository, workoutDao) { payload ->
+        FinishWorkout(workoutRepository, publish = { payload ->
             WearDataClient.publishWorkout(application, payload)
-        }
+        })
     }
 
     LaunchedEffect(Unit) {
-        finishWorkout.drainUnsynced()
+        finishWorkout.drainPending()
     }
 
     SwipeDismissableNavHost(navController = navController, startDestination = WearRoutes.ROUTINES) {
         composable(WearRoutes.ROUTINES) {
             val vm: RoutineListViewModel = viewModel(
                 factory = SimpleViewModelFactory {
-                    RoutineListViewModel(referenceDao, syncWithPhone = { SyncRequestClient.requestSync(application) })
+                    RoutineListViewModel(references, workoutRepository, syncWithPhone = {
+                        val sent = SyncRequestClient.requestSync(application)
+                        finishWorkout.drainPending()
+                        sent
+                    })
                 },
             )
+            LaunchedEffect(vm) { vm.requestSyncIfNeeded() }
             val routines by vm.routines.collectAsState()
+            val activeWorkout by vm.activeWorkout.collectAsState()
+            val workoutStorageError by vm.workoutStorageError.collectAsState()
             val syncRequestState by vm.syncRequestState.collectAsState()
             RoutineListScreen(
                 routines = routines,
+                activeWorkout = activeWorkout,
+                workoutStorageError = workoutStorageError,
                 syncRequestState = syncRequestState,
                 onOpenRoutine = { routineId ->
                     navController.navigate(WearRoutes.routineDetail(routineId))
                 },
+                onResumeWorkout = { workoutId -> navController.navigate(WearRoutes.workout(workoutId)) },
                 onRequestSync = { vm.requestSync() },
             )
         }
@@ -73,7 +78,7 @@ fun ForgeLogNavHost() {
             val routineId = entry.arguments?.getString(WearRoutes.ARG_ROUTINE_ID).orEmpty()
             val vm: RoutineDetailViewModel = viewModel(
                 factory = SimpleViewModelFactory {
-                    RoutineDetailViewModel(referenceDao, workoutRepository, routineId)
+                    RoutineDetailViewModel(references, workoutRepository, routineId)
                 },
             )
             val state by vm.uiState.collectAsState()
@@ -96,7 +101,7 @@ fun ForgeLogNavHost() {
             val workoutId = entry.arguments?.getString(WearRoutes.ARG_WORKOUT_ID).orEmpty()
             val vm: WorkoutOverviewViewModel = viewModel(
                 factory = SimpleViewModelFactory {
-                    WorkoutOverviewViewModel(workoutDao, referenceDao, workoutRepository, finishWorkoutUseCase = finishWorkout, workoutId)
+                    WorkoutOverviewViewModel(workoutRepository, finishWorkoutUseCase = finishWorkout, workoutId)
                 },
             )
             val exercises by vm.exercises.collectAsState()
@@ -123,10 +128,7 @@ fun ForgeLogNavHost() {
             val vm: ExerciseDetailViewModel = viewModel(
                 factory = SimpleViewModelFactory {
                     ExerciseDetailViewModel(
-                        workoutDao,
-                        referenceDao,
                         workoutRepository,
-                        PersonalRecordsTracker(referenceDao),
                         workoutExerciseId,
                     )
                 },

@@ -8,11 +8,13 @@ jest.mock('wear-sync', () => ({
   default: {
     addListener: jest.fn(),
     publishSnapshot: jest.fn(),
+    ackWorkout: jest.fn(),
   },
 }));
 
 const mockAddListener = WearSync.addListener as jest.Mock;
 const mockPublishSnapshot = WearSync.publishSnapshot as jest.Mock;
+const mockAckWorkout = WearSync.ackWorkout as jest.Mock;
 const mockGetSyncSnapshot = jest.spyOn(mobileStore.sync, 'getSnapshot');
 const mockIngestWatchWorkout = jest.spyOn(mobileStore.sync, 'ingestWatchWorkout');
 
@@ -34,8 +36,20 @@ const onWorkoutReceived = getListener('onWorkoutReceived');
 const onSyncRequested = getListener('onSyncRequested');
 
 beforeEach(() => {
-  mockGetSyncSnapshot.mockReset().mockResolvedValue({ routines: [], personalRecords: [] });
+  mockGetSyncSnapshot.mockReset().mockResolvedValue({
+    protocol_version: 2,
+    routines: [],
+    personalRecords: [],
+    profile: {
+      name: '',
+      sex: null,
+      birth_date: null,
+      height_cm: null,
+      bodyweight_kg: null,
+    },
+  });
   mockPublishSnapshot.mockReset().mockResolvedValue(undefined);
+  mockAckWorkout.mockReset().mockResolvedValue(undefined);
   mockIngestWatchWorkout.mockReset();
 });
 
@@ -58,12 +72,24 @@ test('onWorkoutReceived ingests the watch payload', async () => {
   await onWorkoutReceived({ payload: JSON.stringify(watchPayloadFixture) });
 
   expect(mockIngestWatchWorkout).toHaveBeenCalledWith(watchPayloadFixture);
+  expect(mockAckWorkout).toHaveBeenCalledWith(watchPayloadFixture.id);
+});
+
+test('onWorkoutReceived does not acknowledge a failed ingestion', async () => {
+  mockIngestWatchWorkout.mockRejectedValueOnce(new Error('database unavailable'));
+
+  await expect(onWorkoutReceived({ payload: JSON.stringify(watchPayloadFixture) })).rejects.toThrow(
+    'database unavailable'
+  );
+
+  expect(mockAckWorkout).not.toHaveBeenCalled();
 });
 
 test('onWorkoutReceived drops malformed payload without calling ingestWatchWorkout', async () => {
   await onWorkoutReceived({ payload: JSON.stringify(malformedPayloadFixture) });
 
   expect(mockIngestWatchWorkout).not.toHaveBeenCalled();
+  expect(mockAckWorkout).not.toHaveBeenCalled();
 });
 
 test('onWorkoutReceived drops payload with malformed exercise items without calling ingestWatchWorkout', async () => {

@@ -14,7 +14,7 @@ private const val PAYLOAD_KEY = "payload"
 private const val REQUEST_SYNC_PATH = "/request-sync"
 
 /**
- * Receives the watch's write-ahead-log flush (DataItems under /workout) and
+ * Receives the watch's durable JSON outbox flush (DataItems under /workout) and
  * on-demand sync requests (Messages at /request-sync). Only unpacks bytes
  * and hands them to [WearSyncBridge] — all parsing/DB writes/snapshot
  * building happen in JS (src/sync/wearSync.ts), so PR logic and schema stay

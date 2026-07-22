@@ -129,10 +129,22 @@
         "achieved_at": { "type": "string" }
       }
     },
+    "UserProfile": {
+      "type": "object",
+      "required": ["name", "sex", "birth_date", "height_cm", "bodyweight_kg"],
+      "properties": {
+        "name": { "type": "string" },
+        "sex": { "type": ["string", "null"], "enum": ["male", "female", "prefer_not_to_say", null] },
+        "birth_date": { "type": ["string", "null"] },
+        "height_cm": { "type": ["number", "null"] },
+        "bodyweight_kg": { "type": ["number", "null"] }
+      }
+    },
     "SyncSnapshot": {
       "type": "object",
-      "required": ["routines", "personalRecords"],
+      "required": ["protocol_version", "routines", "personalRecords", "profile"],
       "properties": {
+        "protocol_version": { "type": "integer", "const": 2 },
         "routines": {
           "type": "array",
           "items": { "$ref": "#/definitions/RoutineDetail" }
@@ -140,7 +152,8 @@
         "personalRecords": {
           "type": "array",
           "items": { "$ref": "#/definitions/PersonalRecord" }
-        }
+        },
+        "profile": { "$ref": "#/definitions/UserProfile" }
       }
     }
   }

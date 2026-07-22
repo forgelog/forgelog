@@ -43,11 +43,24 @@ fun RoutineDetailScreen(
                 item { MarqueeText(state.name, style = MaterialTheme.typography.title2) }
                 item {
                     Chip(
-                        label = { Text("Start Workout") },
+                        label = {
+                            Text(if (state.workoutStorageError) "Workout unavailable" else "Start Workout")
+                        },
                         onClick = onStartWorkout,
+                        enabled = !state.workoutStorageError,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ChipDefaults.primaryChipColors(),
                     )
+                }
+                if (state.workoutStorageError) {
+                    item {
+                        Text(
+                            "Workout storage unavailable",
+                            style = MaterialTheme.typography.caption1,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
                 item {
                     Text(

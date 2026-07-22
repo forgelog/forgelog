@@ -18,6 +18,7 @@ class SyncModelsTest {
 
         val snapshot = syncJson.decodeFromString(SyncSnapshot.serializer(), json)
 
+        assertEquals(2, snapshot.protocolVersion)
         assertEquals(1, snapshot.routines.size)
         val routine = snapshot.routines.single()
         assertEquals("Push Day", routine.name)
@@ -28,6 +29,11 @@ class SyncModelsTest {
         assertEquals("weight_reps", exercise.exercise.exerciseType)
         assertEquals(60.0, exercise.sets.single().targetWeight)
         assertEquals(62.5, snapshot.personalRecords.single().value, 0.0)
+        assertEquals("Jordan", snapshot.profile.name)
+        assertEquals("male", snapshot.profile.sex)
+        assertEquals("1990-03-14", snapshot.profile.birthDate)
+        assertEquals(180.0, snapshot.profile.heightCm)
+        assertEquals(80.0, snapshot.profile.bodyweightKg)
     }
 
     @Test
@@ -79,6 +85,15 @@ class SyncModelsTest {
         assertThrows(SerializationException::class.java) {
             syncJson.decodeFromString(SyncSnapshot.serializer(), json)
         }
+    }
+
+    @Test
+    fun `version-skew sync snapshot decodes unsupported protocol for caller rejection`() {
+        val json = fixtureText("version-skew-sync-snapshot.json")
+
+        val snapshot = syncJson.decodeFromString(SyncSnapshot.serializer(), json)
+
+        assertEquals(99, snapshot.protocolVersion)
     }
 
     @Test

@@ -3,7 +3,7 @@
     android:allowBackup="false"
     android:usesCleartextTraffic="false">
     <!-- Woken by Play Services when a DataItem lands under /workout, even if
-         the app isn't running — matches the offline write-ahead-log flush.
+         the app isn't running — matches the offline JSON outbox flush.
          Also woken by the watch's /request-sync Message (on-demand sync). -->
     <service
       android:name="expo.modules.wearsync.WearSyncListenerService"

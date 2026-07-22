@@ -41,7 +41,7 @@ fun estimatedOneRepMax(weight: Double, reps: Int): Double? =
  */
 /**
  * The watch doesn't have the phone's full logged_sets history, only the
- * synced PersonalRecordEntity baseline — so instead of recomputing over all
+ * synced personal-record baseline — so instead of recomputing over all
  * sets (like apps/mobile/src/db/repositories/personalRecords.ts does), a
  * single just-completed set's candidate values are compared directly against
  * that baseline. A record type with no synced baseline is a silent local
