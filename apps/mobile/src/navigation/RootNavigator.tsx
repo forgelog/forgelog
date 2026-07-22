@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { mobileStore } from '../db/mobileStore';
 import { ActiveWorkoutScreen } from '../screens/ActiveWorkoutScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
+import { EditWorkoutScreen } from '../screens/EditWorkoutScreen';
 import { ExerciseDetailScreen } from '../screens/ExerciseDetailScreen';
 import { ExerciseLibraryScreen } from '../screens/ExerciseLibraryScreen';
 import { MeasurementsScreen } from '../screens/MeasurementsScreen';
@@ -32,6 +33,7 @@ export type RootStackParamList = {
     sourceWorkoutId?: string;
     pickedExerciseId?: string;
   };
+  EditWorkout: { workoutId: string };
   WorkoutDetail: { workoutId: string };
 };
 
@@ -76,6 +78,7 @@ export function RootNavigator() {
         <Stack.Screen name="RoutineDetail" component={RoutineDetailScreen} />
         <Stack.Screen name="RoutineEditor" component={RoutineEditorScreen} />
         <Stack.Screen name="ActiveWorkout" component={ActiveWorkoutScreen} />
+        <Stack.Screen name="EditWorkout" component={EditWorkoutScreen} />
         <Stack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="Measurements" component={MeasurementsScreen} />
