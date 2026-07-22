@@ -92,8 +92,16 @@ test('starts from routines and reports detail, history, and previous sets', asyn
       expect.objectContaining({
         exercise_id: bench.id,
         exercise_type: 'weight_reps',
+        source_routine_exercise_id: routine.exercises[0].id,
         notes: 'Snapshot this',
-        sets: [expect.objectContaining({ weight: 100, reps: 5, completed: false })],
+        sets: [
+          expect.objectContaining({
+            weight: 100,
+            reps: 5,
+            completed: false,
+            source_routine_set_id: routine.exercises[0].sets[0].id,
+          }),
+        ],
       }),
     ],
   });

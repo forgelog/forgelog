@@ -74,6 +74,21 @@ const MIGRATIONS: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 3,
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE workout_exercises
+          ADD COLUMN source_routine_exercise_id TEXT;
+
+        ALTER TABLE logged_sets
+          ADD COLUMN source_routine_set_id TEXT;
+
+        ALTER TABLE workouts
+          ADD COLUMN routine_structure_version INTEGER;
+      `);
+    },
+  },
 ];
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
