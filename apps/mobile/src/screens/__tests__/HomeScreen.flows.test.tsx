@@ -75,9 +75,7 @@ test('shows empty routines', async () => {
   const home = await renderHomeStack();
 
   await waitFor(() =>
-    expect(
-      home.getByText('No routines yet. Create one or start from a template above.')
-    ).toBeTruthy()
+    expect(home.getByText('No saved routines yet. Create one above.')).toBeTruthy()
   );
 });
 
@@ -97,6 +95,21 @@ test('starts an empty workout', async () => {
   await waitFor(() => expect(getByLabelText('Start Empty Workout')).toBeTruthy());
   fireEvent.press(getByLabelText('Start Empty Workout'));
   await waitFor(() => expect(getByText('Add Exercise')).toBeTruthy());
+});
+
+test('creates and saves a routine from the inline starter-routine sheet', async () => {
+  const home = await renderHomeStack();
+
+  await waitFor(() => expect(home.getByLabelText('Starter routine Push Day')).toBeTruthy());
+  fireEvent.press(home.getByLabelText('Starter routine Push Day'));
+  await waitFor(() => expect(home.getByTestId('starter-routine-actions-sheet')).toBeTruthy());
+  fireEvent.press(home.getByLabelText('Create routine from Push Day'));
+
+  await waitFor(() => expect(home.getByDisplayValue('Push Day')).toBeTruthy());
+  expect(home.getByText('Barbell Bench Press - Medium Grip')).toBeTruthy();
+  fireEvent.press(home.getByText('Save'));
+
+  await waitFor(() => expect(home.getByLabelText('View routine Push Day')).toBeTruthy());
 });
 
 test('starts a workout from a routine', async () => {
@@ -160,9 +173,7 @@ test('confirms routine deletion inside the bottom sheet', async () => {
   fireEvent.press(deleteFlow.getByLabelText('Confirm delete routine'));
 
   await waitFor(() => expect(deleteFlow.queryByText('Delete Me')).toBeNull());
-  expect(
-    deleteFlow.getByText('No routines yet. Create one or start from a template above.')
-  ).toBeTruthy();
+  expect(deleteFlow.getByText('No saved routines yet. Create one above.')).toBeTruthy();
 });
 
 test('guards active-workout conflicts when starting a routine', async () => {

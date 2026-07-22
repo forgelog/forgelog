@@ -10,6 +10,7 @@ export type RoutineTemplateSet = Readonly<{
 
 export type RoutineTemplateExercise = Readonly<{
   exerciseId: string;
+  exerciseName: string;
   sets: readonly RoutineTemplateSet[];
 }>;
 
@@ -30,11 +31,31 @@ export const ROUTINE_TEMPLATES: readonly RoutineTemplate[] = [
     name: 'Beginner Full Body',
     description: 'A balanced full-body session built around five foundational movements.',
     exercises: [
-      { exerciseId: 'Barbell_Full_Squat', sets: normalSets(3, 8) },
-      { exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: normalSets(3, 8) },
-      { exerciseId: 'Bent_Over_Barbell_Row', sets: normalSets(3, 10) },
-      { exerciseId: 'Dumbbell_Shoulder_Press', sets: normalSets(2, 10) },
-      { exerciseId: 'Romanian_Deadlift', sets: normalSets(3, 8) },
+      {
+        exerciseId: 'Barbell_Full_Squat',
+        exerciseName: 'Barbell Full Squat',
+        sets: normalSets(3, 8),
+      },
+      {
+        exerciseId: 'Barbell_Bench_Press_-_Medium_Grip',
+        exerciseName: 'Barbell Bench Press - Medium Grip',
+        sets: normalSets(3, 8),
+      },
+      {
+        exerciseId: 'Bent_Over_Barbell_Row',
+        exerciseName: 'Bent Over Barbell Row',
+        sets: normalSets(3, 10),
+      },
+      {
+        exerciseId: 'Dumbbell_Shoulder_Press',
+        exerciseName: 'Dumbbell Shoulder Press',
+        sets: normalSets(2, 10),
+      },
+      {
+        exerciseId: 'Romanian_Deadlift',
+        exerciseName: 'Romanian Deadlift',
+        sets: normalSets(3, 8),
+      },
     ],
   },
   {
@@ -42,10 +63,22 @@ export const ROUTINE_TEMPLATES: readonly RoutineTemplate[] = [
     name: 'Push Day',
     description: 'Chest, shoulders, and triceps with straightforward working sets.',
     exercises: [
-      { exerciseId: 'Barbell_Bench_Press_-_Medium_Grip', sets: normalSets(3, 8) },
-      { exerciseId: 'Dumbbell_Shoulder_Press', sets: normalSets(3, 10) },
-      { exerciseId: 'Side_Lateral_Raise', sets: normalSets(3, 12) },
-      { exerciseId: 'Triceps_Pushdown', sets: normalSets(3, 12) },
+      {
+        exerciseId: 'Barbell_Bench_Press_-_Medium_Grip',
+        exerciseName: 'Barbell Bench Press - Medium Grip',
+        sets: normalSets(3, 8),
+      },
+      {
+        exerciseId: 'Dumbbell_Shoulder_Press',
+        exerciseName: 'Dumbbell Shoulder Press',
+        sets: normalSets(3, 10),
+      },
+      {
+        exerciseId: 'Side_Lateral_Raise',
+        exerciseName: 'Side Lateral Raise',
+        sets: normalSets(3, 12),
+      },
+      { exerciseId: 'Triceps_Pushdown', exerciseName: 'Triceps Pushdown', sets: normalSets(3, 12) },
     ],
   },
   {
@@ -53,10 +86,18 @@ export const ROUTINE_TEMPLATES: readonly RoutineTemplate[] = [
     name: 'Pull Day',
     description: 'Back and biceps with a mix of vertical and horizontal pulling.',
     exercises: [
-      { exerciseId: 'Barbell_Deadlift', sets: normalSets(3, 5) },
-      { exerciseId: 'Bent_Over_Barbell_Row', sets: normalSets(3, 8) },
-      { exerciseId: 'Wide-Grip_Lat_Pulldown', sets: normalSets(3, 10) },
-      { exerciseId: 'Barbell_Curl', sets: normalSets(3, 12) },
+      { exerciseId: 'Barbell_Deadlift', exerciseName: 'Barbell Deadlift', sets: normalSets(3, 5) },
+      {
+        exerciseId: 'Bent_Over_Barbell_Row',
+        exerciseName: 'Bent Over Barbell Row',
+        sets: normalSets(3, 8),
+      },
+      {
+        exerciseId: 'Wide-Grip_Lat_Pulldown',
+        exerciseName: 'Wide-Grip Lat Pulldown',
+        sets: normalSets(3, 10),
+      },
+      { exerciseId: 'Barbell_Curl', exerciseName: 'Barbell Curl', sets: normalSets(3, 12) },
     ],
   },
   {
@@ -64,10 +105,22 @@ export const ROUTINE_TEMPLATES: readonly RoutineTemplate[] = [
     name: 'Leg Day',
     description: 'Quads, hamstrings, glutes, and calves in one lower-body session.',
     exercises: [
-      { exerciseId: 'Barbell_Full_Squat', sets: normalSets(3, 8) },
-      { exerciseId: 'Romanian_Deadlift', sets: normalSets(3, 8) },
-      { exerciseId: 'Leg_Press', sets: normalSets(3, 10) },
-      { exerciseId: 'Standing_Barbell_Calf_Raise', sets: normalSets(3, 12) },
+      {
+        exerciseId: 'Barbell_Full_Squat',
+        exerciseName: 'Barbell Full Squat',
+        sets: normalSets(3, 8),
+      },
+      {
+        exerciseId: 'Romanian_Deadlift',
+        exerciseName: 'Romanian Deadlift',
+        sets: normalSets(3, 8),
+      },
+      { exerciseId: 'Leg_Press', exerciseName: 'Leg Press', sets: normalSets(3, 10) },
+      {
+        exerciseId: 'Standing_Barbell_Calf_Raise',
+        exerciseName: 'Standing Barbell Calf Raise',
+        sets: normalSets(3, 12),
+      },
     ],
   },
 ];

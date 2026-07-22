@@ -8,9 +8,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { PillButton } from '../components/PillButton';
+import {
+  StarterRoutineActionsSheet,
+  StarterRoutineGrid,
+  type StarterRoutineSheetState,
+} from '../components/StarterRoutineTemplates';
 import { mobileStore, type RoutineSummary } from '../db/mobileStore';
 import { discardWorkout, startOrResumeWorkout } from '../application/activeWorkout';
 import type { Workout } from '../db/types';
+import type { RoutineTemplate } from '../domain/routineTemplates';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -22,7 +28,6 @@ type RoutineSheetState = {
   error?: string;
   closing?: boolean;
 };
-
 export function HomeScreen() {
   const c = useTheme();
   const navigation = useNavigation<Nav>();
@@ -31,6 +36,9 @@ export function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [routineSheet, setRoutineSheet] = useState<RoutineSheetState | null>(null);
+  const [starterRoutineSheet, setStarterRoutineSheet] = useState<StarterRoutineSheetState | null>(
+    null
+  );
 
   const reload = useCallback(() => {
     let current = true;
@@ -109,8 +117,23 @@ export function HomeScreen() {
     navigation.navigate('RoutineEditor', {});
   }
 
-  function handleBrowseRoutineTemplates() {
-    navigation.navigate('RoutineTemplatePicker');
+  function showStarterRoutineActions(template: RoutineTemplate) {
+    setStarterRoutineSheet({ template });
+  }
+
+  const closeStarterRoutineSheet = useCallback(() => {
+    setStarterRoutineSheet((current) =>
+      !current || current.closing ? current : { ...current, closing: true }
+    );
+  }, []);
+
+  const handleStarterRoutineSheetClosed = useCallback(() => {
+    setStarterRoutineSheet(null);
+  }, []);
+
+  function handleCreateFromStarterRoutine(template: RoutineTemplate) {
+    setStarterRoutineSheet(null);
+    navigation.navigate('RoutineEditor', { templateId: template.id });
   }
 
   function showRoutineActions(routine: RoutineSummary) {
@@ -159,6 +182,7 @@ export function HomeScreen() {
       <FlatList
         data={routines}
         keyExtractor={(item) => item.id}
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View>
@@ -171,31 +195,20 @@ export function HomeScreen() {
             />
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: c.fg }]}>My Routines</Text>
-              <View style={styles.routineActions}>
-                <Pressable
-                  style={[styles.templateButton, { borderColor: c.chipbd }]}
-                  onPress={handleBrowseRoutineTemplates}
-                  accessibilityLabel="Browse routine templates"
-                  accessibilityRole="button"
-                  testID="browse-routine-templates"
-                >
-                  <Icon name="view-grid-outline" variant="accent" size={17} />
-                  <Text style={[styles.templateButtonText, { color: c.accent }]}>Templates</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.addButton, { backgroundColor: c.accent }]}
-                  onPress={handleCreateRoutine}
-                  accessibilityLabel="Create routine"
-                  accessibilityRole="button"
-                  testID="create-routine"
-                >
-                  <Icon name="plus" color="#fff" size={20} />
-                </Pressable>
-              </View>
+              <Pressable
+                style={[styles.addButton, { backgroundColor: c.accent }]}
+                onPress={handleCreateRoutine}
+                accessibilityLabel="Create routine"
+                accessibilityRole="button"
+                testID="create-routine"
+              >
+                <Icon name="plus" color="#fff" size={20} />
+              </Pressable>
             </View>
           </View>
         }
         ListEmptyComponent={<HomeEmptyState loading={loading} loadFailed={loadFailed} />}
+        ListFooterComponent={<StarterRoutineGrid onOpenActions={showStarterRoutineActions} />}
         renderItem={({ item }) => (
           <Card style={styles.routineCard}>
             <Pressable
@@ -244,6 +257,12 @@ export function HomeScreen() {
         onDelete={handleDeleteRoutine}
         onClosed={handleRoutineSheetClosed}
       />
+      <StarterRoutineActionsSheet
+        state={starterRoutineSheet}
+        onClose={closeStarterRoutineSheet}
+        onClosed={handleStarterRoutineSheetClosed}
+        onCreate={handleCreateFromStarterRoutine}
+      />
     </SafeAreaView>
   );
 }
@@ -255,7 +274,7 @@ type HomeEmptyStateProps = Readonly<{
 
 function HomeEmptyState({ loading, loadFailed }: HomeEmptyStateProps) {
   const c = useTheme();
-  let message = 'No routines yet. Create one or start from a template above.';
+  let message = 'No saved routines yet. Create one above.';
   if (loading) {
     message = 'Loading routines...';
   } else if (loadFailed) {
@@ -412,17 +431,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700' },
-  routineActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  templateButton: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderWidth: 1,
-    borderRadius: 22,
-    paddingHorizontal: 10,
-  },
-  templateButtonText: { fontSize: 13, fontWeight: '700' },
   addButton: {
     width: 32,
     height: 32,
@@ -430,7 +438,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  empty: { textAlign: 'center', marginTop: 24 },
+  empty: { textAlign: 'center', paddingVertical: 24 },
   routineCard: { marginBottom: 0 },
   routineTouchable: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   routineText: { flex: 1, minWidth: 0 },
