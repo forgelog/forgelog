@@ -72,11 +72,13 @@ class WearSyncModule : Module() {
     fun buildWorkoutAckRequest(
       workoutId: String,
       timestamp: Long = System.currentTimeMillis(),
-    ): PutDataRequest =
-      PutDataMapRequest.create("$WORKOUT_ACK_PATH/$workoutId").apply {
+    ): PutDataRequest {
+      require(workoutId.isNotBlank()) { "workoutId must not be blank" }
+      return PutDataMapRequest.create("$WORKOUT_ACK_PATH/$workoutId").apply {
         dataMap.putString(WORKOUT_ID_KEY, workoutId)
         dataMap.putLong(TIMESTAMP_KEY, timestamp)
       }.asPutDataRequest().setUrgent()
+    }
 
     fun publishWorkoutAck(context: Context, workoutId: String) {
       val request = buildWorkoutAckRequest(workoutId)

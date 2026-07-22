@@ -10,6 +10,7 @@ import dev.bishnoi.forgelog.wear.application.FinishWorkout
 import dev.bishnoi.forgelog.wear.data.ReferenceRepository
 import dev.bishnoi.forgelog.wear.data.WearStoreProvider
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -39,11 +40,13 @@ class PhoneSyncListenerService : WearableListenerService() {
                     path == "/sync-snapshot" -> {
                         val payload = dataMap.getString(PAYLOAD_KEY) ?: continue
                         scope.launch {
-                            val applied = applySyncSnapshotPayload(payload, stores.references)
-                            if (!applied) {
-                                Log.e(TAG, "Rejected malformed sync snapshot payload")
-                            } else {
-                                drainPending(applicationContext, stores.workouts)
+                            handleListenerFailure("Could not apply sync snapshot") {
+                                val applied = applySyncSnapshotPayload(payload, stores.references)
+                                if (!applied) {
+                                    Log.e(TAG, "Rejected malformed sync snapshot payload")
+                                } else {
+                                    drainPending(applicationContext, stores.workouts)
+                                }
                             }
                         }
                     }
@@ -51,10 +54,16 @@ class PhoneSyncListenerService : WearableListenerService() {
                         val workoutId = dataMap.getString(WORKOUT_ID_KEY) ?: path.substringAfterLast('/')
                         if (workoutId.isBlank()) continue
                         scope.launch {
-                            stores.workouts.acknowledgeWorkout(workoutId)
-                            runCatching { WearDataClient.cleanupWorkout(applicationContext, workoutId) }
-                                .onFailure { Log.w(TAG, "Could not clean up acknowledged workout $workoutId", it) }
-                            drainPending(applicationContext, stores.workouts)
+                            handleListenerFailure("Could not acknowledge workout $workoutId") {
+                                stores.workouts.acknowledgeWorkout(workoutId)
+                                try {
+                                    WearDataClient.cleanupWorkout(applicationContext, workoutId)
+                                } catch (error: Exception) {
+                                    error.rethrowIfCancellation()
+                                    Log.w(TAG, "Could not clean up acknowledged workout $workoutId", error)
+                                }
+                                drainPending(applicationContext, stores.workouts)
+                            }
                         }
                     }
                 }
@@ -63,6 +72,22 @@ class PhoneSyncListenerService : WearableListenerService() {
             dataEvents.release()
         }
     }
+}
+
+private suspend fun handleListenerFailure(
+    message: String,
+    operation: suspend () -> Unit,
+) {
+    try {
+        operation()
+    } catch (error: Exception) {
+        error.rethrowIfCancellation()
+        Log.e(TAG, message, error)
+    }
+}
+
+private fun Exception.rethrowIfCancellation() {
+    if (this is CancellationException) throw this
 }
 
 private suspend fun drainPending(

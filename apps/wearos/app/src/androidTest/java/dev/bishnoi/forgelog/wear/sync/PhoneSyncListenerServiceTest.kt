@@ -49,14 +49,10 @@ class PhoneSyncListenerServiceTest {
         Tasks.await(Wearable.getDataClient(context).putDataItem(request))
 
         val references = WearStoreProvider.get(context).references
-        var found = false
-        repeat(50) {
-            val routines = runBlocking { references.routines.first() }
-            if (routines.any { it.name == "Instrumented Routine" }) {
-                found = true
-                return@repeat
+        val found = runBlocking {
+            waitForCondition {
+                references.routines.first().any { it.name == "Instrumented Routine" }
             }
-            Thread.sleep(200)
         }
 
         assertTrue("expected the synced routine to appear in JSON state within 10s", found)
@@ -93,15 +89,18 @@ class PhoneSyncListenerServiceTest {
         }.asPutDataRequest().setUrgent()
         Tasks.await(Wearable.getDataClient(context).putDataItem(request))
 
-        var acknowledged = false
-        repeat(50) {
-            if (stores.workouts.pendingUploads.first().none { it.payload.id == workout.id }) {
-                acknowledged = true
-                return@repeat
-            }
-            Thread.sleep(200)
+        val acknowledged = waitForCondition {
+            stores.workouts.pendingUploads.first().none { it.payload.id == workout.id }
         }
 
         assertTrue("expected the workout acknowledgement to clear the JSON outbox", acknowledged)
+    }
+
+    private suspend fun waitForCondition(condition: suspend () -> Boolean): Boolean {
+        repeat(50) { attempt ->
+            if (condition()) return true
+            if (attempt < 49) Thread.sleep(200)
+        }
+        return false
     }
 }
