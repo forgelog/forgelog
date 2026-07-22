@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { mobileStore } from '../db/mobileStore';
+import { completeOnboarding } from '../application/profile';
 import { useTheme } from '../theme/ThemeContext';
 import { BODYWEIGHT_MAX_KG, BODYWEIGHT_MIN_KG, validateNumber } from '../validation/numericInput';
 import { NAME_MAX_LENGTH, validateText } from '../validation/textInput';
@@ -39,7 +39,7 @@ export function OnboardingScreen({ onComplete }: Props) {
 
     setSaving(true);
     try {
-      await mobileStore.profile.completeOnboarding({
+      await completeOnboarding({
         name: nameResult.value,
         bodyweightKg: bodyweightResult.value,
       });

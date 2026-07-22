@@ -26,7 +26,6 @@ export type ProfileUpdate = {
   sex?: Sex | null;
   birthDate?: string | null;
   heightCm?: number | null;
-  bodyweightKg?: number | null;
 };
 
 export type OnboardingProfile = {
@@ -129,17 +128,6 @@ export async function updateProfile(db: DatabaseExecutor, patch: ProfileUpdate):
     if (error) throw new Error(error);
     sets.push('height_cm = $heightCm');
     params.$heightCm = value;
-  }
-
-  if (patch.bodyweightKg !== undefined) {
-    const { value, error } = validateNumber(patch.bodyweightKg, {
-      min: BODYWEIGHT_MIN_KG,
-      max: BODYWEIGHT_MAX_KG,
-      fieldLabel: 'Bodyweight',
-    });
-    if (error) throw new Error(error);
-    sets.push('bodyweight_kg = $bodyweightKg');
-    params.$bodyweightKg = value;
   }
 
   if (sets.length === 0) return;

@@ -1,7 +1,10 @@
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {
+  createNativeStackNavigator,
+  type NativeStackScreenProps,
+} from '@react-navigation/native-stack';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 import { getProfile, getThemeMode, updateProfile } from '../../db/repositories/profile';
 import { ThemeProvider } from '../../theme/ThemeContext';
@@ -16,9 +19,14 @@ const mockGetThemeMode = getThemeMode as jest.MockedFunction<typeof getThemeMode
 type TestParamList = { Home: undefined; EditProfile: undefined };
 
 const Stack = createNativeStackNavigator<TestParamList>();
+let storedProfile: Awaited<ReturnType<typeof getProfile>>;
 
-function HomeScreen() {
-  return <Text>Home Screen Marker</Text>;
+function HomeScreen({ navigation }: NativeStackScreenProps<TestParamList, 'Home'>) {
+  return (
+    <Pressable onPress={() => navigation.navigate('EditProfile')} accessibilityLabel="Open edit profile">
+      <Text>Home Screen Marker</Text>
+    </Pressable>
+  );
 }
 
 async function renderScreen() {
@@ -41,45 +49,49 @@ async function renderScreen() {
 
 beforeEach(() => {
   mockUpdateProfile.mockClear();
-  mockGetProfile.mockResolvedValue({
+  storedProfile = {
     name: 'Jamie Lee',
     themeMode: 'system',
     sex: 'female',
     birthDate: '1990-06-15',
     heightCm: 170,
     bodyweightKg: 65,
+  };
+  mockGetProfile.mockResolvedValue(storedProfile);
+  mockUpdateProfile.mockImplementation(async (_db, patch) => {
+    if ('bodyweightKg' in patch) throw new Error('Edit Profile must not update bodyweight');
+    storedProfile = { ...storedProfile, ...patch };
+    mockGetProfile.mockResolvedValue(storedProfile);
   });
-  mockUpdateProfile.mockResolvedValue(undefined);
   mockGetThemeMode.mockResolvedValue('system');
 });
 
 test('loads existing profile values into the form', async () => {
-  const { getByDisplayValue, getByLabelText, getByText } = await renderScreen();
+  const { getByDisplayValue, getByLabelText, getByText, queryByLabelText } = await renderScreen();
   await waitFor(() => expect(getByDisplayValue('Jamie Lee')).toBeTruthy());
   expect(getByDisplayValue('170')).toBeTruthy();
-  expect(getByDisplayValue('65')).toBeTruthy();
   expect(getByText('Female')).toBeTruthy();
   expect(getByLabelText('Profile name')).toBeTruthy();
   expect(getByLabelText('Height in centimeters')).toBeTruthy();
-  expect(getByLabelText('Bodyweight in kilograms')).toBeTruthy();
+  expect(queryByLabelText('Bodyweight in kilograms')).toBeNull();
   expect(getByLabelText('Select Female sex')).toBeTruthy();
 });
 
 test('saving persists the edited fields and navigates back', async () => {
-  const { getByDisplayValue, getByLabelText, queryByText } = await renderScreen();
+  const { getByDisplayValue, getByLabelText, queryByLabelText, queryByText } = await renderScreen();
   await waitFor(() => expect(getByDisplayValue('Jamie Lee')).toBeTruthy());
 
   const nameInput = getByDisplayValue('Jamie Lee');
   await act(async () => fireEvent.changeText(nameInput, 'Jamie R. Lee'));
   await act(async () => fireEvent.press(getByLabelText('Save profile')));
 
-  await waitFor(() =>
-    expect(mockUpdateProfile).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ name: 'Jamie R. Lee', heightCm: 170, bodyweightKg: 65 })
-    )
-  );
   await waitFor(() => expect(queryByText('Home Screen Marker')).toBeTruthy());
+
+  await act(async () => fireEvent.press(getByLabelText('Open edit profile')));
+
+  await waitFor(() => expect(getByDisplayValue('Jamie R. Lee')).toBeTruthy());
+  expect(getByDisplayValue('170')).toBeTruthy();
+  expect(queryByLabelText('Bodyweight in kilograms')).toBeNull();
 });
 
 test('selecting a sex option persists it when saving', async () => {

@@ -1,4 +1,4 @@
-import { resetDbForTests } from '../../index';
+import { getDb, resetDbForTests } from '../../index';
 import { mobileStoreForTests as mobileStore } from '../../../test-utils/db';
 
 beforeEach(() => {
@@ -36,6 +36,26 @@ test('lists all types with their latest recorded values', async () => {
   expect(current.find((type) => type.id === 'neck')?.current).toBeNull();
 });
 
+test('current bodyweight ignores legacy out-of-range measurements', async () => {
+  await mobileStore.measurements.record({
+    measuredAt: '2026-07-17',
+    values: [{ measurementTypeId: 'bodyweight', canonicalValue: 80.5 }],
+  });
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO measurements
+       (id, measurement_type_id, canonical_value, measured_at, notes)
+     VALUES ('legacy-invalid-bodyweight', 'bodyweight', 9999, '2026-07-18', NULL)`
+  );
+
+  const current = await mobileStore.measurements.listCurrent();
+
+  expect(current.find((type) => type.id === 'bodyweight')?.current).toMatchObject({
+    canonicalValue: 80.5,
+    measuredAt: '2026-07-17',
+  });
+});
+
 test('records only valid values for known measurement types', async () => {
   await expect(
     mobileStore.measurements.record({
@@ -43,6 +63,13 @@ test('records only valid values for known measurement types', async () => {
       values: [{ measurementTypeId: 'bodyweight', canonicalValue: -1 }],
     })
   ).rejects.toThrow('Measurement values must be zero or greater.');
+
+  await expect(
+    mobileStore.measurements.record({
+      measuredAt: '2026-07-17',
+      values: [{ measurementTypeId: 'bodyweight', canonicalValue: 10 }],
+    })
+  ).rejects.toThrow(/between 20 and 400/);
 
   await expect(
     mobileStore.measurements.record({
@@ -64,6 +91,41 @@ test('records only valid values for known measurement types', async () => {
       values: [{ measurementTypeId: 'unknown', canonicalValue: 80 }],
     })
   ).rejects.toThrow('Measurement type not found.');
+});
+
+test('recording bodyweight keeps the profile bodyweight snapshot current', async () => {
+  await mobileStore.profile.completeOnboarding({ name: 'Jordan', bodyweightKg: null });
+
+  await mobileStore.measurements.record({
+    measuredAt: '2026-07-17',
+    values: [{ measurementTypeId: 'bodyweight', canonicalValue: 80.5 }],
+  });
+
+  await expect(mobileStore.profile.get()).resolves.toMatchObject({ bodyweightKg: 80.5 });
+
+  await mobileStore.measurements.record({
+    measuredAt: '2026-07-16',
+    values: [{ measurementTypeId: 'bodyweight', canonicalValue: 79 }],
+  });
+
+  await expect(mobileStore.profile.get()).resolves.toMatchObject({ bodyweightKg: 80.5 });
+});
+
+test('bodyweight snapshot ignores legacy out-of-range measurements', async () => {
+  await mobileStore.profile.completeOnboarding({ name: 'Jordan', bodyweightKg: null });
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO measurements
+       (id, measurement_type_id, canonical_value, measured_at, notes)
+     VALUES ('legacy-invalid-bodyweight', 'bodyweight', 9999, '2026-07-18', NULL)`
+  );
+
+  await mobileStore.measurements.record({
+    measuredAt: '2026-07-17',
+    values: [{ measurementTypeId: 'bodyweight', canonicalValue: 80.5 }],
+  });
+
+  await expect(mobileStore.profile.get()).resolves.toMatchObject({ bodyweightKg: 80.5 });
 });
 
 test('rolls back the entire batch when one value is invalid', async () => {

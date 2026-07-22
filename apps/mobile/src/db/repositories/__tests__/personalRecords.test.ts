@@ -56,7 +56,10 @@ test('bodyweight exercise calculations use the workout bodyweight snapshot', asy
   await updateLoggedSetValues(set.id, { weight: 10, reps: 5 });
   await setSetCompletion(set.id, true);
   await finishWorkout(workout.id);
-  await mobileStore.profile.update({ bodyweightKg: 100 });
+  await mobileStore.measurements.record({
+    measuredAt: '2026-07-17',
+    values: [{ measurementTypeId: 'bodyweight', canonicalValue: 100 }],
+  });
 
   const records = await replaceRecordsForExercise(pullUps.id);
 
