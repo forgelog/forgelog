@@ -4,6 +4,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 
 import { getThemeMode } from '../../db/repositories/profile';
+import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { SettingsScreen } from '../SettingsScreen';
 
@@ -11,9 +12,7 @@ jest.mock('../../db/repositories/profile');
 
 const mockGetThemeMode = getThemeMode as jest.MockedFunction<typeof getThemeMode>;
 
-type TestParamList = { Settings: undefined; EditProfile: undefined };
-
-const Stack = createNativeStackNavigator<TestParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function EditProfileStub() {
   return <Text>Edit profile destination</Text>;
@@ -24,7 +23,7 @@ async function renderSettings() {
     <ThemeProvider>
       <NavigationContainer>
         <Stack.Navigator>
-          <Stack.Screen name="Settings" component={SettingsScreen as never} />
+          <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="EditProfile" component={EditProfileStub} />
         </Stack.Navigator>
       </NavigationContainer>
