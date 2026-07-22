@@ -2,7 +2,7 @@
   "expo": {
     "name": "ForgeLog",
     "slug": "forgelog",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -18,7 +18,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "dev.bishnoi.forgelog.mobile",
-      "versionCode": 361000104
+      "versionCode": 361000105
     },
     "web": {
       "favicon": "./assets/favicon.png"

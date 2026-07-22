@@ -78,5 +78,5 @@ appId: dev.bishnoi.forgelog.mobile
 - tapOn:
     id: "routine-delete-confirm"
 - extendedWaitUntil:
-    visible: "No routines yet. Create one above."
+    visible: "No saved routines yet. Create one above."
     timeout: 60000
