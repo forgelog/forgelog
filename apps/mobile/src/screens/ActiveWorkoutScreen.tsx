@@ -92,6 +92,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const [preparingFinish, setPreparingFinish] = useState(false);
   const reloadRequestId = useRef(0);
   const personalRecordNoticeId = useRef(0);
+  const reorderPending = useRef(false);
 
   const reload = useCallback(() => {
     let current = true;
@@ -197,22 +198,39 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     patchExercise(we.id, (w) => ({ ...w, sets: [...w.sets, created] }));
   }
 
-  async function moveExercise(index: number, delta: -1 | 1) {
+  function moveExercise(exerciseId: string, delta: -1 | 1) {
+    if (reorderPending.current || !detail) return;
+    const index = detail.exercises.findIndex((exercise) => exercise.id === exerciseId);
     const targetIndex = index + delta;
-    if (!detail || targetIndex < 0 || targetIndex >= detail.exercises.length) return;
-    const exercise = detail.exercises[index];
+    if (index < 0 || targetIndex < 0 || targetIndex >= detail.exercises.length) return;
+    reorderPending.current = true;
     setDetail((current) => {
       if (!current) return current;
+      const currentIndex = current.exercises.findIndex((exercise) => exercise.id === exerciseId);
+      const currentTargetIndex = currentIndex + delta;
+      if (
+        currentIndex < 0 ||
+        currentTargetIndex < 0 ||
+        currentTargetIndex >= current.exercises.length
+      ) {
+        return current;
+      }
       const exercises = [...current.exercises];
-      [exercises[index], exercises[targetIndex]] = [exercises[targetIndex], exercises[index]];
+      [exercises[currentIndex], exercises[currentTargetIndex]] = [
+        exercises[currentTargetIndex],
+        exercises[currentIndex],
+      ];
       return { ...current, exercises };
     });
-    try {
-      await mobileStore.workouts.moveExercise(exercise.id, delta);
-    } catch {
-      Alert.alert('Save failed', 'Could not reorder exercise.');
-      reload();
-    }
+    void mobileStore.workouts
+      .moveExercise(exerciseId, delta)
+      .catch(() => {
+        Alert.alert('Save failed', 'Could not reorder exercise.');
+        reload();
+      })
+      .finally(() => {
+        reorderPending.current = false;
+      });
   }
 
   async function editSetField(
@@ -552,7 +570,7 @@ type ActiveWorkoutExerciseItemProps = Readonly<{
   prevSets: Record<string, LoggedSet[]>;
   prSetIds: Set<string>;
   onOpenExercise: (exerciseId: string) => void;
-  onMoveExercise: (index: number, delta: -1 | 1) => void;
+  onMoveExercise: (exerciseId: string, delta: -1 | 1) => void;
   onOpenOptions: (exercise: WorkoutExerciseDetail) => void;
   onEditSetField: (
     weId: string,
@@ -605,7 +623,7 @@ function ActiveWorkoutExerciseItem({
         </Pressable>
         <View style={styles.exerciseHeaderActions}>
           <Pressable
-            onPress={() => onMoveExercise(index, -1)}
+            onPress={() => onMoveExercise(item.id, -1)}
             hitSlop={8}
             accessibilityLabel={`Move ${item.exercise.name} up`}
             accessibilityRole="button"
@@ -614,7 +632,7 @@ function ActiveWorkoutExerciseItem({
             <Icon name="chevron-up" variant="sub" size={20} />
           </Pressable>
           <Pressable
-            onPress={() => onMoveExercise(index, 1)}
+            onPress={() => onMoveExercise(item.id, 1)}
             hitSlop={8}
             accessibilityLabel={`Move ${item.exercise.name} down`}
             accessibilityRole="button"
