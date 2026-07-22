@@ -104,12 +104,6 @@ describe('updateProfile', () => {
     );
   });
 
-  test('rejects an out-of-range bodyweight', async () => {
-    await expect(updateProfile(makeFakeDb(null), { bodyweightKg: 999 })).rejects.toThrow(
-      /between 20 and 400/
-    );
-  });
-
   test('writes only the patched fields', async () => {
     const db = makeFakeDb(null);
 

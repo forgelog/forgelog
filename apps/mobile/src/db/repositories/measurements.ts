@@ -1,5 +1,10 @@
 import type { DatabaseExecutor } from '../executor';
 import { id } from '../id';
+import {
+  BODYWEIGHT_MAX_KG,
+  BODYWEIGHT_MIN_KG,
+  validateNumber,
+} from '../../validation/numericInput';
 
 export type MeasurementDimension = 'mass' | 'percentage' | 'length';
 
@@ -39,28 +44,38 @@ type CurrentMeasurementRow = {
 };
 
 export async function listCurrentMeasurements(db: DatabaseExecutor): Promise<CurrentMeasurement[]> {
-  const rows = await db.getAllAsync<CurrentMeasurementRow>(`
-    SELECT
-      types.id AS type_id,
-      types.name AS type_name,
-      types.dimension,
-      types.canonical_unit,
-      types.position,
-      latest.id AS measurement_id,
-      latest.canonical_value,
-      latest.measured_at,
-      latest.notes
-    FROM measurement_types AS types
-    LEFT JOIN measurements AS latest
-      ON latest.rowid = (
-        SELECT candidate.rowid
-        FROM measurements AS candidate
-        WHERE candidate.measurement_type_id = types.id
-        ORDER BY candidate.measured_at DESC, candidate.created_at DESC, candidate.rowid DESC
-        LIMIT 1
-      )
-    ORDER BY types.position
-  `);
+  const rows = await db.getAllAsync<CurrentMeasurementRow>(
+    `
+      SELECT
+        types.id AS type_id,
+        types.name AS type_name,
+        types.dimension,
+        types.canonical_unit,
+        types.position,
+        latest.id AS measurement_id,
+        latest.canonical_value,
+        latest.measured_at,
+        latest.notes
+      FROM measurement_types AS types
+      LEFT JOIN measurements AS latest
+        ON latest.rowid = (
+          SELECT candidate.rowid
+          FROM measurements AS candidate
+          WHERE candidate.measurement_type_id = types.id
+            AND (
+              candidate.measurement_type_id != 'bodyweight'
+              OR candidate.canonical_value BETWEEN $minBodyweightKg AND $maxBodyweightKg
+            )
+          ORDER BY candidate.measured_at DESC, candidate.created_at DESC, candidate.rowid DESC
+          LIMIT 1
+        )
+      ORDER BY types.position
+    `,
+    {
+      $minBodyweightKg: BODYWEIGHT_MIN_KG,
+      $maxBodyweightKg: BODYWEIGHT_MAX_KG,
+    }
+  );
 
   return rows.map((row) => ({
     id: row.type_id,
@@ -91,6 +106,14 @@ export async function recordMeasurements(
     if (!Number.isFinite(value.canonicalValue) || value.canonicalValue < 0) {
       throw new Error('Measurement values must be zero or greater.');
     }
+    if (value.measurementTypeId === 'bodyweight') {
+      const result = validateNumber(value.canonicalValue, {
+        min: BODYWEIGHT_MIN_KG,
+        max: BODYWEIGHT_MAX_KG,
+        fieldLabel: 'Bodyweight',
+      });
+      if (result.error) throw new Error(result.error);
+    }
     if (seenTypes.has(value.measurementTypeId)) {
       throw new Error('Each measurement type can only be recorded once.');
     }
@@ -115,6 +138,31 @@ export async function recordMeasurements(
       }
     );
   }
+
+  if (seenTypes.has('bodyweight')) {
+    await syncProfileBodyweightFromMeasurements(db);
+  }
+}
+
+async function syncProfileBodyweightFromMeasurements(db: DatabaseExecutor): Promise<void> {
+  await db.runAsync(
+    `
+      UPDATE profile
+         SET bodyweight_kg = (
+           SELECT canonical_value
+             FROM measurements
+            WHERE measurement_type_id = 'bodyweight'
+              AND canonical_value BETWEEN $minBodyweightKg AND $maxBodyweightKg
+            ORDER BY measured_at DESC, created_at DESC, rowid DESC
+            LIMIT 1
+         )
+       WHERE id = 0
+    `,
+    {
+      $minBodyweightKg: BODYWEIGHT_MIN_KG,
+      $maxBodyweightKg: BODYWEIGHT_MAX_KG,
+    }
+  );
 }
 
 // todo: can we avoid this by using Date type?

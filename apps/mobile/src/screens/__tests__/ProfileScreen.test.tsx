@@ -4,12 +4,7 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 
 import { listAllRecords } from '../../db/repositories/personalRecords';
-import {
-  getProfile,
-  getThemeMode,
-  setProfileName,
-  setThemeMode,
-} from '../../db/repositories/profile';
+import { getProfile, getThemeMode, setProfileName } from '../../db/repositories/profile';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { ProfileScreen } from '../ProfileScreen';
 
@@ -18,7 +13,6 @@ jest.mock('../../db/repositories/profile');
 
 const mockListAllRecords = listAllRecords as jest.MockedFunction<typeof listAllRecords>;
 const mockGetThemeMode = getThemeMode as jest.MockedFunction<typeof getThemeMode>;
-const mockSetThemeMode = setThemeMode as jest.MockedFunction<typeof setThemeMode>;
 const mockSetProfileName = setProfileName as jest.MockedFunction<typeof setProfileName>;
 const mockGetProfile = getProfile as jest.MockedFunction<typeof getProfile>;
 
@@ -61,7 +55,6 @@ async function renderProfile() {
 beforeEach(() => {
   mockListAllRecords.mockResolvedValue([]);
   mockGetThemeMode.mockResolvedValue('system');
-  mockSetThemeMode.mockResolvedValue(undefined);
   mockSetProfileName.mockResolvedValue(undefined);
   mockGetProfile.mockResolvedValue({
     name: 'Alex Rivera',
@@ -73,35 +66,6 @@ beforeEach(() => {
   });
 });
 
-test('renders the theme selector with system/light/dark options', async () => {
-  const { getByText } = await renderProfile();
-  await waitFor(() => expect(getByText('System')).toBeTruthy());
-  expect(getByText('Light')).toBeTruthy();
-  expect(getByText('Dark')).toBeTruthy();
-});
-
-test('selecting Dark persists the preference via the profile repository', async () => {
-  const { getByLabelText, getByText } = await renderProfile();
-  await waitFor(() => expect(getByText('Dark')).toBeTruthy());
-
-  fireEvent.press(getByText('Dark'));
-
-  await waitFor(() =>
-    expect(getByLabelText('Use Dark theme').props.accessibilityState).toEqual({ selected: true })
-  );
-  await waitFor(() => expect(mockSetThemeMode).toHaveBeenCalledWith(expect.anything(), 'dark'));
-});
-
-test('loads the previously persisted preference on mount', async () => {
-  mockGetThemeMode.mockResolvedValue('dark');
-  const { getByLabelText } = await renderProfile();
-
-  await waitFor(() => expect(mockGetThemeMode).toHaveBeenCalled());
-  await waitFor(() =>
-    expect(getByLabelText('Use Dark theme').props.accessibilityState).toEqual({ selected: true })
-  );
-});
-
 test('shows profile header actions without member since copy or a Body edit icon', async () => {
   const { getAllByLabelText, queryByText, getByDisplayValue } = await renderProfile();
 
@@ -110,6 +74,14 @@ test('shows profile header actions without member since copy or a Body edit icon
   expect(queryByText('Member since 2026')).toBeNull();
   expect(getAllByLabelText('Edit profile')).toHaveLength(1);
   expect(getAllByLabelText('Open settings')).toHaveLength(1);
+});
+
+test('does not render appearance preferences on the profile page', async () => {
+  const { getByDisplayValue, queryByText, queryByLabelText } = await renderProfile();
+  await waitFor(() => expect(getByDisplayValue('Alex Rivera')).toBeTruthy());
+
+  expect(queryByText('Appearance')).toBeNull();
+  expect(queryByLabelText('Use Dark theme')).toBeNull();
 });
 
 test('opens edit profile from the profile header pencil', async () => {

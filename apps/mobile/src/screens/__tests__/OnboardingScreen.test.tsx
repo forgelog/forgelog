@@ -1,12 +1,16 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 
-import { completeOnboarding, getThemeMode } from '../../db/repositories/profile';
+import { completeOnboarding } from '../../application/profile';
+import { getThemeMode } from '../../db/repositories/profile';
 import { ThemeProvider } from '../../theme/ThemeContext';
 import { OnboardingScreen } from '../OnboardingScreen';
 
+jest.mock('../../application/profile');
 jest.mock('../../db/repositories/profile');
 
-const mockCompleteOnboarding = completeOnboarding as jest.MockedFunction<typeof completeOnboarding>;
+const mockCompleteOnboarding = completeOnboarding as jest.MockedFunction<
+  typeof completeOnboarding
+>;
 const mockGetThemeMode = getThemeMode as jest.MockedFunction<typeof getThemeMode>;
 
 beforeEach(() => {
@@ -42,7 +46,6 @@ test('continues when bodyweight is skipped', async () => {
 
   await waitFor(() =>
     expect(mockCompleteOnboarding).toHaveBeenCalledWith(
-      expect.anything(),
       expect.objectContaining({ name: 'Jordan', bodyweightKg: null })
     )
   );
@@ -63,7 +66,6 @@ test('persists the onboarding profile before opening the app', async () => {
 
   await waitFor(() =>
     expect(mockCompleteOnboarding).toHaveBeenCalledWith(
-      expect.anything(),
       expect.objectContaining({ name: 'Jordan', bodyweightKg: 82.5 })
     )
   );

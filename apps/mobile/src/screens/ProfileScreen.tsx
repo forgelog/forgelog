@@ -5,7 +5,6 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../components/Card';
-import { Chip } from '../components/Chip';
 import { Icon } from '../components/Icon';
 import {
   mobileStore,
@@ -14,14 +13,8 @@ import {
 } from '../db/mobileStore';
 import { computeAge, initials } from '../domain/profile';
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { useTheme, type ThemeMode } from '../theme/ThemeContext';
+import { useTheme } from '../theme/ThemeContext';
 import { NAME_MAX_LENGTH, sanitizeText } from '../validation/textInput';
-
-const THEME_OPTIONS: { mode: ThemeMode; label: string }[] = [
-  { mode: 'system', label: 'System' },
-  { mode: 'light', label: 'Light' },
-  { mode: 'dark', label: 'Dark' },
-];
 
 const RECORD_LABELS: Record<string, string> = {
   max_weight: 'Max weight',
@@ -161,19 +154,6 @@ export function ProfileScreen() {
           ))
         )}
 
-        <Text style={[styles.sectionTitle, { color: c.fg }]}>Appearance</Text>
-        <View style={styles.themeRow}>
-          {THEME_OPTIONS.map((option) => (
-            <Chip
-              key={option.mode}
-              label={option.label}
-              selected={c.themeMode === option.mode}
-              onPress={() => c.setThemeMode(option.mode)}
-              accessibilityLabel={`Use ${option.label} theme`}
-            />
-          ))}
-        </View>
-
         <Pressable
           style={[styles.optionRow, { borderTopColor: c.sep }]}
           onPress={() => navigation.navigate('ExerciseLibrary', { mode: 'browse' })}
@@ -250,7 +230,6 @@ const styles = StyleSheet.create({
   bodyRow: { flexDirection: 'row', justifyContent: 'space-between' },
   bodyLabel: { fontSize: 13 },
   bodyValue: { fontSize: 13, fontWeight: '700' },
-  themeRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16 },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',

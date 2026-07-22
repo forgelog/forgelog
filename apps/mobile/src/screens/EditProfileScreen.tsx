@@ -11,8 +11,6 @@ import { mobileStore, type Sex } from '../db/mobileStore';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
 import {
-  BODYWEIGHT_MAX_KG,
-  BODYWEIGHT_MIN_KG,
   HEIGHT_MAX_CM,
   HEIGHT_MIN_CM,
   parseIsoDate,
@@ -33,7 +31,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 type FieldErrors = {
   general?: string;
   height?: string;
-  bodyweight?: string;
   birthDate?: string;
 };
 
@@ -44,7 +41,6 @@ export function EditProfileScreen({ navigation }: Props) {
   const [sex, setSex] = useState<Sex | null>(null);
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [heightCm, setHeightCm] = useState('');
-  const [bodyweightKg, setBodyweightKg] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
 
@@ -56,7 +52,6 @@ export function EditProfileScreen({ navigation }: Props) {
         setSex(profile.sex);
         setBirthDate(profile.birthDate ? parseIsoDate(profile.birthDate) : null);
         setHeightCm(profile.heightCm !== null ? String(profile.heightCm) : '');
-        setBodyweightKg(profile.bodyweightKg !== null ? String(profile.bodyweightKg) : '');
         setErrors({});
         setLoaded(true);
       });
@@ -81,22 +76,11 @@ export function EditProfileScreen({ navigation }: Props) {
     return result;
   }
 
-  function validateBodyweight(text: string) {
-    const result = validateNumber(parseOptionalNumber(text), {
-      min: BODYWEIGHT_MIN_KG,
-      max: BODYWEIGHT_MAX_KG,
-      fieldLabel: 'Bodyweight',
-    });
-    setErrors((prev) => ({ ...prev, bodyweight: result.error ?? undefined }));
-    return result;
-  }
-
   async function handleSave() {
     if (!loaded) return;
 
     const heightResult = validateHeight(heightCm);
-    const bodyweightResult = validateBodyweight(bodyweightKg);
-    if (heightResult.error || bodyweightResult.error) return;
+    if (heightResult.error) return;
 
     try {
       await mobileStore.profile.update({
@@ -104,7 +88,6 @@ export function EditProfileScreen({ navigation }: Props) {
         sex,
         birthDate: birthDate ? toIsoDate(birthDate) : null,
         heightCm: heightResult.value,
-        bodyweightKg: bodyweightResult.value,
       });
       navigation.goBack();
     } catch (e) {
@@ -196,20 +179,6 @@ export function EditProfileScreen({ navigation }: Props) {
           testID="profile-height-input"
         />
         {errors.height ? <Text style={[styles.error, { color: c.danger }]}>{errors.height}</Text> : null}
-
-        <Text style={[styles.label, { color: c.sub }]}>Bodyweight (kg)</Text>
-        <TextInput
-          style={[styles.input, { color: c.fg, borderColor: c.sep }]}
-          value={bodyweightKg}
-          onChangeText={setBodyweightKg}
-          onBlur={() => validateBodyweight(bodyweightKg)}
-          placeholder="Not set"
-          placeholderTextColor={c.sub}
-          keyboardType="decimal-pad"
-          accessibilityLabel="Bodyweight in kilograms"
-          testID="profile-bodyweight-input"
-        />
-        {errors.bodyweight ? <Text style={[styles.error, { color: c.danger }]}>{errors.bodyweight}</Text> : null}
       </ScrollView>
     </View>
   );
