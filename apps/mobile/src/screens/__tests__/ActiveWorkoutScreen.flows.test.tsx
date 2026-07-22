@@ -154,6 +154,37 @@ test('renders fields from the workout exercise snapshot', async () => {
   expect(tracking.queryByTestId('workout-exercise-0-tracking-type')).toBeNull();
 });
 
+test('persists the visible numeric values when completing a focused set', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const workout = await startWorkout({ name: 'Decimal Input' });
+  const workoutExercise = await addExerciseToWorkout(workout.id, bench.id);
+  await addSet(workoutExercise.id);
+  const active = await renderActiveWorkout(workout.id);
+
+  const weightInput = await waitFor(() => active.getByTestId('workout-set-0-0-weight'));
+  await act(async () => fireEvent(weightInput, 'focus'));
+  await act(async () => fireEvent.changeText(weightInput, '3'));
+  await act(async () => fireEvent.changeText(weightInput, '3.'));
+  expect(weightInput.props.value).toBe('3.');
+  await act(async () => fireEvent.changeText(weightInput, '3.5'));
+
+  const repsInput = active.getByTestId('workout-set-0-0-reps');
+  await act(async () => fireEvent(repsInput, 'focus'));
+  await act(async () => fireEvent.changeText(repsInput, '4'));
+  await act(async () => fireEvent.changeText(repsInput, '4.5'));
+  expect(repsInput.props.value).toBe('4');
+
+  await act(async () => {
+    fireEvent.press(active.getByTestId('workout-set-0-0-complete'));
+    await Promise.resolve();
+  });
+
+  await waitFor(async () => {
+    const savedSet = (await getWorkoutDetail(workout.id))?.exercises[0].sets[0];
+    expect(savedSet).toMatchObject({ weight: 3.5, reps: 4, completed: true });
+  });
+});
+
 test('removes an exercise through its options menu', async () => {
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   const workout = await startWorkout({ name: 'Remove Exercise' });

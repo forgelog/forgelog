@@ -677,7 +677,7 @@ function ActiveWorkoutSetRow({
         fields={fields}
         containerStyle={styles.fieldColumns}
         inputStyle={styles.setInput}
-        valueForField={(field) => (set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
+        valueForField={(field) => set[SET_COLUMN[field]] as number | null}
         onChangeField={(field, text) =>
           onEditSetField(exercise.id, exercise.exercise.id, set.id, field, text)
         }
