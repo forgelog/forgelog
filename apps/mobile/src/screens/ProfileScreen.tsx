@@ -1,6 +1,6 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -48,7 +48,6 @@ export function ProfileScreen() {
   const [groups, setGroups] = useState<ExerciseGroup[]>([]);
   const [name, setName] = useState('');
   const [body, setBody] = useState<Profile | null>(null);
-  const nameInputRef = useRef<TextInput>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -79,7 +78,6 @@ export function ProfileScreen() {
           </View>
           <View style={styles.identity}>
             <TextInput
-              ref={nameInputRef}
               style={[styles.name, { color: c.fg }]}
               value={name}
               onChangeText={setName}
@@ -89,28 +87,31 @@ export function ProfileScreen() {
               maxLength={NAME_MAX_LENGTH}
               accessibilityLabel="Profile display name"
             />
-            <Text style={[styles.since, { color: c.sub }]}>Member since 2026</Text>
           </View>
-          <Pressable
-            onPress={() => nameInputRef.current?.focus()}
-            hitSlop={8}
-            accessibilityLabel="Edit profile display name"
-            accessibilityRole="button"
-          >
-            <Icon name="pencil" variant="sub" size={20} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              style={styles.headerIconButton}
+              onPress={() => navigation.navigate('EditProfile')}
+              hitSlop={8}
+              accessibilityLabel="Edit profile"
+              accessibilityRole="button"
+            >
+              <Icon name="pencil" variant="sub" size={20} />
+            </Pressable>
+            <Pressable
+              style={styles.headerIconButton}
+              onPress={() => navigation.navigate('Settings')}
+              hitSlop={8}
+              accessibilityLabel="Open settings"
+              accessibilityRole="button"
+            >
+              <Icon name="cog" variant="sub" size={22} />
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.bodySectionHeader}>
           <Text style={[styles.sectionTitle, { color: c.fg, margin: 0 }]}>Body</Text>
-          <Pressable
-            onPress={() => navigation.navigate('EditProfile')}
-            hitSlop={8}
-            accessibilityLabel="Edit profile"
-            accessibilityRole="button"
-          >
-            <Icon name="pencil" variant="sub" size={20} />
-          </Pressable>
         </View>
         <Card style={styles.bodyCard}>
           <View style={styles.bodyRow}>
@@ -228,7 +229,8 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 18, fontWeight: '700' },
   identity: { flex: 1 },
   name: { fontSize: 18, fontWeight: '700' },
-  since: { fontSize: 13, marginTop: 2 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerIconButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   sectionTitle: { fontSize: 16, fontWeight: '700', margin: 16, marginBottom: 8 },
   empty: { textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
   recordCard: { marginHorizontal: 16, marginBottom: 10 },

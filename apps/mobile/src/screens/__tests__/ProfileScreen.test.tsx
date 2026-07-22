@@ -22,12 +22,25 @@ const mockSetThemeMode = setThemeMode as jest.MockedFunction<typeof setThemeMode
 const mockSetProfileName = setProfileName as jest.MockedFunction<typeof setProfileName>;
 const mockGetProfile = getProfile as jest.MockedFunction<typeof getProfile>;
 
-type TestParamList = { Profile: undefined; Measurements: undefined };
+type TestParamList = {
+  Profile: undefined;
+  EditProfile: undefined;
+  Measurements: undefined;
+  Settings: undefined;
+};
 
 const Stack = createNativeStackNavigator<TestParamList>();
 
 function MeasurementsStub() {
   return <Text>Measurements destination</Text>;
+}
+
+function EditProfileStub() {
+  return <Text>Edit profile destination</Text>;
+}
+
+function SettingsStub() {
+  return <Text>Settings destination</Text>;
 }
 
 async function renderProfile() {
@@ -36,7 +49,9 @@ async function renderProfile() {
       <NavigationContainer>
         <Stack.Navigator>
           <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="EditProfile" component={EditProfileStub} />
           <Stack.Screen name="Measurements" component={MeasurementsStub} />
+          <Stack.Screen name="Settings" component={SettingsStub} />
         </Stack.Navigator>
       </NavigationContainer>
     </ThemeProvider>
@@ -85,6 +100,34 @@ test('loads the previously persisted preference on mount', async () => {
   await waitFor(() =>
     expect(getByLabelText('Use Dark theme').props.accessibilityState).toEqual({ selected: true })
   );
+});
+
+test('shows profile header actions without member since copy or a Body edit icon', async () => {
+  const { getAllByLabelText, queryByText, getByDisplayValue } = await renderProfile();
+
+  await waitFor(() => expect(getByDisplayValue('Alex Rivera')).toBeTruthy());
+
+  expect(queryByText('Member since 2026')).toBeNull();
+  expect(getAllByLabelText('Edit profile')).toHaveLength(1);
+  expect(getAllByLabelText('Open settings')).toHaveLength(1);
+});
+
+test('opens edit profile from the profile header pencil', async () => {
+  const { getByLabelText, getByText, getByDisplayValue } = await renderProfile();
+
+  await waitFor(() => expect(getByDisplayValue('Alex Rivera')).toBeTruthy());
+  fireEvent.press(getByLabelText('Edit profile'));
+
+  await waitFor(() => expect(getByText('Edit profile destination')).toBeTruthy());
+});
+
+test('opens settings from the profile header settings icon', async () => {
+  const { getByLabelText, getByText, getByDisplayValue } = await renderProfile();
+
+  await waitFor(() => expect(getByDisplayValue('Alex Rivera')).toBeTruthy());
+  fireEvent.press(getByLabelText('Open settings'));
+
+  await waitFor(() => expect(getByText('Settings destination')).toBeTruthy());
 });
 
 test('clearing the name persists an empty string, no placeholder fallback', async () => {
