@@ -579,6 +579,23 @@ export async function finishWorkout(db: DatabaseExecutor, workoutId: string): Pr
 }
 
 /**
+ * Updates the display name for an existing workout.
+ *
+ * Exposed as `store.workouts.updateName`. Historical workout editing currently
+ * only allows name changes, leaving the logged exercise structure untouched.
+ */
+export async function updateWorkoutName(
+  db: DatabaseExecutor,
+  workoutId: string,
+  name: string
+): Promise<void> {
+  await db.runAsync('UPDATE workouts SET name = $name WHERE id = $id', {
+    $id: workoutId,
+    $name: name,
+  });
+}
+
+/**
  * Permanently deletes a workout and its cascade-owned exercise and set rows.
  *
  * Exposed only on the transaction-bound store as `store.workouts.remove`. Home,
