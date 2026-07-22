@@ -481,13 +481,6 @@ function RoutineDraftFrame() {
     meta,
   } = useRoutineDraft();
 
-  const renderItem = useCallback(
-    ({ item, index }: { item: RoutineExerciseDraft; index: number }) => (
-      <RoutineExerciseDraftItem item={item} index={index} />
-    ),
-    []
-  );
-
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: c.bg }]}>
@@ -510,6 +503,41 @@ function RoutineDraftFrame() {
     );
   }
 
+  return <RoutineDraftList draft={draft} submitting={submitting} />;
+}
+
+type RoutineDraftListProps = Readonly<{
+  draft: RoutineDraft;
+  submitting: boolean;
+}>;
+
+function RoutineDraftList({ draft, submitting }: RoutineDraftListProps) {
+  const c = useTheme();
+  const {
+    actions,
+    meta,
+  } = useRoutineDraft();
+  const exerciseListRef = useRef<FlatList<RoutineExerciseDraft> | null>(null);
+  const previousExerciseCount = useRef(draft.exercises.length);
+  const renderItem = useCallback(
+    ({ item, index }: { item: RoutineExerciseDraft; index: number }) => (
+      <RoutineExerciseDraftItem item={item} index={index} />
+    ),
+    []
+  );
+
+  useEffect(() => {
+    const exerciseCount = draft.exercises.length;
+    const previousCount = previousExerciseCount.current;
+    previousExerciseCount.current = exerciseCount;
+    if (exerciseCount <= previousCount) return;
+    exerciseListRef.current?.scrollToIndex({
+      index: exerciseCount - 1,
+      animated: true,
+      viewPosition: 1,
+    });
+  }, [draft.exercises.length]);
+
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <ScreenHeader
@@ -525,12 +553,14 @@ function RoutineDraftFrame() {
         }
       />
       <FlatList
+        ref={exerciseListRef}
         data={draft.exercises}
         keyExtractor={(item) => item.localId}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={<RoutineDraftFields />}
         renderItem={renderItem}
         renderScrollComponent={KeyboardAwareListScrollView}
+        onScrollToIndexFailed={() => exerciseListRef.current?.scrollToEnd({ animated: true })}
         testID="routine-keyboard-aware-scroll-view"
         ListFooterComponent={
           <PillButton

@@ -1,6 +1,8 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import type { ComponentProps } from 'react';
+import { FlatList, Text } from 'react-native';
 
 import { getRecordEventsForWorkout } from '../../db/repositories/personalRecords';
 import {
@@ -9,7 +11,7 @@ import {
   moveWorkoutExercise,
 } from '../../db/repositories/workouts';
 import { mobileStore } from '../../db/mobileStore';
-import type { WorkoutDetail } from '../../db/types';
+import type { WorkoutDetail, WorkoutExercise } from '../../db/types';
 import { deferred } from '../../test-utils/async';
 import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 
@@ -28,7 +30,7 @@ const mockMoveWorkoutExercise = moveWorkoutExercise as jest.MockedFunction<
   typeof moveWorkoutExercise
 >;
 
-type TestParamList = { ActiveWorkout: { workoutId: string } };
+type TestParamList = { ActiveWorkout: { workoutId: string; pickedExerciseId?: string } };
 
 const Stack = createNativeStackNavigator<TestParamList>();
 
@@ -82,6 +84,17 @@ const workoutDetail: WorkoutDetail = {
     },
   ],
 };
+
+function ActiveWorkoutWithPickedParam(props: ComponentProps<typeof ActiveWorkoutScreen>) {
+  return (
+    <>
+      <ActiveWorkoutScreen {...props} />
+      <Text onPress={() => props.navigation.setParams({ pickedExerciseId: 'e2' })}>
+        Inject picked exercise
+      </Text>
+    </>
+  );
+}
 
 beforeEach(() => {
   mockGetWorkoutDetail.mockResolvedValue(workoutDetail);
@@ -212,4 +225,60 @@ test('gates repeated reorder presses while persistence is pending', async () => 
     await Promise.resolve();
   });
   active.unmount();
+});
+
+test('scrolls to a newly picked exercise after appending it to an active workout', async () => {
+  const secondExercise = {
+    ...workoutDetail.exercises[0],
+    id: 'we2',
+    exercise_id: 'e2',
+    position: 1,
+    exercise: { ...workoutDetail.exercises[0].exercise, id: 'e2', name: 'Second Exercise' },
+    sets: [],
+  };
+  const addedExercise: WorkoutExercise = {
+    id: 'we2',
+    workout_id: 'w1',
+    exercise_id: 'e2',
+    position: 1,
+    source_routine_exercise_id: null,
+    superset_group_id: null,
+    exercise_type: 'weight_reps',
+    notes: null,
+  };
+  const detailWithPickedExercise: WorkoutDetail = {
+    ...workoutDetail,
+    exercises: [workoutDetail.exercises[0], secondExercise],
+  };
+  const scrollToIndex = jest
+    .spyOn(FlatList.prototype, 'scrollToIndex')
+    .mockImplementation(() => {});
+  jest.spyOn(mobileStore.workouts, 'addExercise').mockResolvedValue(addedExercise);
+  mockGetWorkoutDetail
+    .mockResolvedValueOnce(workoutDetail)
+    .mockResolvedValue(detailWithPickedExercise);
+
+  const active = await render(
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen
+          name="ActiveWorkout"
+          component={ActiveWorkoutWithPickedParam}
+          initialParams={{ workoutId: 'w1' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+
+  await waitFor(() => expect(active.getByText(LONG_EXERCISE_NAME)).toBeTruthy());
+  await act(async () => fireEvent.press(active.getByText('Inject picked exercise')));
+
+  await waitFor(() => expect(active.getByText('Second Exercise')).toBeTruthy());
+  await waitFor(() =>
+    expect(scrollToIndex).toHaveBeenCalledWith({
+      index: 1,
+      animated: true,
+      viewPosition: 1,
+    })
+  );
 });

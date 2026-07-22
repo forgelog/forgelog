@@ -2,7 +2,7 @@ import { CommonActions, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ComponentProps } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert, FlatList, Text } from 'react-native';
 
 import { getExercise } from '../../db/repositories/exercises';
 import { getRoutineDetail, saveRoutineDraft } from '../../db/repositories/routines';
@@ -90,6 +90,21 @@ function makeExercise(id: string, name: string, superset_group_id: string | null
             },
           ]
         : [],
+  };
+}
+
+function makeCatalogExercise(id: string, name: string) {
+  return {
+    id,
+    name,
+    muscle_group: 'back',
+    equipment: 'cable',
+    exercise_type: 'weight_reps',
+    is_custom: false,
+    instructions: [],
+    images: [],
+    secondary_muscles: [],
+    created_at: new Date().toISOString(),
   };
 }
 
@@ -340,6 +355,30 @@ test('picked exercise read failures show an alert instead of rejecting', async (
   );
   expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
 });
+
+test.each([
+  ['create', {}, 0],
+  ['edit', { routineId: 'r1' }, routineDetail.exercises.length],
+] as const)(
+  'scrolls to a newly picked exercise after appending it while in %s mode',
+  async (_, params, expectedIndex) => {
+    mockGetExercise.mockResolvedValue(makeCatalogExercise('ex3', 'Lat Pulldown'));
+    const scrollToIndex = jest
+      .spyOn(FlatList.prototype, 'scrollToIndex')
+      .mockImplementation(() => {});
+
+    const editor = await renderEditor({ ...params, pickedExerciseId: 'ex3' });
+
+    await waitFor(() => expect(editor.getByText('Lat Pulldown')).toBeTruthy());
+    await waitFor(() =>
+      expect(scrollToIndex).toHaveBeenCalledWith({
+        index: expectedIndex,
+        animated: true,
+        viewPosition: 1,
+      })
+    );
+  }
+);
 
 test('dirty close prompt keeps editing until Discard is pressed', async () => {
   const { getByDisplayValue, getByLabelText, getByText, queryByText } = await renderEditor({
