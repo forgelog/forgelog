@@ -115,7 +115,7 @@ export function findRoutineStructureChanges(
       (exercise) =>
         Boolean(exercise.source_routine_exercise_id) &&
         routineExercisesById.has(exercise.source_routine_exercise_id ?? '')
-    );
+    ) && new Set(sourcedExerciseIds).size === sourcedExerciseIds.length;
   const exerciseMembershipChanged = hasExerciseMembershipChange({
     hasExplicitlyNewExercise,
     hasReliableExerciseOrigins,
@@ -158,7 +158,14 @@ export function findRoutineStructureChanges(
     }
   });
 
-  if (!sameNestedArray(supersetGroups(routine.exercises), supersetGroups(workout.exercises))) {
+  const supersetKeys = supersetIdentityKeys(
+    routine.exercises,
+    workout.exercises,
+    routineExercisesById
+  );
+  const routineSupersetGroups = supersetGroups(routine.exercises, supersetKeys.routine);
+  const workoutSupersetGroups = supersetGroups(workout.exercises, supersetKeys.workout);
+  if (!sameNestedArray(routineSupersetGroups, workoutSupersetGroups)) {
     kinds.add('superset-grouping');
   }
 
@@ -222,16 +229,16 @@ function hasSetMembershipChange(
 
   const routineSetIds = new Set(routineSets.map((set) => set.id));
   if (workoutSets.some((set) => set.source_routine_set_id === null)) return true;
-  const hasReliableSetOrigins = workoutSets.every(
-    (set) =>
-      Boolean(set.source_routine_set_id) && routineSetIds.has(set.source_routine_set_id ?? '')
-  );
-  if (!hasReliableSetOrigins) return routineSets.length !== workoutSets.length;
   const sourcedSetIds = workoutSets.flatMap((set) =>
     set.source_routine_set_id && routineSetIds.has(set.source_routine_set_id)
       ? [set.source_routine_set_id]
       : []
   );
+  const hasReliableSetOrigins = workoutSets.every(
+    (set) =>
+      Boolean(set.source_routine_set_id) && routineSetIds.has(set.source_routine_set_id ?? '')
+  ) && new Set(sourcedSetIds).size === sourcedSetIds.length;
+  if (!hasReliableSetOrigins) return routineSets.length !== workoutSets.length;
   return (
     sourcedSetIds.length !== workoutSets.length ||
     routineSets.some((set) => !sourcedSetIds.includes(set.id))
@@ -358,8 +365,42 @@ function occurrenceKeys<T>(values: T[], keyOf: (value: T) => string): string[] {
   });
 }
 
-function supersetGroups(exercises: { exercise_id: string; superset_group_id: string | null }[]) {
-  const keys = occurrenceKeys(exercises, (exercise) => exercise.exercise_id);
+function supersetIdentityKeys(
+  routineExercises: RoutineExerciseSource[],
+  workoutExercises: WorkoutExerciseSource[],
+  routineExercisesById: Map<string, RoutineExerciseSource>
+): { routine: string[]; workout: string[] } {
+  const hasValidOrigin = workoutExercises.some(
+    (exercise) =>
+      Boolean(exercise.source_routine_exercise_id) &&
+      routineExercisesById.has(exercise.source_routine_exercise_id ?? '')
+  );
+  if (!hasValidOrigin) {
+    return {
+      routine: occurrenceKeys(routineExercises, (exercise) => exercise.exercise_id),
+      workout: occurrenceKeys(workoutExercises, (exercise) => exercise.exercise_id),
+    };
+  }
+
+  const usedSourceIds = new Set<string>();
+  const fallbackKeys = occurrenceKeys(workoutExercises, (exercise) => exercise.exercise_id);
+  return {
+    routine: routineExercises.map((exercise) => `source:${exercise.id}`),
+    workout: workoutExercises.map((exercise, index) => {
+      const sourceId = exercise.source_routine_exercise_id;
+      if (sourceId && routineExercisesById.has(sourceId) && !usedSourceIds.has(sourceId)) {
+        usedSourceIds.add(sourceId);
+        return `source:${sourceId}`;
+      }
+      return `workout:${fallbackKeys[index]}`;
+    }),
+  };
+}
+
+function supersetGroups<T extends { superset_group_id: string | null }>(
+  exercises: T[],
+  keys: string[]
+) {
   const groups = new Map<string, string[]>();
   exercises.forEach((exercise, index) => {
     if (!exercise.superset_group_id) return;

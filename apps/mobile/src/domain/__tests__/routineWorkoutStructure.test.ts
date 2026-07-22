@@ -316,3 +316,120 @@ test('a same-position replacement set is structural and remains targetless', () 
       .sets[0]
   ).toMatchObject({ target_weight: null, target_reps: null });
 });
+
+test('duplicate exercise origins fall back to occurrence-based membership comparison', () => {
+  const sourceExercise = workout().exercises[0];
+  const duplicateOriginWorkout = workout({
+    exercises: [
+      sourceExercise,
+      {
+        ...sourceExercise,
+        id: 'workout-exercise-bench-duplicate',
+        position: 1,
+      },
+    ],
+  });
+
+  expect(
+    findRoutineStructureChanges(routine(), duplicateOriginWorkout).map((change) => change.kind)
+  ).toEqual(['exercises-added-or-removed']);
+});
+
+test('duplicate set origins count as a set membership change', () => {
+  const sourceSet = workout().exercises[0].sets[0];
+  const duplicateOriginWorkout = workout({
+    exercises: [
+      {
+        ...workout().exercises[0],
+        sets: [
+          sourceSet,
+          {
+            ...sourceSet,
+            id: 'workout-set-bench-duplicate',
+            position: 1,
+          },
+        ],
+      },
+    ],
+  });
+
+  expect(
+    findRoutineStructureChanges(routine(), duplicateOriginWorkout).map((change) => change.kind)
+  ).toContain('sets-added-or-removed');
+});
+
+test('reordering duplicate exercises preserves source-based superset membership', () => {
+  const routineExercise = { ...routine().exercises[0], sets: [], superset_group_id: 'pair-a' };
+  const duplicateRoutineExercise = {
+    ...routineExercise,
+    id: 'routine-exercise-bench-duplicate',
+    position: 1,
+    superset_group_id: null,
+  };
+  const sourceWorkoutExercise = {
+    ...workout().exercises[0],
+    sets: [],
+    superset_group_id: 'pair-a',
+  };
+  const duplicateWorkoutExercise = {
+    ...sourceWorkoutExercise,
+    id: 'workout-exercise-bench-duplicate',
+    position: 0,
+    source_routine_exercise_id: duplicateRoutineExercise.id,
+    superset_group_id: null,
+  };
+
+  expect(
+    findRoutineStructureChanges(
+      routine({ exercises: [routineExercise, duplicateRoutineExercise] }),
+      workout({
+        exercises: [duplicateWorkoutExercise, { ...sourceWorkoutExercise, position: 1 }],
+      })
+    ).map((change) => change.kind)
+  ).toEqual(['exercise-order']);
+});
+
+test('inserting a new duplicate preserves retained superset membership', () => {
+  const benchRoutineExercise = {
+    ...routine().exercises[0],
+    sets: [],
+    superset_group_id: 'pair-a',
+  };
+  const rowRoutineExercise = {
+    ...benchRoutineExercise,
+    id: 'routine-exercise-row',
+    exercise_id: 'row',
+    position: 1,
+    exercise: exercise('row', 'Row'),
+  };
+  const benchWorkoutExercise = {
+    ...workout().exercises[0],
+    position: 1,
+    sets: [],
+    superset_group_id: 'pair-a',
+  };
+  const newBenchWorkoutExercise = {
+    ...benchWorkoutExercise,
+    id: 'workout-exercise-bench-new',
+    position: 0,
+    source_routine_exercise_id: null,
+    superset_group_id: null,
+  };
+  const rowWorkoutExercise = {
+    ...benchWorkoutExercise,
+    id: 'workout-exercise-row',
+    exercise_id: 'row',
+    position: 2,
+    source_routine_exercise_id: rowRoutineExercise.id,
+    exercise: exercise('row', 'Row'),
+  };
+
+  expect(
+    findRoutineStructureChanges(
+      routine({ exercises: [benchRoutineExercise, rowRoutineExercise] }),
+      workout({
+        exercises: [newBenchWorkoutExercise, benchWorkoutExercise, rowWorkoutExercise],
+      })
+    ).map((change) => change.kind)
+  ).toEqual(['exercises-added-or-removed']);
+});
