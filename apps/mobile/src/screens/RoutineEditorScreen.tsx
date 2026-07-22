@@ -88,6 +88,7 @@ type RoutineDraftController = {
     save(): Promise<boolean>;
     close(): void;
     openExercisePicker(): void;
+    openExerciseDetails(exerciseId: string): void;
   };
   meta: {
     mode: RoutineEditorMode;
@@ -415,6 +416,11 @@ function RoutineDraftProvider({
     navigation.navigate('ExerciseLibrary', { mode: 'pick', returnTo: 'RoutineEditor' });
   }, [navigation]);
 
+  const openExerciseDetails = useCallback(
+    (exerciseId: string) => navigation.navigate('ExerciseDetail', { exerciseId }),
+    [navigation]
+  );
+
   const controller = useMemo<RoutineDraftController>(
     () => ({
       state: { draft, loading, loadFailed, dirty, submitting, nameError, notesError },
@@ -430,6 +436,7 @@ function RoutineDraftProvider({
         save,
         close,
         openExercisePicker,
+        openExerciseDetails,
       },
       meta: { mode },
     }),
@@ -445,6 +452,7 @@ function RoutineDraftProvider({
       nameError,
       notesError,
       openExercisePicker,
+      openExerciseDetails,
       removeExercise,
       removeSet,
       save,
@@ -603,9 +611,24 @@ function RoutineExerciseDraftItem({ item, index }: RoutineExerciseDraftItemProps
   return (
     <View style={[styles.exercise, { borderTopColor: c.sep }]}>
       <View style={styles.exerciseHeader}>
-        <Text style={[styles.exerciseName, { color: c.fg }]} numberOfLines={1} ellipsizeMode="tail">
-          {item.exercise.name}
-        </Text>
+        <Pressable
+          style={styles.exerciseNameRow}
+          onPress={() => actions.openExerciseDetails(item.exercise.id)}
+          disabled={submitting}
+          hitSlop={8}
+          accessibilityState={submitting ? { disabled: true } : undefined}
+          accessibilityLabel={`View ${item.exercise.name} details`}
+          accessibilityRole="button"
+        >
+          <Text
+            style={[styles.exerciseName, { color: c.fg }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {item.exercise.name}
+          </Text>
+          <Icon name="information-outline" variant="sub" size={18} />
+        </Pressable>
         <View style={styles.headerActions}>
           <Pressable
             onPress={() => actions.moveExercise(index, -1)}
@@ -730,7 +753,8 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 12, marginTop: -4 },
   exercise: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  exerciseName: { fontSize: 16, fontWeight: '700', flex: 1, minWidth: 0 },
+  exerciseNameRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  exerciseName: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   setRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 },
   setIndex: { width: 20, fontSize: 13 },

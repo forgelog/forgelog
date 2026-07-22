@@ -211,6 +211,29 @@ test('removes an exercise through its options menu', async () => {
   removeFlow.unmount();
 });
 
+test('reorders exercises and persists the new workout order', async () => {
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const squat = await seededExercise('Barbell Squat');
+  const workout = await startWorkout({ name: 'Reorder Exercises' });
+  await addExerciseToWorkout(workout.id, bench.id);
+  await addExerciseToWorkout(workout.id, squat.id);
+  const active = await renderActiveWorkout(workout.id);
+
+  const moveSquatUp = await waitFor(() => active.getByLabelText(`Move ${squat.name} up`));
+  await act(async () => fireEvent.press(moveSquatUp));
+
+  await waitFor(() => {
+    expect(
+      active.getAllByTestId(/workout-exercise-\d+-name/).map((node) => node.props.children)
+    ).toEqual([squat.name, bench.name]);
+  });
+  await waitFor(async () => {
+    expect(
+      (await getWorkoutDetail(workout.id))?.exercises.map((item) => item.exercise.name)
+    ).toEqual([squat.name, bench.name]);
+  });
+});
+
 test('finishes a workout', async () => {
   const finishBench = await seededExercise('Barbell Bench Press - Medium Grip');
   const finishWorkoutRow = await startWorkout({ name: 'Finish Me' });

@@ -197,6 +197,24 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     patchExercise(we.id, (w) => ({ ...w, sets: [...w.sets, created] }));
   }
 
+  async function moveExercise(index: number, delta: -1 | 1) {
+    const targetIndex = index + delta;
+    if (!detail || targetIndex < 0 || targetIndex >= detail.exercises.length) return;
+    const exercise = detail.exercises[index];
+    setDetail((current) => {
+      if (!current) return current;
+      const exercises = [...current.exercises];
+      [exercises[index], exercises[targetIndex]] = [exercises[targetIndex], exercises[index]];
+      return { ...current, exercises };
+    });
+    try {
+      await mobileStore.workouts.moveExercise(exercise.id, delta);
+    } catch {
+      Alert.alert('Save failed', 'Could not reorder exercise.');
+      reload();
+    }
+  }
+
   async function editSetField(
     weId: string,
     exerciseId: string,
@@ -416,6 +434,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
             prevSets={prevSets}
             prSetIds={prSetIds}
             onOpenExercise={(exerciseId) => navigation.navigate('ExerciseDetail', { exerciseId })}
+            onMoveExercise={moveExercise}
             onOpenOptions={showExerciseOptions}
             onEditSetField={editSetField}
             onToggleComplete={toggleComplete}
@@ -533,6 +552,7 @@ type ActiveWorkoutExerciseItemProps = Readonly<{
   prevSets: Record<string, LoggedSet[]>;
   prSetIds: Set<string>;
   onOpenExercise: (exerciseId: string) => void;
+  onMoveExercise: (index: number, delta: -1 | 1) => void;
   onOpenOptions: (exercise: WorkoutExerciseDetail) => void;
   onEditSetField: (
     weId: string,
@@ -552,6 +572,7 @@ function ActiveWorkoutExerciseItem({
   prevSets,
   prSetIds,
   onOpenExercise,
+  onMoveExercise,
   onOpenOptions,
   onEditSetField,
   onToggleComplete,
@@ -569,25 +590,48 @@ function ActiveWorkoutExerciseItem({
           style={styles.exerciseNameRow}
           onPress={() => onOpenExercise(item.exercise.id)}
           hitSlop={8}
+          accessibilityLabel={`View ${item.exercise.name} details`}
+          accessibilityRole="button"
         >
           <Text
             style={[styles.exerciseName, { color: c.fg }]}
             numberOfLines={1}
             ellipsizeMode="tail"
+            testID={`workout-exercise-${index}-name`}
           >
             {item.exercise.name}
           </Text>
           <Icon name="information-outline" variant="sub" size={18} />
         </Pressable>
-        <Pressable
-          onPress={() => onOpenOptions(item)}
-          hitSlop={8}
-          accessibilityLabel={`Exercise options ${item.exercise.name}`}
-          accessibilityRole="button"
-          testID={`workout-exercise-${index}-options`}
-        >
-          <Icon name="dots-vertical" variant="sub" size={20} />
-        </Pressable>
+        <View style={styles.exerciseHeaderActions}>
+          <Pressable
+            onPress={() => onMoveExercise(index, -1)}
+            hitSlop={8}
+            accessibilityLabel={`Move ${item.exercise.name} up`}
+            accessibilityRole="button"
+            testID={`workout-exercise-${index}-move-up`}
+          >
+            <Icon name="chevron-up" variant="sub" size={20} />
+          </Pressable>
+          <Pressable
+            onPress={() => onMoveExercise(index, 1)}
+            hitSlop={8}
+            accessibilityLabel={`Move ${item.exercise.name} down`}
+            accessibilityRole="button"
+            testID={`workout-exercise-${index}-move-down`}
+          >
+            <Icon name="chevron-down" variant="sub" size={20} />
+          </Pressable>
+          <Pressable
+            onPress={() => onOpenOptions(item)}
+            hitSlop={8}
+            accessibilityLabel={`Exercise options ${item.exercise.name}`}
+            accessibilityRole="button"
+            testID={`workout-exercise-${index}-options`}
+          >
+            <Icon name="dots-vertical" variant="sub" size={20} />
+          </Pressable>
+        </View>
       </View>
       <View style={styles.columnHeader}>
         <Text style={[styles.columnLabel, styles.setColumn, { color: c.sub }]}>SET</Text>
@@ -862,6 +906,7 @@ const styles = StyleSheet.create({
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   exerciseNameRow: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
   exerciseName: { fontSize: 16, fontWeight: '700', flexShrink: 1 },
+  exerciseHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   sheet: { paddingHorizontal: 16, paddingTop: 8 },
   sheetSafeArea: { gap: 4 },
   sheetHeader: {
