@@ -109,6 +109,10 @@ export function HomeScreen() {
     navigation.navigate('RoutineEditor', {});
   }
 
+  function handleBrowseRoutineTemplates() {
+    navigation.navigate('RoutineTemplatePicker');
+  }
+
   function showRoutineActions(routine: RoutineSummary) {
     setRoutineSheet({ routine, mode: 'actions' });
   }
@@ -167,15 +171,27 @@ export function HomeScreen() {
             />
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, { color: c.fg }]}>My Routines</Text>
-              <Pressable
-                style={[styles.addButton, { backgroundColor: c.accent }]}
-                onPress={handleCreateRoutine}
-                accessibilityLabel="Create routine"
-                accessibilityRole="button"
-                testID="create-routine"
-              >
-                <Icon name="plus" color="#fff" size={20} />
-              </Pressable>
+              <View style={styles.routineActions}>
+                <Pressable
+                  style={[styles.templateButton, { borderColor: c.chipbd }]}
+                  onPress={handleBrowseRoutineTemplates}
+                  accessibilityLabel="Browse routine templates"
+                  accessibilityRole="button"
+                  testID="browse-routine-templates"
+                >
+                  <Icon name="view-grid-outline" variant="accent" size={17} />
+                  <Text style={[styles.templateButtonText, { color: c.accent }]}>Templates</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.addButton, { backgroundColor: c.accent }]}
+                  onPress={handleCreateRoutine}
+                  accessibilityLabel="Create routine"
+                  accessibilityRole="button"
+                  testID="create-routine"
+                >
+                  <Icon name="plus" color="#fff" size={20} />
+                </Pressable>
+              </View>
             </View>
           </View>
         }
@@ -239,7 +255,7 @@ type HomeEmptyStateProps = Readonly<{
 
 function HomeEmptyState({ loading, loadFailed }: HomeEmptyStateProps) {
   const c = useTheme();
-  let message = 'No routines yet. Create one above.';
+  let message = 'No routines yet. Create one or start from a template above.';
   if (loading) {
     message = 'Loading routines...';
   } else if (loadFailed) {
@@ -396,6 +412,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700' },
+  routineActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  templateButton: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 22,
+    paddingHorizontal: 10,
+  },
+  templateButtonText: { fontSize: 13, fontWeight: '700' },
   addButton: {
     width: 32,
     height: 32,

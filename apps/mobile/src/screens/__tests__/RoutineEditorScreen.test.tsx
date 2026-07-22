@@ -242,6 +242,64 @@ test('new routine starts empty and Save shows missing-name validation', async ()
   expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
 });
 
+test('template mode seeds an editable new routine and saves without a routine id', async () => {
+  const namesById: Record<string, string> = {
+    Barbell_Full_Squat: 'Barbell Full Squat',
+    'Barbell_Bench_Press_-_Medium_Grip': 'Barbell Bench Press - Medium Grip',
+    Bent_Over_Barbell_Row: 'Bent Over Barbell Row',
+    Dumbbell_Shoulder_Press: 'Dumbbell Shoulder Press',
+    Romanian_Deadlift: 'Romanian Deadlift',
+  };
+  mockGetExercise.mockImplementation(async (_db, exerciseId) => ({
+    id: exerciseId,
+    name: namesById[exerciseId],
+    muscle_group: 'full_body',
+    equipment: 'barbell',
+    exercise_type: 'weight_reps',
+    is_custom: false,
+    instructions: [],
+    images: [],
+    secondary_muscles: [],
+    created_at: '2026-01-01T00:00:00.000Z',
+  }));
+
+  const editor = await renderEditor({ templateId: 'beginner-full-body' });
+
+  await waitFor(() => expect(editor.getByDisplayValue('Beginner Full Body')).toBeTruthy());
+  expect(editor.getByText('Barbell Full Squat')).toBeTruthy();
+  expect(editor.getByText('Romanian Deadlift')).toBeTruthy();
+  expect(mockGetRoutineDetail).not.toHaveBeenCalled();
+
+  await act(async () => fireEvent.press(editor.getByText('Save')));
+
+  await waitFor(() =>
+    expect(mockSaveRoutineDraft).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        routineId: undefined,
+        name: 'Beginner Full Body',
+        exercises: expect.arrayContaining([
+          expect.objectContaining({
+            exercise_id: 'Barbell_Full_Squat',
+            sets: expect.arrayContaining([
+              expect.objectContaining({ target_reps: 8, target_weight: null }),
+            ]),
+          }),
+        ]),
+      })
+    )
+  );
+});
+
+test('an unavailable template shows the load failure state without reading a routine', async () => {
+  const editor = await renderEditor({ templateId: 'missing-template' });
+
+  await waitFor(() => expect(editor.getByText('Could not load routine.')).toBeTruthy());
+  expect(mockGetRoutineDetail).not.toHaveBeenCalled();
+  expect(mockGetExercise).not.toHaveBeenCalled();
+  expect(mockSaveRoutineDraft).not.toHaveBeenCalled();
+});
+
 test('closing an untouched new routine performs no writes or validation', async () => {
   const { getByLabelText, getByText } = await renderEditor({});
 

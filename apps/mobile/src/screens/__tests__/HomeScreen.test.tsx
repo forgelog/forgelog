@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { mobileStore, type RoutineSummary } from '../../db/mobileStore';
@@ -38,11 +38,16 @@ function RoutineEditorStub({ route }: { route: { params?: RootStackParamList['Ro
   return <Text>Create editor routineId: {route.params?.routineId ?? 'none'}</Text>;
 }
 
+function RoutineTemplatePickerStub() {
+  return <Text>Routine template picker</Text>;
+}
+
 function renderHome() {
   return render(
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="RoutineTemplatePicker" component={RoutineTemplatePickerStub} />
         <Stack.Screen name="RoutineEditor" component={RoutineEditorStub as any} />
       </Stack.Navigator>
     </NavigationContainer>
@@ -59,6 +64,18 @@ test('renders the Home screen with a start action', async () => {
   await waitFor(() => expect(getByText('Start Empty Workout')).toBeTruthy());
   expect(getByLabelText('Start Empty Workout')).toBeTruthy();
   expect(getByLabelText('Create routine')).toBeTruthy();
+  const templateButton = getByLabelText('Browse routine templates');
+  expect(templateButton).toBeTruthy();
+  expect(StyleSheet.flatten(templateButton.props.style).minHeight).toBeGreaterThanOrEqual(44);
+});
+
+test('browse routine templates opens the template picker', async () => {
+  const { getByLabelText, getByText } = await renderHome();
+
+  await waitFor(() => expect(getByLabelText('Browse routine templates')).toBeTruthy());
+  fireEvent.press(getByLabelText('Browse routine templates'));
+
+  await waitFor(() => expect(getByText('Routine template picker')).toBeTruthy());
 });
 
 test('create routine opens a new editor draft without a routine id', async () => {
