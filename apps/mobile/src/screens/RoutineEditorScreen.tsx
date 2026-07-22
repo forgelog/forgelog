@@ -43,6 +43,7 @@ import {
   type RoutineExerciseDraft,
   type RoutineSetDraft,
 } from '../domain/routineDraft';
+import { getRoutineTemplate, routineTemplateToDraft } from '../domain/routineTemplates';
 import {
   fieldsForExerciseType,
   requireExerciseType,
@@ -56,7 +57,9 @@ import { NAME_MAX_LENGTH, NOTES_MAX_LENGTH, validateText } from '../validation/t
 type Props = NativeStackScreenProps<RootStackParamList, 'RoutineEditor'>;
 type NavigationAction = Parameters<Props['navigation']['dispatch']>[0];
 
-type RoutineEditorMode = { kind: 'create' } | { kind: 'edit'; routineId: string };
+type RoutineEditorMode =
+  | { kind: 'create'; templateId?: string }
+  | { kind: 'edit'; routineId: string };
 
 type RoutineDraftController = {
   state: {
@@ -102,10 +105,11 @@ const SET_COLUMN: Record<SetFieldKey, keyof RoutineSetDraft> = {
 
 export function RoutineEditorScreen({ route, navigation }: Props) {
   const routineId = route.params?.routineId;
+  const templateId = route.params?.templateId;
   const pickedExerciseId = route.params?.pickedExerciseId;
   const mode: RoutineEditorMode = useMemo(
-    () => (routineId ? { kind: 'edit', routineId } : { kind: 'create' }),
-    [routineId]
+    () => (routineId ? { kind: 'edit', routineId } : { kind: 'create', templateId }),
+    [routineId, templateId]
   );
 
   return mode.kind === 'edit' ? (
@@ -171,7 +175,7 @@ function RoutineDraftProvider({
     let active = true;
     nextLocalId.current = 0;
 
-    if (mode.kind === 'create') {
+    if (mode.kind === 'create' && !mode.templateId) {
       void Promise.resolve().then(() => {
         if (!active) return;
         setDraft(createEmptyRoutineDraft());
@@ -192,6 +196,23 @@ function RoutineDraftProvider({
       setNameError(null);
       setNotesError(null);
       try {
+        if (mode.kind === 'create') {
+          const template = getRoutineTemplate(mode.templateId as string);
+          if (!template) throw new Error('Routine template not found');
+          const exercises = await Promise.all(
+            template.exercises.map(({ exerciseId }) => mobileStore.exercises.get(exerciseId))
+          );
+          if (!active) return;
+          setDraft(
+            routineTemplateToDraft(
+              template,
+              exercises.filter((exercise) => exercise !== null),
+              makeLocalId
+            )
+          );
+          setDirty(false);
+          return;
+        }
         const detail = await mobileStore.routines.getDetail(mode.routineId);
         if (!active) return;
         if (!detail) {

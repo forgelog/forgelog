@@ -74,7 +74,11 @@ function renderHomeStack() {
 test('shows empty routines', async () => {
   const home = await renderHomeStack();
 
-  await waitFor(() => expect(home.getByText('No routines yet. Create one above.')).toBeTruthy());
+  await waitFor(() =>
+    expect(
+      home.getByText('No routines yet. Create one or start from a template above.')
+    ).toBeTruthy()
+  );
 });
 
 test('shows a load-error state when routines fail to load', async () => {
@@ -156,7 +160,9 @@ test('confirms routine deletion inside the bottom sheet', async () => {
   fireEvent.press(deleteFlow.getByLabelText('Confirm delete routine'));
 
   await waitFor(() => expect(deleteFlow.queryByText('Delete Me')).toBeNull());
-  expect(deleteFlow.getByText('No routines yet. Create one above.')).toBeTruthy();
+  expect(
+    deleteFlow.getByText('No routines yet. Create one or start from a template above.')
+  ).toBeTruthy();
 });
 
 test('guards active-workout conflicts when starting a routine', async () => {

@@ -132,6 +132,40 @@ test('new routine with a picked exercise saves the routine and children', async 
   });
 });
 
+test('template draft uses seeded exercises and saves through the normal create flow', async () => {
+  const editor = await renderEditor({ templateId: 'push-day' });
+
+  await waitFor(() => expect(editor.getByDisplayValue('Push Day')).toBeTruthy());
+  expect(editor.getByText('Barbell Bench Press - Medium Grip')).toBeTruthy();
+  expect(editor.getByText('Triceps Pushdown')).toBeTruthy();
+
+  await act(async () =>
+    fireEvent.changeText(editor.getByLabelText('Routine name'), 'My Push Day')
+  );
+  await act(async () => fireEvent.press(editor.getByText('Save')));
+
+  await waitFor(() => expect(editor.getByText('Home screen')).toBeTruthy());
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ id: string }>('SELECT id FROM routines');
+  const saved = await getRoutineDetail(row?.id as string);
+  expect(saved).toMatchObject({
+    name: 'My Push Day',
+    exercises: [
+      expect.objectContaining({
+        exercise_id: 'Barbell_Bench_Press_-_Medium_Grip',
+        sets: [
+          expect.objectContaining({ target_reps: 8 }),
+          expect.objectContaining({ target_reps: 8 }),
+          expect.objectContaining({ target_reps: 8 }),
+        ],
+      }),
+      expect.objectContaining({ exercise_id: 'Dumbbell_Shoulder_Press' }),
+      expect.objectContaining({ exercise_id: 'Side_Lateral_Raise' }),
+      expect.objectContaining({ exercise_id: 'Triceps_Pushdown' }),
+    ],
+  });
+});
+
 test('existing routine edits can be discarded without changing the DB', async () => {
   const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   const routine = await saveRoutineDraft({
