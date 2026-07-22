@@ -14,6 +14,7 @@ import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { RecordMeasurementsScreen } from '../screens/RecordMeasurementsScreen';
 import { RoutineDetailScreen } from '../screens/RoutineDetailScreen';
 import { RoutineEditorScreen } from '../screens/RoutineEditorScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { WorkoutDetailScreen } from '../screens/WorkoutDetailScreen';
 import { MainTabs } from './MainTabs';
 
@@ -26,6 +27,7 @@ export type RootStackParamList = {
     { mode?: 'browse' | 'pick'; returnTo?: 'ActiveWorkout' | 'RoutineEditor' } | undefined;
   Measurements: undefined;
   RecordMeasurements: undefined;
+  Settings: undefined;
   RoutineDetail: { routineId: string };
   RoutineEditor: {
     routineId?: string;
@@ -83,6 +85,7 @@ export function RootNavigator() {
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="Measurements" component={MeasurementsScreen} />
         <Stack.Screen name="RecordMeasurements" component={RecordMeasurementsScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
