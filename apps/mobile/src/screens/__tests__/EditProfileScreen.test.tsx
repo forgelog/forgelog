@@ -59,6 +59,7 @@ beforeEach(() => {
   };
   mockGetProfile.mockResolvedValue(storedProfile);
   mockUpdateProfile.mockImplementation(async (_db, patch) => {
+    if ('bodyweightKg' in patch) throw new Error('Edit Profile must not update bodyweight');
     storedProfile = { ...storedProfile, ...patch };
     mockGetProfile.mockResolvedValue(storedProfile);
   });
