@@ -5,6 +5,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../components/Card';
+import { Icon } from '../components/Icon';
+import { OptionsSheet, OptionsSheetAction, OptionsSheetCancel } from '../components/OptionsSheet';
 import { currentWeekDays, localDateKey, monthLabel } from '../domain/dates';
 import { mobileStore } from '../db/mobileStore';
 import type { Workout } from '../db/types';
@@ -15,12 +17,18 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+type WorkoutSheetState = {
+  workout: Workout;
+  closing?: boolean;
+};
+
 export function HistoryScreen() {
   const c = useTheme();
   const navigation = useNavigation<Nav>();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [workoutSheet, setWorkoutSheet] = useState<WorkoutSheetState | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,6 +61,25 @@ export function HistoryScreen() {
   const weekDays = useMemo(() => currentWeekDays(new Date()), []);
 
   const groups = useMemo(() => groupByMonth(workouts), [workouts]);
+
+  function showWorkoutActions(workout: Workout) {
+    setWorkoutSheet({ workout });
+  }
+
+  const closeWorkoutSheet = useCallback(() => {
+    setWorkoutSheet((current) =>
+      !current || current.closing ? current : { ...current, closing: true }
+    );
+  }, []);
+
+  const handleWorkoutSheetClosed = useCallback(() => {
+    setWorkoutSheet(null);
+  }, []);
+
+  function handleSaveWorkoutAsRoutine(workout: Workout) {
+    setWorkoutSheet(null);
+    navigation.navigate('RoutineEditor', { sourceWorkoutId: workout.id });
+  }
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]}>
@@ -92,8 +119,15 @@ export function HistoryScreen() {
           workouts={workouts}
           groups={groups}
           onOpenWorkout={(workoutId) => navigation.navigate('WorkoutDetail', { workoutId })}
+          onOpenWorkoutOptions={showWorkoutActions}
         />
       </ScrollView>
+      <WorkoutActionsSheet
+        state={workoutSheet}
+        onClose={closeWorkoutSheet}
+        onClosed={handleWorkoutSheetClosed}
+        onSaveAsRoutine={handleSaveWorkoutAsRoutine}
+      />
     </SafeAreaView>
   );
 }
@@ -106,9 +140,17 @@ type HistoryListProps = Readonly<{
   workouts: Workout[];
   groups: MonthGroup[];
   onOpenWorkout: (workoutId: string) => void;
+  onOpenWorkoutOptions: (workout: Workout) => void;
 }>;
 
-function HistoryList({ loading, loadFailed, workouts, groups, onOpenWorkout }: HistoryListProps) {
+function HistoryList({
+  loading,
+  loadFailed,
+  workouts,
+  groups,
+  onOpenWorkout,
+  onOpenWorkoutOptions,
+}: HistoryListProps) {
   const c = useTheme();
 
   if (loading) {
@@ -128,20 +170,70 @@ function HistoryList({ loading, loadFailed, workouts, groups, onOpenWorkout }: H
       <Text style={[styles.monthHeader, { color: c.sub }]}>{group.month}</Text>
       {group.workouts.map((item) => (
         <Card key={item.id} style={styles.workoutCard}>
-          <Pressable
-            onPress={() => onOpenWorkout(item.id)}
-            accessibilityLabel={`Open workout ${item.name}`}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.name, { color: c.fg }]}>{item.name}</Text>
-            <Text style={[styles.meta, { color: c.sub }]}>
-              {formatDate(item.started_at)} · {formatDuration(item.started_at, item.ended_at)}
-            </Text>
-          </Pressable>
+          <View style={styles.workoutRow}>
+            <Pressable
+              style={styles.workoutMain}
+              onPress={() => onOpenWorkout(item.id)}
+              accessibilityLabel={`Open workout ${item.name}`}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.name, { color: c.fg }]} numberOfLines={1} ellipsizeMode="tail">
+                {item.name}
+              </Text>
+              <Text style={[styles.meta, { color: c.sub }]}>
+                {formatDate(item.started_at)} · {formatDuration(item.started_at, item.ended_at)}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.optionsButton}
+              hitSlop={8}
+              onPress={() => onOpenWorkoutOptions(item)}
+              accessibilityLabel={`Workout options ${item.name}`}
+              accessibilityRole="button"
+            >
+              <Icon name="dots-vertical" variant="sub" size={20} />
+            </Pressable>
+          </View>
         </Card>
       ))}
     </View>
   ));
+}
+
+type WorkoutActionsSheetProps = Readonly<{
+  state: WorkoutSheetState | null;
+  onClose: () => void;
+  onClosed: () => void;
+  onSaveAsRoutine: (workout: Workout) => void;
+}>;
+
+function WorkoutActionsSheet({
+  state,
+  onClose,
+  onClosed,
+  onSaveAsRoutine,
+}: WorkoutActionsSheetProps) {
+  if (!state) return null;
+
+  const { workout } = state;
+
+  return (
+    <OptionsSheet
+      title={workout.name}
+      testID="workout-actions-sheet"
+      closing={state.closing}
+      onClosed={onClosed}
+    >
+      <OptionsSheetAction
+        label="Save as routine"
+        icon="content-save-outline"
+        onPress={() => onSaveAsRoutine(workout)}
+        accessibilityLabel={`Save as routine from ${workout.name}`}
+        testID="workout-action-save-as-routine"
+      />
+      <OptionsSheetCancel onPress={onClose} accessibilityLabel="Cancel workout options" />
+    </OptionsSheet>
+  );
 }
 
 function groupByMonth(workouts: Workout[]): MonthGroup[] {
@@ -180,6 +272,15 @@ const styles = StyleSheet.create({
   empty: { textAlign: 'center', marginTop: 24 },
   monthHeader: { fontSize: 13, fontWeight: '700', marginBottom: 8, marginTop: 8, textTransform: 'uppercase' },
   workoutCard: { marginBottom: 10 },
+  workoutRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  workoutMain: { flex: 1, minWidth: 0 },
+  optionsButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   name: { fontSize: 16, fontWeight: '700' },
   meta: { marginTop: 4, fontSize: 13 },
 });

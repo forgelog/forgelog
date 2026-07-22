@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, waitFor } from '@testing-library/react-native';
+import { act, cleanup, fireEvent, waitFor } from '@testing-library/react-native';
 
 import { currentWeekDays, monthLabel } from '../../domain/dates';
 import { getDb, resetDbForTests } from '../../db/index';
@@ -10,9 +10,13 @@ import {
 } from '../../test-utils/db';
 import { renderWithStack } from '../../test-utils/render';
 import { HistoryScreen } from '../HistoryScreen';
+import { RoutineEditorScreen } from '../RoutineEditorScreen';
 import { WorkoutDetailScreen } from '../WorkoutDetailScreen';
 
+jest.mock('@expo/ui/community/bottom-sheet');
+
 const { replaceCurrentForExercise: replaceRecordsForExercise } = mobileStore.records;
+const { getDetail: getRoutineDetail } = mobileStore.routines;
 const {
   addExercise: addExerciseToWorkout,
   addSet,
@@ -52,6 +56,7 @@ function renderHistoryStack() {
   return renderWithStack<TestStackParamList>([
     { name: 'History', component: HistoryScreen },
     { name: 'WorkoutDetail', component: WorkoutDetailScreen },
+    { name: 'RoutineEditor', component: RoutineEditorScreen },
   ]);
 }
 
@@ -76,6 +81,45 @@ test('groups finished workouts by month and opens workout detail', async () => {
 
   await waitFor(() => expect(getByText('100 kg × 5 reps')).toBeTruthy());
   expect(getByText('Done')).toBeTruthy();
+});
+
+test('saves a historical workout as an editable routine draft', async () => {
+  await createFinishedBenchWorkout('Phase Six Push');
+  const history = await renderHistoryStack();
+
+  await waitFor(() => expect(history.getByLabelText('Workout options Phase Six Push')).toBeTruthy());
+  fireEvent.press(history.getByLabelText('Workout options Phase Six Push'));
+
+  await waitFor(() => expect(history.getByTestId('workout-actions-sheet')).toBeTruthy());
+  fireEvent.press(history.getByLabelText('Save as routine from Phase Six Push'));
+
+  await waitFor(() => expect(history.getByDisplayValue('Phase Six Push')).toBeTruthy());
+  expect(history.getByText('Barbell Bench Press - Medium Grip')).toBeTruthy();
+  expect(history.getByTestId('routine-set-0-0-weight').props.value).toBe('100');
+  expect(history.getByTestId('routine-set-0-0-reps').props.value).toBe('5');
+
+  await act(async () => fireEvent.changeText(history.getByLabelText('Routine name'), 'Saved Push'));
+  await act(async () => fireEvent.press(history.getByText('Save')));
+
+  const db = await getDb();
+  const row = await waitFor(async () => {
+    const savedRow = await db.getFirstAsync<{ id: string }>(
+      'SELECT id FROM routines WHERE name = $name',
+      { $name: 'Saved Push' }
+    );
+    if (!savedRow) throw new Error('Routine not saved yet');
+    return savedRow;
+  });
+  const saved = await getRoutineDetail(row.id);
+  expect(saved).toMatchObject({
+    name: 'Saved Push',
+    exercises: [
+      expect.objectContaining({
+        exercise_id: 'Barbell_Bench_Press_-_Medium_Grip',
+        sets: [expect.objectContaining({ target_weight: 100, target_reps: 5 })],
+      }),
+    ],
+  });
 });
 
 test('reports a repository load failure', async () => {

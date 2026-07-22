@@ -39,6 +39,7 @@ import {
   updateDraftNotes,
   updateDraftSetField,
   validateRoutineDraft,
+  workoutDetailToRoutineDraft,
   type RoutineDraft,
   type RoutineExerciseDraft,
   type RoutineSetDraft,
@@ -58,7 +59,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'RoutineEditor'>;
 type NavigationAction = Parameters<Props['navigation']['dispatch']>[0];
 
 type RoutineEditorMode =
-  | { kind: 'create'; templateId?: string }
+  | { kind: 'create'; templateId?: string; sourceWorkoutId?: string }
   | { kind: 'edit'; routineId: string };
 
 type RoutineDraftController = {
@@ -107,10 +108,14 @@ const SET_COLUMN: Record<SetFieldKey, keyof RoutineSetDraft> = {
 export function RoutineEditorScreen({ route, navigation }: Props) {
   const routineId = route.params?.routineId;
   const templateId = route.params?.templateId;
+  const sourceWorkoutId = route.params?.sourceWorkoutId;
   const pickedExerciseId = route.params?.pickedExerciseId;
   const mode: RoutineEditorMode = useMemo(
-    () => (routineId ? { kind: 'edit', routineId } : { kind: 'create', templateId }),
-    [routineId, templateId]
+    () =>
+      routineId
+        ? { kind: 'edit', routineId }
+        : { kind: 'create', templateId, sourceWorkoutId },
+    [routineId, sourceWorkoutId, templateId]
   );
 
   return mode.kind === 'edit' ? (
@@ -176,7 +181,7 @@ function RoutineDraftProvider({
     let active = true;
     nextLocalId.current = 0;
 
-    if (mode.kind === 'create' && !mode.templateId) {
+    if (mode.kind === 'create' && !mode.templateId && !mode.sourceWorkoutId) {
       void Promise.resolve().then(() => {
         if (!active) return;
         setDraft(createEmptyRoutineDraft());
@@ -198,6 +203,14 @@ function RoutineDraftProvider({
       setNotesError(null);
       try {
         if (mode.kind === 'create') {
+          if (mode.sourceWorkoutId) {
+            const workout = await mobileStore.workouts.getDetail(mode.sourceWorkoutId);
+            if (!workout) throw new Error('Workout not found');
+            if (!active) return;
+            setDraft(workoutDetailToRoutineDraft(workout, makeLocalId));
+            setDirty(false);
+            return;
+          }
           const template = getRoutineTemplate(mode.templateId as string);
           if (!template) throw new Error('Routine template not found');
           const exercises = await Promise.all(

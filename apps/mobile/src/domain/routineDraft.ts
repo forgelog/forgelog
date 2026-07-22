@@ -38,6 +38,28 @@ type RoutineDetailSource = {
   }[];
 };
 
+type WorkoutDetailSource = {
+  id: string;
+  name: string;
+  notes: string | null;
+  exercises: {
+    id: string;
+    exercise_id: string;
+    superset_group_id: string | null;
+    exercise_type: string;
+    notes: string | null;
+    exercise: DraftExercise;
+    sets: {
+      id: string;
+      set_type: SetType;
+      weight: number | null;
+      reps: number | null;
+      duration_seconds: number | null;
+      distance_meters: number | null;
+    }[];
+  }[];
+};
+
 export type RoutineDraft = {
   routineId?: string;
   name: string;
@@ -130,6 +152,32 @@ export function routineDetailToDraft(
         target_reps: set.target_reps,
         target_duration_seconds: set.target_duration_seconds,
         target_distance_meters: set.target_distance_meters,
+      })),
+    })),
+  };
+}
+
+export function workoutDetailToRoutineDraft(
+  detail: WorkoutDetailSource,
+  makeLocalId: () => string
+): RoutineDraft {
+  return {
+    name: detail.name,
+    notes: detail.notes ?? '',
+    exercises: detail.exercises.map((exercise) => ({
+      localId: makeLocalId(),
+      exercise_id: exercise.exercise_id,
+      superset_group_id: exercise.superset_group_id,
+      exercise: { ...exercise.exercise },
+      exercise_type: exercise.exercise_type,
+      notes: exercise.notes,
+      sets: exercise.sets.map((set) => ({
+        localId: makeLocalId(),
+        set_type: set.set_type,
+        target_weight: set.weight,
+        target_reps: set.reps,
+        target_duration_seconds: set.duration_seconds,
+        target_distance_meters: set.distance_meters,
       })),
     })),
   };

@@ -26,7 +26,12 @@ export type RootStackParamList = {
   Measurements: undefined;
   RecordMeasurements: undefined;
   RoutineDetail: { routineId: string };
-  RoutineEditor: { routineId?: string; templateId?: string; pickedExerciseId?: string };
+  RoutineEditor: {
+    routineId?: string;
+    templateId?: string;
+    sourceWorkoutId?: string;
+    pickedExerciseId?: string;
+  };
   WorkoutDetail: { workoutId: string };
 };
 
