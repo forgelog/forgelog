@@ -1,12 +1,12 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BottomSheet, BottomSheetView } from '@expo/ui/community/bottom-sheet';
 import { useCallback, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
+import { OptionsSheet, OptionsSheetAction, OptionsSheetCancel } from '../components/OptionsSheet';
 import { PillButton } from '../components/PillButton';
 import {
   StarterRoutineActionsSheet,
@@ -307,115 +307,66 @@ function RoutineActionsSheet({
   const { routine, mode, deleting, error } = state;
 
   return (
-    <BottomSheet
-      index={state.closing ? -1 : 0}
-      enableDynamicSizing
+    <OptionsSheet
+      title={routine.name}
+      testID="routine-actions-sheet"
+      closing={state.closing}
       enablePanDownToClose={!deleting}
-      onClose={onClosed}
-      backgroundStyle={{ backgroundColor: c.card }}
+      onClosed={onClosed}
     >
-      <BottomSheetView style={styles.sheet}>
-        <SafeAreaView edges={['bottom']} style={styles.sheetSafeArea}>
-          <View testID="routine-actions-sheet">
-            <View style={styles.sheetHeader}>
-              <Text style={[styles.sheetTitle, { color: c.fg }]} numberOfLines={1}>
-                {routine.name}
+      {mode === 'actions' ? (
+        <>
+          <OptionsSheetAction
+            label="Edit Routine"
+            icon="pencil-outline"
+            onPress={() => onEdit(routine)}
+            testID="routine-action-edit"
+          />
+          <OptionsSheetAction
+            label="Delete Routine"
+            icon="trash-can-outline"
+            onPress={() => onPrepareDelete(routine)}
+            destructive
+            testID="routine-action-delete"
+          />
+          <OptionsSheetCancel onPress={onClose} accessibilityLabel="Cancel routine options" />
+        </>
+      ) : (
+        <>
+          <Text style={[styles.deleteTitle, { color: c.fg }]}>Delete this routine?</Text>
+          <Text style={[styles.deleteMessage, { color: c.sub }]}>This cannot be undone.</Text>
+          {error ? (
+            <Text style={[styles.sheetError, { color: c.danger }]}>{error}</Text>
+          ) : null}
+          <View style={styles.deleteActions}>
+            <Pressable
+              style={[styles.deleteButton, { backgroundColor: c.fill }]}
+              onPress={onClose}
+              disabled={deleting}
+              accessibilityLabel="Cancel delete routine"
+              accessibilityRole="button"
+            >
+              <Text style={[styles.deleteButtonText, { color: c.fg }]}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.deleteButton,
+                { backgroundColor: c.danger, opacity: deleting ? 0.6 : 1 },
+              ]}
+              onPress={() => onDelete(routine)}
+              disabled={deleting}
+              accessibilityLabel="Confirm delete routine"
+              accessibilityRole="button"
+              testID="routine-delete-confirm"
+            >
+              <Text style={[styles.deleteButtonText, { color: '#fff' }]}>
+                {deleting ? 'Deleting...' : 'Delete'}
               </Text>
-            </View>
-            {mode === 'actions' ? (
-              <>
-                <RoutineSheetAction
-                  label="Edit Routine"
-                  icon="pencil-outline"
-                  onPress={() => onEdit(routine)}
-                  testID="routine-action-edit"
-                />
-                <RoutineSheetAction
-                  label="Delete Routine"
-                  icon="trash-can-outline"
-                  onPress={() => onPrepareDelete(routine)}
-                  destructive
-                  testID="routine-action-delete"
-                />
-                <Pressable
-                  style={[styles.sheetCancel, { backgroundColor: c.fill }]}
-                  onPress={onClose}
-                  accessibilityLabel="Cancel routine options"
-                  accessibilityRole="button"
-                >
-                  <Text style={[styles.sheetCancelText, { color: c.fg }]}>Cancel</Text>
-                </Pressable>
-              </>
-            ) : (
-              <>
-                <Text style={[styles.deleteTitle, { color: c.fg }]}>Delete this routine?</Text>
-                <Text style={[styles.deleteMessage, { color: c.sub }]}>This cannot be undone.</Text>
-                {error ? (
-                  <Text style={[styles.sheetError, { color: c.danger }]}>{error}</Text>
-                ) : null}
-                <View style={styles.deleteActions}>
-                  <Pressable
-                    style={[styles.deleteButton, { backgroundColor: c.fill }]}
-                    onPress={onClose}
-                    disabled={deleting}
-                    accessibilityLabel="Cancel delete routine"
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.deleteButtonText, { color: c.fg }]}>Cancel</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.deleteButton,
-                      { backgroundColor: c.danger, opacity: deleting ? 0.6 : 1 },
-                    ]}
-                    onPress={() => onDelete(routine)}
-                    disabled={deleting}
-                    accessibilityLabel="Confirm delete routine"
-                    accessibilityRole="button"
-                    testID="routine-delete-confirm"
-                  >
-                    <Text style={[styles.deleteButtonText, { color: '#fff' }]}>
-                      {deleting ? 'Deleting...' : 'Delete'}
-                    </Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
+            </Pressable>
           </View>
-        </SafeAreaView>
-      </BottomSheetView>
-    </BottomSheet>
-  );
-}
-
-type RoutineSheetActionProps = Readonly<{
-  label: string;
-  icon: React.ComponentProps<typeof Icon>['name'];
-  onPress: () => void;
-  destructive?: boolean;
-  testID: string;
-}>;
-
-function RoutineSheetAction({
-  label,
-  icon,
-  onPress,
-  destructive,
-  testID,
-}: RoutineSheetActionProps) {
-  const c = useTheme();
-  const color = destructive ? c.danger : c.fg;
-  return (
-    <Pressable
-      style={[styles.sheetAction, { borderTopColor: c.sep }]}
-      onPress={onPress}
-      accessibilityLabel={label}
-      accessibilityRole="button"
-      testID={testID}
-    >
-      <Icon name={icon} color={color} size={20} />
-      <Text style={[styles.sheetActionText, { color }]}>{label}</Text>
-    </Pressable>
+        </>
+      )}
+    </OptionsSheet>
   );
 }
 
@@ -444,38 +395,6 @@ const styles = StyleSheet.create({
   routineText: { flex: 1, minWidth: 0 },
   routineName: { fontSize: 16, fontWeight: '700' },
   routineMeta: { marginTop: 4, fontSize: 13 },
-  sheet: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  sheetSafeArea: {
-    gap: 4,
-  },
-  sheetHeader: {
-    minHeight: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 8,
-  },
-  sheetTitle: { maxWidth: '100%', fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  sheetAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    minHeight: 52,
-    borderTopWidth: 1,
-  },
-  sheetActionText: { fontSize: 16, fontWeight: '600' },
-  sheetCancel: {
-    minHeight: 48,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-    marginBottom: 8,
-  },
-  sheetCancelText: { fontSize: 16, fontWeight: '700' },
   deleteTitle: { fontSize: 18, fontWeight: '700' },
   deleteMessage: { fontSize: 14, lineHeight: 20 },
   sheetError: { fontSize: 13, fontWeight: '600' },
