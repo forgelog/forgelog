@@ -673,7 +673,7 @@ function RoutineSetDraftRow({
       <SetFieldInputs
         fields={fields}
         inputStyle={styles.setInput}
-        valueForField={(field) => (set[SET_COLUMN[field]] as number | null)?.toString() ?? ''}
+        valueForField={(field) => set[SET_COLUMN[field]] as number | null}
         onChangeField={(field, text) =>
           actions.updateSetField(exercise.localId, set.localId, field, text)
         }

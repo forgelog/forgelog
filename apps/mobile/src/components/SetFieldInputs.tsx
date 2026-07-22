@@ -1,13 +1,14 @@
 import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
-import { TextInput, View } from 'react-native';
+import { View } from 'react-native';
 
 import type { ExerciseTypeFieldDescriptor, SetFieldKey } from '../domain/setFields';
 import { useTheme } from '../theme/ThemeContext';
+import { NumericTextInput } from './NumericTextInput';
 
 type Props = Readonly<{
   fields: readonly ExerciseTypeFieldDescriptor[];
   inputStyle: StyleProp<TextStyle>;
-  valueForField: (field: SetFieldKey) => string;
+  valueForField: (field: SetFieldKey) => number | null;
   onChangeField: (field: ExerciseTypeFieldDescriptor, text: string) => void;
   accessibilityLabelForField: (field: ExerciseTypeFieldDescriptor) => string;
   testIDForField: (field: SetFieldKey) => string;
@@ -30,14 +31,14 @@ export function SetFieldInputs({
   const inputs = (
     <>
       {fields.map((field) => (
-        <TextInput
+        <NumericTextInput
           key={field.key}
           style={[inputStyle, { backgroundColor: c.fill, color: c.fg }]}
           value={valueForField(field.key)}
-          onChangeText={(text) => onChangeField(field, text)}
+          kind={field.parser === 'integer' ? 'integer' : 'decimal'}
+          onValueChange={(value) => onChangeField(field, value?.toString() ?? '')}
           placeholder={field.placeholder}
           placeholderTextColor={c.sub}
-          keyboardType={field.keyboardType}
           editable={editable}
           accessibilityState={editable ? undefined : { disabled: true }}
           accessibilityLabel={accessibilityLabelForField(field)}

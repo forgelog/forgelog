@@ -106,7 +106,12 @@ test('new routine with a picked exercise saves the routine and children', async 
     fireEvent.changeText(editor.getByLabelText('Routine name'), '  Push Day  ')
   );
   await act(async () => fireEvent.press(editor.getByLabelText('Add set to Bench Press')));
-  await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-weight'), '80'));
+  const weightInput = editor.getByTestId('routine-set-0-0-weight');
+  await act(async () => fireEvent(weightInput, 'focus'));
+  await act(async () => fireEvent.changeText(weightInput, '80'));
+  await act(async () => fireEvent.changeText(weightInput, '80.'));
+  expect(weightInput.props.value).toBe('80.');
+  await act(async () => fireEvent.changeText(weightInput, '80.5'));
   await act(async () => fireEvent.changeText(editor.getByTestId('routine-set-0-0-reps'), '8'));
   await act(async () => fireEvent.press(editor.getByText('Save')));
 
@@ -121,7 +126,7 @@ test('new routine with a picked exercise saves the routine and children', async 
     exercises: [
       expect.objectContaining({
         exercise_id: 'ex1',
-        sets: [expect.objectContaining({ target_weight: 80, target_reps: 8 })],
+        sets: [expect.objectContaining({ target_weight: 80.5, target_reps: 8 })],
       }),
     ],
   });
