@@ -116,22 +116,24 @@ export function findRoutineStructureChanges(
         Boolean(exercise.source_routine_exercise_id) &&
         routineExercisesById.has(exercise.source_routine_exercise_id ?? '')
     );
-  const exerciseMembershipChanged = hasExplicitlyNewExercise
-    ? true
-    : hasReliableExerciseOrigins
-      ? routine.exercises.some((exercise) => !sourcedExerciseIds.includes(exercise.id))
-      : !sameMultiset(routineExerciseKeys, workoutExerciseKeys);
+  const exerciseMembershipChanged = hasExerciseMembershipChange({
+    hasExplicitlyNewExercise,
+    hasReliableExerciseOrigins,
+    routineExerciseIds: routine.exercises.map((exercise) => exercise.id),
+    sourcedExerciseIds,
+    routineExerciseKeys,
+    workoutExerciseKeys,
+  });
+  const exerciseOrderChanged = hasReliableExerciseOrigins
+    ? !sameArray(
+        routine.exercises.map((exercise) => exercise.id),
+        sourcedExerciseIds
+      )
+    : !sameArray(routineExerciseKeys, workoutExerciseKeys);
 
   if (exerciseMembershipChanged) {
     kinds.add('exercises-added-or-removed');
-  } else if (
-    hasReliableExerciseOrigins
-      ? !sameArray(
-          routine.exercises.map((exercise) => exercise.id),
-          sourcedExerciseIds
-        )
-      : !sameArray(routineExerciseKeys, workoutExerciseKeys)
-  ) {
+  } else if (exerciseOrderChanged) {
     kinds.add('exercise-order');
   }
 
@@ -140,12 +142,13 @@ export function findRoutineStructureChanges(
   );
   workoutExerciseKeys.forEach((key, workoutIndex) => {
     const workoutExercise = workout.exercises[workoutIndex];
-    const routineExercise =
-      workoutExercise.source_routine_exercise_id === null
-        ? undefined
-        : hasReliableExerciseOrigins
-          ? routineExercisesById.get(workoutExercise.source_routine_exercise_id ?? '')
-          : routineByOccurrence.get(key);
+    const routineExercise = comparableRoutineExercise({
+      workoutExercise,
+      hasReliableExerciseOrigins,
+      routineExercisesById,
+      routineByOccurrence,
+      occurrenceKey: key,
+    });
     if (!routineExercise) return;
     if (hasSetMembershipChange(routineExercise.sets, workoutExercise.sets)) {
       kinds.add('sets-added-or-removed');
@@ -162,6 +165,52 @@ export function findRoutineStructureChanges(
   return CHANGE_ORDER.flatMap((kind) =>
     kinds.has(kind) ? [{ kind, label: CHANGE_LABELS[kind] }] : []
   );
+}
+
+type ExerciseMembershipComparison = {
+  hasExplicitlyNewExercise: boolean;
+  hasReliableExerciseOrigins: boolean;
+  routineExerciseIds: string[];
+  sourcedExerciseIds: string[];
+  routineExerciseKeys: string[];
+  workoutExerciseKeys: string[];
+};
+
+function hasExerciseMembershipChange({
+  hasExplicitlyNewExercise,
+  hasReliableExerciseOrigins,
+  routineExerciseIds,
+  sourcedExerciseIds,
+  routineExerciseKeys,
+  workoutExerciseKeys,
+}: ExerciseMembershipComparison): boolean {
+  if (hasExplicitlyNewExercise) return true;
+  if (hasReliableExerciseOrigins) {
+    return routineExerciseIds.some((exerciseId) => !sourcedExerciseIds.includes(exerciseId));
+  }
+  return !sameMultiset(routineExerciseKeys, workoutExerciseKeys);
+}
+
+type ComparableRoutineExerciseInput = {
+  workoutExercise: WorkoutExerciseSource;
+  hasReliableExerciseOrigins: boolean;
+  routineExercisesById: Map<string, RoutineExerciseSource>;
+  routineByOccurrence: Map<string, RoutineExerciseSource>;
+  occurrenceKey: string;
+};
+
+function comparableRoutineExercise({
+  workoutExercise,
+  hasReliableExerciseOrigins,
+  routineExercisesById,
+  routineByOccurrence,
+  occurrenceKey,
+}: ComparableRoutineExerciseInput): RoutineExerciseSource | undefined {
+  if (workoutExercise.source_routine_exercise_id === null) return undefined;
+  if (hasReliableExerciseOrigins) {
+    return routineExercisesById.get(workoutExercise.source_routine_exercise_id ?? '');
+  }
+  return routineByOccurrence.get(occurrenceKey);
 }
 
 function hasSetMembershipChange(
@@ -318,11 +367,13 @@ function supersetGroups(exercises: { exercise_id: string; superset_group_id: str
     members.push(keys[index]);
     groups.set(exercise.superset_group_id, members);
   });
-  return [...groups.values()].map((members) => [...members].sort()).sort(compareArrays);
+  return [...groups.values()]
+    .map((members) => [...members].sort(compareStrings))
+    .sort(compareArrays);
 }
 
 function sameMultiset(left: string[], right: string[]): boolean {
-  return sameArray([...left].sort(), [...right].sort());
+  return sameArray([...left].sort(compareStrings), [...right].sort(compareStrings));
 }
 
 function sameArray<T>(left: T[], right: T[]): boolean {
@@ -338,4 +389,8 @@ function sameNestedArray(left: string[][], right: string[][]): boolean {
 
 function compareArrays(left: string[], right: string[]): number {
   return left.join('\0').localeCompare(right.join('\0'));
+}
+
+function compareStrings(left: string, right: string): number {
+  return left.localeCompare(right);
 }
