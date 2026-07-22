@@ -93,13 +93,17 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const reloadRequestId = useRef(0);
   const personalRecordNoticeId = useRef(0);
   const reorderPending = useRef(false);
+  const exerciseListRef = useRef<FlatList<WorkoutExerciseDetail> | null>(null);
+  const previousExerciseCount = useRef<number | null>(null);
+  const pickedExerciseIdRef = useRef(pickedExerciseId);
 
-  const reload = useCallback(() => {
+  const reload = useCallback((options: { showLoading?: boolean } = {}) => {
+    const { showLoading = true } = options;
     let current = true;
     const requestId = reloadRequestId.current + 1;
     reloadRequestId.current = requestId;
     const isCurrent = () => current && reloadRequestId.current === requestId;
-    setLoading(true);
+    if (showLoading) setLoading(true);
     setLoadError(null);
     mobileStore.workouts
       .getDetail(workoutId)
@@ -141,7 +145,30 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     };
   }, [workoutId]);
 
-  useFocusEffect(reload);
+  useEffect(() => {
+    pickedExerciseIdRef.current = pickedExerciseId;
+  }, [pickedExerciseId]);
+
+  useFocusEffect(
+    useCallback(() => reload({ showLoading: !pickedExerciseIdRef.current }), [reload])
+  );
+
+  useEffect(() => {
+    if (loading) return;
+    if (!detail) {
+      previousExerciseCount.current = null;
+      return;
+    }
+    const exerciseCount = detail.exercises.length;
+    const previousCount = previousExerciseCount.current;
+    previousExerciseCount.current = exerciseCount;
+    if (previousCount === null || exerciseCount <= previousCount) return;
+    exerciseListRef.current?.scrollToIndex({
+      index: exerciseCount - 1,
+      animated: true,
+      viewPosition: 1,
+    });
+  }, [detail, loading]);
 
   const showPersonalRecordToast = useCallback((recordEvents: PersonalRecordEvent[]) => {
     personalRecordNoticeId.current += 1;
@@ -165,10 +192,10 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     navigation.setParams({ pickedExerciseId: undefined });
     mobileStore.workouts
       .addExercise(workoutId, pickedExerciseId)
-      .then(() => reload())
+      .then(() => reload({ showLoading: false }))
       .catch(() => {
         Alert.alert('Save failed', 'Could not add exercise.');
-        reload();
+        reload({ showLoading: false });
       });
   }, [pickedExerciseId, workoutId, reload, navigation]);
 
@@ -442,6 +469,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
         {formatElapsed(elapsed)}
       </Text>
       <FlatList
+        ref={exerciseListRef}
         data={detail.exercises}
         keyExtractor={(item) => item.id}
         keyboardShouldPersistTaps="handled"
@@ -461,6 +489,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           />
         )}
         renderScrollComponent={KeyboardAwareListScrollView}
+        onScrollToIndexFailed={() => exerciseListRef.current?.scrollToEnd({ animated: true })}
         testID="workout-keyboard-aware-scroll-view"
         ListFooterComponent={
           <PillButton
