@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
-import { StyleSheet, Text } from 'react-native';
+import { act, fireEvent, render, waitFor, within } from '@testing-library/react-native';
+import { Dimensions, StyleSheet, Text } from 'react-native';
 
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { mobileStore, type RoutineSummary } from '../../db/mobileStore';
@@ -35,11 +35,12 @@ const LONG_ROUTINE_NAME =
   'Push Pull Legs Upper Lower Full Body Hypertrophy Strength Conditioning Routine';
 
 function RoutineEditorStub({ route }: { route: { params?: RootStackParamList['RoutineEditor'] } }) {
-  return <Text>Create editor routineId: {route.params?.routineId ?? 'none'}</Text>;
-}
-
-function RoutineTemplatePickerStub() {
-  return <Text>Routine template picker</Text>;
+  return (
+    <Text>
+      Create editor routineId: {route.params?.routineId ?? 'none'}; templateId:{' '}
+      {route.params?.templateId ?? 'none'}
+    </Text>
+  );
 }
 
 function renderHome() {
@@ -47,7 +48,6 @@ function renderHome() {
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="RoutineTemplatePicker" component={RoutineTemplatePickerStub} />
         <Stack.Screen name="RoutineEditor" component={RoutineEditorStub as any} />
       </Stack.Navigator>
     </NavigationContainer>
@@ -60,22 +60,103 @@ beforeEach(() => {
 });
 
 test('renders the Home screen with a start action', async () => {
-  const { getByLabelText, getByText } = await renderHome();
+  const { getByLabelText, getByTestId, getByText, queryByLabelText } = await renderHome();
   await waitFor(() => expect(getByText('Start Empty Workout')).toBeTruthy());
   expect(getByLabelText('Start Empty Workout')).toBeTruthy();
   expect(getByLabelText('Create routine')).toBeTruthy();
-  const templateButton = getByLabelText('Browse routine templates');
-  expect(templateButton).toBeTruthy();
-  expect(StyleSheet.flatten(templateButton.props.style).minHeight).toBeGreaterThanOrEqual(44);
+  expect(getByText('Starter Routines')).toBeTruthy();
+  expect(getByLabelText('Starter routine Beginner Full Body')).toBeTruthy();
+  expect(getByLabelText('Starter routine Push Day')).toBeTruthy();
+  expect(getByLabelText('Starter routine Pull Day')).toBeTruthy();
+  expect(getByLabelText('Starter routine Leg Day')).toBeTruthy();
+  expect(queryByLabelText('Starter routine options Push Day')).toBeNull();
+  expect(queryByLabelText('Browse routine templates')).toBeNull();
+
+  const pushCard = getByTestId('starter-routine-card-push-day');
+  expect(StyleSheet.flatten(pushCard.props.style).height).toBe(
+    StyleSheet.flatten(pushCard.props.style).width
+  );
+  expect(within(pushCard).getByText('Push Day')).toBeTruthy();
+  expect(within(pushCard).getByText('4 exercises')).toBeTruthy();
+  expect(within(pushCard).getByText('Barbell Bench Press - Medium Grip')).toBeTruthy();
+  expect(within(pushCard).getByText('Dumbbell Shoulder Press')).toBeTruthy();
+  expect(within(pushCard).getByText('+2 more')).toBeTruthy();
+  expect(
+    within(pushCard).queryByText('Chest, shoulders, and triceps with straightforward working sets.')
+  ).toBeNull();
 });
 
-test('browse routine templates opens the template picker', async () => {
-  const { getByLabelText, getByText } = await renderHome();
+test('keeps starter routine cards in exactly two columns on wide screens', async () => {
+  const originalWindow = Dimensions.get('window');
+  const originalScreen = Dimensions.get('screen');
+  await act(() => {
+    Dimensions.set({
+      window: { ...originalWindow, width: 844 },
+      screen: { ...originalScreen, width: 844 },
+    });
+  });
 
-  await waitFor(() => expect(getByLabelText('Browse routine templates')).toBeTruthy());
-  fireEvent.press(getByLabelText('Browse routine templates'));
+  try {
+    const home = await renderHome();
+    const pushCard = await waitFor(() => home.getByTestId('starter-routine-card-push-day'));
+    expect(StyleSheet.flatten(pushCard.props.style).width).toBe(400);
+    expect(StyleSheet.flatten(pushCard.props.style).height).toBe(400);
+  } finally {
+    await act(() => {
+      Dimensions.set({ window: originalWindow, screen: originalScreen });
+    });
+  }
+});
 
-  await waitFor(() => expect(getByText('Routine template picker')).toBeTruthy());
+test('grows starter routine cards instead of clipping content with large text', async () => {
+  const originalWindow = Dimensions.get('window');
+  const originalScreen = Dimensions.get('screen');
+  await act(() => {
+    Dimensions.set({
+      window: { ...originalWindow, width: 320, fontScale: 2 },
+      screen: { ...originalScreen, width: 320, fontScale: 2 },
+    });
+  });
+
+  try {
+    const home = await renderHome();
+    const pushCard = await waitFor(() => home.getByTestId('starter-routine-card-push-day'));
+    const cardStyle = StyleSheet.flatten(pushCard.props.style);
+    expect(cardStyle.width).toBe(138);
+    expect(cardStyle.height).toBeGreaterThan(cardStyle.width);
+  } finally {
+    await act(() => {
+      Dimensions.set({ window: originalWindow, screen: originalScreen });
+    });
+  }
+});
+
+test('starter routine card opens an action sheet before creating a routine', async () => {
+  const home = await renderHome();
+
+  await waitFor(() => expect(home.getByLabelText('Starter routine Push Day')).toBeTruthy());
+  fireEvent.press(home.getByLabelText('Starter routine Push Day'));
+
+  const sheet = await waitFor(() => home.getByTestId('starter-routine-actions-sheet'));
+  const bottomSheet = home.getByTestId('mock-bottom-sheet');
+  expect(bottomSheet.props.enablePanDownToClose).toBe(true);
+  expect(bottomSheet.props.snapPoints).toEqual(['55%', '85%']);
+  expect(bottomSheet.props.enableDynamicSizing).toBeUndefined();
+  expect(
+    StyleSheet.flatten(home.getByTestId('starter-routine-sheet-scroll-view').props.style).flex
+  ).toBe(1);
+  expect(
+    within(sheet).getByText('Chest, shoulders, and triceps with straightforward working sets.')
+  ).toBeTruthy();
+  expect(within(sheet).getByText('Barbell Bench Press - Medium Grip')).toBeTruthy();
+  expect(within(sheet).getByText('Dumbbell Shoulder Press')).toBeTruthy();
+  expect(home.getByLabelText('Create routine from Push Day')).toBeTruthy();
+
+  fireEvent.press(home.getByLabelText('Create routine from Push Day'));
+
+  await waitFor(() =>
+    expect(home.getByText('Create editor routineId: none; templateId: push-day')).toBeTruthy()
+  );
 });
 
 test('create routine opens a new editor draft without a routine id', async () => {
@@ -84,7 +165,9 @@ test('create routine opens a new editor draft without a routine id', async () =>
   await waitFor(() => expect(getByLabelText('Create routine')).toBeTruthy());
   fireEvent.press(getByLabelText('Create routine'));
 
-  await waitFor(() => expect(getByText('Create editor routineId: none')).toBeTruthy());
+  await waitFor(() =>
+    expect(getByText('Create editor routineId: none; templateId: none')).toBeTruthy()
+  );
 });
 
 test('truncates a long routine name instead of pushing the Start button off-screen', async () => {

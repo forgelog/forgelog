@@ -13,7 +13,6 @@ import { OnboardingScreen } from '../screens/OnboardingScreen';
 import { RecordMeasurementsScreen } from '../screens/RecordMeasurementsScreen';
 import { RoutineDetailScreen } from '../screens/RoutineDetailScreen';
 import { RoutineEditorScreen } from '../screens/RoutineEditorScreen';
-import { RoutineTemplatePickerScreen } from '../screens/RoutineTemplatePickerScreen';
 import { WorkoutDetailScreen } from '../screens/WorkoutDetailScreen';
 import { MainTabs } from './MainTabs';
 
@@ -28,7 +27,6 @@ export type RootStackParamList = {
   RecordMeasurements: undefined;
   RoutineDetail: { routineId: string };
   RoutineEditor: { routineId?: string; templateId?: string; pickedExerciseId?: string };
-  RoutineTemplatePicker: undefined;
   WorkoutDetail: { workoutId: string };
 };
 
@@ -71,7 +69,6 @@ export function RootNavigator() {
         <Stack.Screen name="ExerciseLibrary" component={ExerciseLibraryScreen} />
         <Stack.Screen name="ExerciseDetail" component={ExerciseDetailScreen} />
         <Stack.Screen name="RoutineDetail" component={RoutineDetailScreen} />
-        <Stack.Screen name="RoutineTemplatePicker" component={RoutineTemplatePickerScreen} />
         <Stack.Screen name="RoutineEditor" component={RoutineEditorScreen} />
         <Stack.Screen name="ActiveWorkout" component={ActiveWorkoutScreen} />
         <Stack.Screen name="WorkoutDetail" component={WorkoutDetailScreen} />

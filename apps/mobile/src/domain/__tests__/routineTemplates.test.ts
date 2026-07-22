@@ -29,6 +29,7 @@ const template: RoutineTemplate = {
   exercises: [
     {
       exerciseId: 'Barbell_Full_Squat',
+      exerciseName: 'Barbell Full Squat',
       sets: [
         { setType: 'warmup', targetReps: 10 },
         { setType: 'normal', targetWeight: 60, targetReps: 8 },
@@ -36,6 +37,7 @@ const template: RoutineTemplate = {
     },
     {
       exerciseId: 'Plank',
+      exerciseName: 'Plank',
       sets: [{ setType: 'normal', targetDurationSeconds: 30 }],
     },
   ],
@@ -49,12 +51,12 @@ test('finds a built-in routine template by its stable id', () => {
   expect(getRoutineTemplate('missing-template')).toBeNull();
 });
 
-test('every template references an exercise from the seeded catalog', () => {
-  const seededIds = new Set(seedExercises.map((exercise) => exercise.id));
+test('every template references a matching exercise from the seeded catalog', () => {
+  const seededNamesById = new Map(seedExercises.map((exercise) => [exercise.id, exercise.name]));
 
   for (const template of ROUTINE_TEMPLATES) {
     for (const exercise of template.exercises) {
-      expect(seededIds).toContain(exercise.exerciseId);
+      expect(seededNamesById.get(exercise.exerciseId)).toBe(exercise.exerciseName);
     }
   }
 });
