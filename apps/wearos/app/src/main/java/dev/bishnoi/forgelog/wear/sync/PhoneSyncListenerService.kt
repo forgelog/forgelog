@@ -37,6 +37,27 @@ class PhoneSyncListenerService : WearableListenerService() {
                 val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
                 val stores = WearStoreProvider.get(applicationContext)
                 when {
+                    path == "/active-workout/state" -> {
+                        val payload = dataMap.getString(PAYLOAD_KEY) ?: continue
+                        scope.launch {
+                            handleListenerFailure("Could not apply active workout state") {
+                                if (ActiveWorkoutSyncClient.applyState(applicationContext, stores.workouts, payload)) {
+                                    WearDataClient.publishPendingMutations(applicationContext, stores.workouts)
+                                }
+                            }
+                        }
+                    }
+                    path.startsWith("/active-workout/result/") -> {
+                        val payload = dataMap.getString(PAYLOAD_KEY) ?: continue
+                        scope.launch {
+                            handleListenerFailure("Could not apply active workout result") {
+                                if (ActiveWorkoutSyncClient.applyResult(stores.workouts, payload)) {
+                                    WearDataClient.deleteActiveResult(applicationContext, path)
+                                    ActiveWorkoutSyncClient.drainPersistent(applicationContext, stores.workouts)
+                                }
+                            }
+                        }
+                    }
                     path == "/sync-snapshot" -> {
                         val payload = dataMap.getString(PAYLOAD_KEY) ?: continue
                         scope.launch {

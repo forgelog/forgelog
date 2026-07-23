@@ -4,11 +4,13 @@ import { NativeModule, requireNativeModule } from 'expo-modules-core';
 // (src/db/repositories/sync.ts WatchWorkoutPayload) so this module stays a
 // dumb byte-mover between the Data Layer and JS, per the sync design.
 export type WorkoutReceivedEvent = { payload: string };
+export type ActiveWorkoutDataEvent = { path: string; payload: string };
 
 type WearSyncEvents = {
   onWorkoutReceived: (event: WorkoutReceivedEvent) => void;
   // Fired when the watch pings /request-sync asking for a fresh snapshot.
   onSyncRequested: () => void;
+  onActiveWorkoutDataChanged: (event: ActiveWorkoutDataEvent) => void;
 };
 
 declare class WearSyncModule extends NativeModule<WearSyncEvents> {
@@ -16,6 +18,10 @@ declare class WearSyncModule extends NativeModule<WearSyncEvents> {
   // watch can pick it up now or whenever it next reconnects.
   publishSnapshot(json: string): Promise<void>;
   ackWorkout(workoutId: string): Promise<void>;
+  publishActiveWorkoutState(json: string): Promise<void>;
+  publishActiveWorkoutResult(path: string, json: string): Promise<void>;
+  enumerateActiveWorkoutDataItems(): Promise<ActiveWorkoutDataEvent[]>;
+  deleteDataItem(path: string): Promise<void>;
 }
 
 export default requireNativeModule<WearSyncModule>('WearSync');

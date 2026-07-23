@@ -1,0 +1,45 @@
+{
+  "protocol_version": 1,
+  "coordinator_id": "phone-1",
+  "coordinator_epoch": "epoch-1",
+  "revision": 4,
+  "revision_committed_at": "2026-07-23T10:00:00.000Z",
+  "lifecycle": "active",
+  "workout_id": "workout-1",
+  "workout": {
+    "id": "workout-1",
+    "routine_id": null,
+    "name": "Workout",
+    "started_at": "2026-07-23T09:00:00.000Z",
+    "ended_at": null,
+    "notes": null,
+    "bodyweight_kg": null,
+    "routine_structure_version": null,
+    "exercises": [{
+      "id": "occurrence-1",
+      "exercise_id": "exercise-1",
+      "exercise_name": "Squat",
+      "position": 0,
+      "exercise_type": "weight_reps",
+      "notes": null,
+      "source_routine_exercise_id": null,
+      "superset_group_id": null,
+      "pr_baselines": {},
+      "alerted_record_types": [],
+      "sets": [{
+        "id": "set-1",
+        "source_routine_set_id": null,
+        "position": 0,
+        "set_type": "normal",
+        "weight": 100,
+        "reps": 5,
+        "duration_seconds": null,
+        "distance_meters": null,
+        "rpe": null,
+        "completed": false,
+        "completed_at": null
+      }]
+    }]
+  },
+  "terminal": null
+}

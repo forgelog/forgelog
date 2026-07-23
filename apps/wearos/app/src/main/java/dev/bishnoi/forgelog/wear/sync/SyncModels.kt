@@ -86,6 +86,17 @@ data class WorkoutPayloadDto(
     @SerialName("ended_at") val endedAt: String? = null,
     val notes: String? = null,
     val exercises: List<WorkoutExercisePayloadDto>,
+    @SerialName("active_sync") val activeSync: ActiveSyncMetadataDto? = null,
+)
+
+@Serializable
+data class ActiveSyncMetadataDto(
+    @SerialName("finish_operation_id") val finishOperationId: String,
+    @SerialName("device_id") val deviceId: String,
+    @SerialName("device_sequence") val deviceSequence: Long,
+    @SerialName("canonical_revision") val canonicalRevision: Long? = null,
+    val provisional: Boolean,
+    @SerialName("payload_hash") val payloadHash: String,
 )
 
 @Serializable

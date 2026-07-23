@@ -25,6 +25,9 @@ import {
   deleteSet,
   discardWorkout,
   finishWorkoutWithRoutineAction,
+  addExerciseToActiveWorkout,
+  addSetToActiveWorkout,
+  moveActiveWorkoutExercise,
   getWorkoutFinishPlan,
   uncompleteSet,
   updateSetAndRecomputeRecords,
@@ -51,6 +54,12 @@ import {
 } from '../domain/setFields';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
+import {
+  getActiveWorkoutConflicts,
+  resolveActiveWorkoutConflict,
+  subscribeActiveWorkoutChanges,
+  type ActiveWorkoutConflict,
+} from '../application/activeWorkoutSync';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveWorkout'>;
 
@@ -90,6 +99,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const [exerciseOptions, setExerciseOptions] = useState<ExerciseOptionsState | null>(null);
   const [finishSheet, setFinishSheet] = useState<FinishWorkoutSheetState | null>(null);
   const [preparingFinish, setPreparingFinish] = useState(false);
+  const [syncConflicts, setSyncConflicts] = useState<ActiveWorkoutConflict[]>([]);
   const reloadRequestId = useRef(0);
   const personalRecordNoticeId = useRef(0);
   const reorderPending = useRef(false);
@@ -125,10 +135,12 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           )
         );
         const recordEvents = await mobileStore.records.getEventsForWorkout(workoutId);
+        const conflicts = await getActiveWorkoutConflicts();
         if (!isCurrent()) return;
         setDetail(d);
         setPrevSets(Object.fromEntries(entries));
         setPrSetIds(eventSetIds(recordEvents));
+        setSyncConflicts(conflicts);
       })
       .catch(() => {
         if (!isCurrent()) return;
@@ -148,6 +160,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   useEffect(() => {
     pickedExerciseIdRef.current = pickedExerciseId;
   }, [pickedExerciseId]);
+
+  useEffect(() => subscribeActiveWorkoutChanges(() => reload({ showLoading: false })), [reload]);
 
   useFocusEffect(
     useCallback(() => reload({ showLoading: !pickedExerciseIdRef.current }), [reload])
@@ -190,8 +204,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!pickedExerciseId) return;
     navigation.setParams({ pickedExerciseId: undefined });
-    mobileStore.workouts
-      .addExercise(workoutId, pickedExerciseId)
+    addExerciseToActiveWorkout(workoutId, pickedExerciseId)
       .then(() => reload({ showLoading: false }))
       .catch(() => {
         Alert.alert('Save failed', 'Could not add exercise.');
@@ -220,8 +233,41 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
     navigation.navigate('ExerciseLibrary', { mode: 'pick', returnTo: 'ActiveWorkout' });
   }
 
+  function reviewSyncConflict() {
+    const conflict = syncConflicts[0];
+    if (!conflict) return;
+    const operation = conflict.mutation.operation;
+    const watchValue = operation.type === 'start_workout'
+      ? `${operation.workout.name} started ${operation.workout.started_at}`
+      : operation.type.replaceAll('_', ' ');
+    Alert.alert(
+      'Watch change needs review',
+      `Watch proposed: ${watchValue}. Choose which version should become canonical.`,
+      [
+        {
+          text: 'Keep Phone',
+          onPress: () => void resolveActiveWorkoutConflict(
+            conflict.operationId,
+            'canonical_kept',
+            conflict.result.canonical_revision
+          ).then(() => reload({ showLoading: false })),
+        },
+        {
+          text: operation.type === 'start_workout' ? 'Use Watch' : 'Apply Watch',
+          style: operation.type === 'start_workout' ? 'destructive' : 'default',
+          onPress: () => void resolveActiveWorkoutConflict(
+            conflict.operationId,
+            'operation_reapplied',
+            conflict.result.canonical_revision
+          ).then(() => reload({ showLoading: false })),
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  }
+
   async function handleAddSet(we: WorkoutExerciseDetail) {
-    const created = await mobileStore.workouts.addSet(we.id);
+    const created = await addSetToActiveWorkout(workoutId, we.id);
     patchExercise(we.id, (w) => ({ ...w, sets: [...w.sets, created] }));
   }
 
@@ -249,8 +295,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       ];
       return { ...current, exercises };
     });
-    void mobileStore.workouts
-      .moveExercise(exerciseId, delta)
+    void moveActiveWorkoutExercise(workoutId, exerciseId, delta)
       .catch(() => {
         Alert.alert('Save failed', 'Could not reorder exercise.');
         reload();
@@ -468,6 +513,16 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       <Text style={[styles.timer, { color: c.accent }]} onLayout={handleTimerLayout}>
         {formatElapsed(elapsed)}
       </Text>
+      {syncConflicts.length > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Review watch sync conflict"
+          onPress={reviewSyncConflict}
+          style={[styles.syncBanner, { borderColor: c.danger }]}
+        >
+          <Text selectable style={[styles.syncBannerText, { color: c.danger }]}>Watch change needs review</Text>
+        </Pressable>
+      ) : null}
       <FlatList
         ref={exerciseListRef}
         data={detail.exercises}
@@ -1010,4 +1065,6 @@ const styles = StyleSheet.create({
   addSet: { marginTop: 10 },
   addSetText: { fontSize: 14, fontWeight: '600' },
   addExercise: { margin: 16, marginBottom: 8 },
+  syncBanner: { marginHorizontal: 16, marginBottom: 8, borderWidth: 1, borderRadius: 10, borderCurve: 'continuous', padding: 10 },
+  syncBannerText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
 });

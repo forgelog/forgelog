@@ -7,6 +7,7 @@ package expo.modules.wearsync
  * queued and flushed to the module once JS attaches (app foregrounded).
  */
 internal object WearSyncBridge {
+  data class ActiveDataItem(val path: String, val payload: String)
   private val pending = mutableListOf<String>()
   private var listener: ((String) -> Unit)? = null
 
@@ -16,6 +17,8 @@ internal object WearSyncBridge {
   // attaches (mirrors the workout-payload queue above).
   private var syncRequestPending = false
   private var syncRequestListener: (() -> Unit)? = null
+  private val pendingActiveItems = mutableListOf<ActiveDataItem>()
+  private var activeListener: ((ActiveDataItem) -> Unit)? = null
 
   @Synchronized
   fun attach(onWorkoutReceived: (String) -> Unit) {
@@ -65,10 +68,29 @@ internal object WearSyncBridge {
   }
 
   @Synchronized
+  fun attachActiveListener(listener: (ActiveDataItem) -> Unit) {
+    activeListener = listener
+    val queued = pendingActiveItems.toList()
+    pendingActiveItems.clear()
+    queued.forEach(listener)
+  }
+
+  @Synchronized
+  fun detachActiveListener() { activeListener = null }
+
+  @Synchronized
+  fun deliverActive(path: String, payload: String) {
+    val item = ActiveDataItem(path, payload)
+    activeListener?.invoke(item) ?: pendingActiveItems.add(item)
+  }
+
+  @Synchronized
   internal fun resetForTests() {
     pending.clear()
     listener = null
     syncRequestPending = false
     syncRequestListener = null
+    pendingActiveItems.clear()
+    activeListener = null
   }
 }

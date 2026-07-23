@@ -2,6 +2,20 @@ import WearSync from 'wear-sync';
 
 import { mobileStore } from '../db/mobileStore';
 import { validateWatchWorkoutPayload } from './watchWorkoutValidator';
+import {
+  applyRemoteActiveWorkoutMutation,
+  getDirtyActiveWorkoutPublications,
+  markActiveWorkoutResultPublished,
+  markActiveWorkoutStatePublished,
+  subscribeActiveWorkoutChanges,
+  acknowledgeActiveWorkoutState,
+  rejectMalformedActiveWorkoutMutation,
+} from '../application/activeWorkoutSync';
+import {
+  ACTIVE_WORKOUT_PROTOCOL_VERSION,
+  assertActiveWorkoutPayloadSize,
+  parseActiveWorkoutMutation,
+} from './activeWorkoutProtocol';
 
 let started = false;
 
@@ -22,11 +36,35 @@ export function initWearSync(): void {
       return;
     }
     if (!validateWatchWorkoutPayload(raw)) return;
+    if (raw.active_sync) {
+      const verification = await mobileStore.sync.verifyActiveWorkoutCheckpoint(raw);
+      if (verification === 'acknowledged') await WearSync.ackWorkout(raw.id);
+      return;
+    }
     await mobileStore.sync.ingestWatchWorkout(raw);
     await WearSync.ackWorkout(raw.id);
   });
   WearSync.addListener('onSyncRequested', () => {
     publishSyncSnapshot();
+    runWearBestEffort(publishDirtyActiveWorkout());
+  });
+  WearSync.addListener('onActiveWorkoutDataChanged', (event) => {
+    runWearBestEffort(processActiveWorkoutDataItem(event.path, event.payload));
+  });
+  runWearBestEffort(drainPersistentDataItems());
+  runWearBestEffort(publishDirtyActiveWorkout());
+  subscribeActiveWorkoutChanges(() => { runWearBestEffort(publishDirtyActiveWorkout()); });
+}
+
+async function processActiveWorkoutDataItem(path: string, payload: string): Promise<void> {
+  await handlePersistentDataItem(path, payload);
+  await drainPersistentDataItems();
+}
+
+function runWearBestEffort(operation: Promise<unknown>): void {
+  void operation.catch(() => {
+    // Wearable APIs are unavailable on phones without Play Services for Wear.
+    // SQLite/outbox state remains dirty and will retry on the next sync trigger.
   });
 }
 
@@ -39,5 +77,112 @@ export async function publishSyncSnapshot(): Promise<void> {
     await WearSync.publishSnapshot(JSON.stringify(snapshot));
   } catch {
     // No reachable watch — nothing to sync to right now.
+  }
+}
+
+async function drainPersistentDataItems(): Promise<void> {
+  const items = await WearSync.enumerateActiveWorkoutDataItems();
+  const ordered = [...items].sort((left, right) => activeDataItemOrder(left.path, right.path));
+  for (const item of ordered) await handlePersistentDataItem(item.path, item.payload);
+}
+
+async function handlePersistentDataItem(path: string, payload: string): Promise<void> {
+  if (path.startsWith('/workout/')) {
+    let raw: unknown;
+    try { raw = JSON.parse(payload); } catch { return; }
+    if (!validateWatchWorkoutPayload(raw)) return;
+    if (raw.active_sync) {
+      const verification = await mobileStore.sync.verifyActiveWorkoutCheckpoint(raw);
+      if (verification === 'acknowledged') await WearSync.ackWorkout(raw.id);
+      return;
+    }
+    await mobileStore.sync.ingestWatchWorkout(raw);
+    await WearSync.ackWorkout(raw.id);
+    return;
+  }
+  if (path.startsWith('/active-workout/state-ack/')) {
+    try {
+      const acknowledgement = JSON.parse(payload) as Record<string, unknown>;
+      if (
+        acknowledgement.protocol_version === ACTIVE_WORKOUT_PROTOCOL_VERSION &&
+        typeof acknowledgement.device_id === 'string' &&
+        typeof acknowledgement.coordinator_epoch === 'string' &&
+        typeof acknowledgement.revision === 'number'
+      ) await acknowledgeActiveWorkoutState(acknowledgement as {
+        device_id: string; coordinator_epoch: string; revision: number;
+      });
+    } catch { /* malformed acknowledgements are ignored */ }
+    return;
+  }
+  if (!path.startsWith('/active-workout/mutation/')) return;
+  const parts = path.split('/');
+  if (parts.length !== 6 || !Number.isInteger(Number(parts[5])) || Number(parts[5]) < 1) return;
+  let raw: unknown;
+  try {
+    assertActiveWorkoutPayloadSize(payload);
+    raw = JSON.parse(payload);
+  } catch {
+    const result = await rejectMalformedActiveWorkoutMutation({
+      coordinatorEpoch: parts[3], deviceId: parts[4], deviceSequence: Number(parts[5]),
+    }, payload);
+    if (!isWaitingForPredecessor(result)) await WearSync.deleteDataItem(path);
+    await publishDirtyActiveWorkout();
+    return;
+  }
+  const mutation = parseActiveWorkoutMutation(raw);
+  if (!mutation) {
+    const result = await rejectMalformedActiveWorkoutMutation({
+      coordinatorEpoch: parts[3], deviceId: parts[4], deviceSequence: Number(parts[5]),
+    }, payload);
+    if (!isWaitingForPredecessor(result)) await WearSync.deleteDataItem(path);
+    await publishDirtyActiveWorkout();
+    return;
+  }
+  if (
+    parts.length !== 6 ||
+    parts[3] !== mutation.coordinator_epoch ||
+    parts[4] !== mutation.device_id ||
+    Number(parts[5]) !== mutation.device_sequence
+  ) {
+    const result = await rejectMalformedActiveWorkoutMutation({
+      coordinatorEpoch: parts[3], deviceId: parts[4], deviceSequence: Number(parts[5]),
+    }, payload);
+    if (!isWaitingForPredecessor(result)) await WearSync.deleteDataItem(path);
+    await publishDirtyActiveWorkout();
+    return;
+  }
+  const result = await applyRemoteActiveWorkoutMutation(mutation);
+  if (!isWaitingForPredecessor(result)) await WearSync.deleteDataItem(path);
+  await publishDirtyActiveWorkout();
+}
+
+function isWaitingForPredecessor(result: { status: string; reason?: string }): boolean {
+  return result.status === 'blocked_by_predecessor' && result.reason === 'sequence_gap';
+}
+
+function activeDataItemOrder(left: string, right: string): number {
+  const leftParts = left.split('/');
+  const rightParts = right.split('/');
+  const leftMutation = left.startsWith('/active-workout/mutation/') && leftParts.length === 6;
+  const rightMutation = right.startsWith('/active-workout/mutation/') && rightParts.length === 6;
+  if (!leftMutation || !rightMutation) return left.localeCompare(right);
+  const streamOrder = `${leftParts[3]}/${leftParts[4]}`.localeCompare(`${rightParts[3]}/${rightParts[4]}`);
+  return streamOrder || Number(leftParts[5]) - Number(rightParts[5]);
+}
+
+export async function publishDirtyActiveWorkout(): Promise<void> {
+  const dirty = await getDirtyActiveWorkoutPublications();
+  if (dirty.state) {
+    const json = JSON.stringify(dirty.state);
+    assertActiveWorkoutPayloadSize(json);
+    await WearSync.publishActiveWorkoutState(json);
+    await markActiveWorkoutStatePublished(dirty.state.revision);
+  }
+  for (const result of dirty.results) {
+    const json = JSON.stringify(result);
+    assertActiveWorkoutPayloadSize(json);
+    const path = `/active-workout/result/${result.coordinator_epoch}/${result.device_id}/${result.device_sequence}`;
+    await WearSync.publishActiveWorkoutResult(path, json);
+    if (result.operation_id) await markActiveWorkoutResultPublished(result.operation_id);
   }
 }

@@ -3,6 +3,8 @@ import { id } from '../../db/id';
 import { mobileStoreForTests as mobileStore } from '../../test-utils/db';
 import {
   completeSet,
+  addExerciseToActiveWorkout,
+  addSetToActiveWorkout,
   deleteExerciseFromWorkout,
   deleteSet,
   discardWorkout,
@@ -76,6 +78,16 @@ async function seedBaseline(exerciseId = 'ex1') {
 beforeEach(async () => {
   resetDbForTests();
   await insertExercise();
+});
+
+test('editing a set created in a canonical active workout persists its value', async () => {
+  const { workout } = await startOrResumeWorkout();
+  const exercise = await addExerciseToActiveWorkout(workout.id, 'ex1');
+  const set = await addSetToActiveWorkout(workout.id, exercise.id);
+
+  await expect(updateSetAndRecomputeRecords(set.id, 'ex1', { reps: 12 })).resolves.toEqual({
+    recordEvents: [],
+  });
 });
 
 // ── replaceRecordsForExercise correctness ────────────────────────────────────

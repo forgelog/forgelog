@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "Set": {
+      "type": "object",
+      "required": ["id", "position", "set_type", "completed"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source_routine_set_id": { "type": ["string", "null"] },
+        "position": { "type": "integer", "minimum": 0 },
+        "set_type": { "type": "string" },
+        "weight": { "type": ["number", "null"] },
+        "reps": { "type": ["integer", "null"] },
+        "duration_seconds": { "type": ["integer", "null"] },
+        "distance_meters": { "type": ["number", "null"] },
+        "rpe": { "type": ["number", "null"] },
+        "completed": { "type": "boolean" },
+        "completed_at": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "Exercise": {
+      "type": "object",
+      "required": ["id", "exercise_id", "exercise_name", "position", "exercise_type", "pr_baselines", "alerted_record_types", "sets"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "exercise_id": { "type": "string", "minLength": 1 },
+        "exercise_name": { "type": "string" },
+        "position": { "type": "integer", "minimum": 0 },
+        "exercise_type": { "type": "string" },
+        "notes": { "type": ["string", "null"] },
+        "source_routine_exercise_id": { "type": ["string", "null"] },
+        "superset_group_id": { "type": ["string", "null"] },
+        "pr_baselines": { "type": "object", "additionalProperties": { "type": "number" } },
+        "alerted_record_types": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "sets": { "type": "array", "items": { "$ref": "#/definitions/Set" } }
+      },
+      "additionalProperties": true
+    },
+    "Workout": {
+      "type": "object",
+      "required": ["id", "name", "started_at", "exercises"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "routine_id": { "type": ["string", "null"] },
+        "name": { "type": "string" },
+        "started_at": { "type": "string" },
+        "ended_at": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] },
+        "bodyweight_kg": { "type": ["number", "null"] },
+        "routine_structure_version": { "type": ["integer", "null"] },
+        "exercises": { "type": "array", "items": { "$ref": "#/definitions/Exercise" } }
+      },
+      "additionalProperties": true
+    },
+    "CanonicalState": {
+      "type": "object",
+      "required": ["protocol_version", "coordinator_id", "coordinator_epoch", "revision", "revision_committed_at", "lifecycle", "workout_id", "workout", "terminal"],
+      "properties": {
+        "protocol_version": { "const": 1 },
+        "coordinator_id": { "type": "string", "minLength": 1 },
+        "coordinator_epoch": { "type": "string", "minLength": 1 },
+        "revision": { "type": "integer", "minimum": 0 },
+        "revision_committed_at": { "type": "string" },
+        "lifecycle": { "enum": ["none", "active", "finished", "discarded"] },
+        "workout_id": { "type": ["string", "null"] },
+        "workout": { "anyOf": [{ "$ref": "#/definitions/Workout" }, { "type": "null" }] },
+        "terminal": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["ended_at"],
+              "properties": {
+                "ended_at": { "type": "string" },
+                "operation_id": { "type": ["string", "null"] },
+                "origin_device_id": { "type": ["string", "null"] }
+              }
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "Operation": {
+      "oneOf": [
+        { "type": "object", "required": ["type", "workout"], "properties": { "type": { "const": "start_workout" }, "workout": { "$ref": "#/definitions/Workout" } } },
+        { "type": "object", "required": ["type", "recovery_lifecycle", "old_epoch", "old_operation_ids"], "properties": { "type": { "const": "recover_workout" }, "recovery_lifecycle": { "enum": ["active", "finished", "discarded"] }, "workout": { "anyOf": [{ "$ref": "#/definitions/Workout" }, { "type": "null" }] }, "old_epoch": { "type": "string" }, "old_operation_ids": { "type": "array", "items": { "type": "string" } } } },
+        { "type": "object", "required": ["type", "name"], "properties": { "type": { "const": "rename_workout" }, "name": { "type": "string" } } },
+        { "type": "object", "required": ["type", "notes"], "properties": { "type": { "const": "update_workout_notes" }, "notes": { "type": ["string", "null"] } } },
+        { "type": "object", "required": ["type", "exercise"], "properties": { "type": { "const": "add_exercise" }, "exercise": { "$ref": "#/definitions/Exercise" } } },
+        { "type": "object", "required": ["type", "exercise_id"], "properties": { "type": { "const": "remove_exercise" }, "exercise_id": { "type": "string" } } },
+        { "type": "object", "required": ["type", "exercise_ids"], "properties": { "type": { "const": "reorder_exercises" }, "exercise_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true } } },
+        { "type": "object", "required": ["type", "exercise_id", "field", "value"], "properties": { "type": { "const": "update_exercise" }, "exercise_id": { "type": "string" }, "field": { "enum": ["notes", "exercise_type", "superset_group_id"] }, "value": { "type": ["string", "null"] } } },
+        { "type": "object", "required": ["type", "exercise_id", "set"], "properties": { "type": { "const": "add_set" }, "exercise_id": { "type": "string" }, "set": { "$ref": "#/definitions/Set" } } },
+        { "type": "object", "required": ["type", "exercise_id", "set_id"], "properties": { "type": { "const": "remove_set" }, "exercise_id": { "type": "string" }, "set_id": { "type": "string" } } },
+        { "type": "object", "required": ["type", "exercise_id", "set_ids"], "properties": { "type": { "const": "reorder_sets" }, "exercise_id": { "type": "string" }, "set_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true } } },
+        { "type": "object", "required": ["type", "set_id", "field", "value"], "properties": { "type": { "const": "update_set" }, "set_id": { "type": "string" }, "field": { "enum": ["weight", "reps", "duration_seconds", "distance_meters", "rpe", "set_type"] }, "value": { "type": ["number", "string", "null"] } } },
+        { "type": "object", "required": ["type", "set_id", "exercise_id", "completed", "completed_at", "alerted_record_types"], "properties": { "type": { "const": "complete_set" }, "set_id": { "type": "string" }, "exercise_id": { "type": "string" }, "completed": { "type": "boolean" }, "completed_at": { "type": ["string", "null"] }, "alerted_record_types": { "type": "array", "items": { "type": "string" }, "uniqueItems": true } } },
+        { "type": "object", "required": ["type", "ended_at"], "properties": { "type": { "const": "finish_workout" }, "ended_at": { "type": "string" } } },
+        { "type": "object", "required": ["type", "discarded_at"], "properties": { "type": { "const": "discard_workout" }, "discarded_at": { "type": "string" } } }
+      ]
+    },
+    "Mutation": {
+      "type": "object",
+      "required": ["protocol_version", "operation_id", "device_id", "device_sequence", "coordinator_epoch", "workout_id", "base_revision", "predecessor_operation_id", "conflict_keys", "created_at", "operation"],
+      "properties": {
+        "protocol_version": { "const": 1 },
+        "operation_id": { "type": "string", "minLength": 1 },
+        "device_id": { "type": "string", "minLength": 1 },
+        "device_sequence": { "type": "integer", "minimum": 1 },
+        "coordinator_epoch": { "type": "string", "minLength": 1 },
+        "workout_id": { "type": "string", "minLength": 1 },
+        "base_revision": { "type": "integer", "minimum": 0 },
+        "predecessor_operation_id": { "type": ["string", "null"] },
+        "conflict_keys": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "created_at": { "type": "string" },
+        "operation": { "$ref": "#/definitions/Operation" }
+      },
+      "additionalProperties": true
+    },
+    "Result": {
+      "type": "object",
+      "required": ["protocol_version", "coordinator_epoch", "device_id", "device_sequence", "status", "canonical_revision"],
+      "properties": {
+        "protocol_version": { "const": 1 },
+        "coordinator_epoch": { "type": "string" },
+        "device_id": { "type": "string" },
+        "device_sequence": { "type": "integer", "minimum": 1 },
+        "operation_id": { "type": ["string", "null"] },
+        "status": { "enum": ["accepted", "rejected", "needs_resolution", "blocked_by_predecessor", "resolved"] },
+        "canonical_revision": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    }
+  }
+}

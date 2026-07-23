@@ -192,9 +192,7 @@ test('gates repeated reorder presses while persistence is pending', async () => 
   };
   const pendingMove = deferred<void>();
   mockGetWorkoutDetail.mockResolvedValue(groupedDetail);
-  const moveExercise = jest
-    .spyOn(mobileStore.workouts, 'moveExercise')
-    .mockReturnValue(pendingMove.promise);
+  mockMoveWorkoutExercise.mockReturnValue(pendingMove.promise);
 
   const active = await render(
     <NavigationContainer>
@@ -212,7 +210,7 @@ test('gates repeated reorder presses while persistence is pending', async () => 
   await act(async () => fireEvent.press(moveUp));
   await act(async () => fireEvent.press(moveUp));
 
-  expect(moveExercise).toHaveBeenCalledTimes(1);
+  expect(mockMoveWorkoutExercise).toHaveBeenCalledTimes(1);
   await waitFor(() =>
     expect(
       active.getAllByTestId(/workout-exercise-\d+-name/).map((node) => node.props.children)

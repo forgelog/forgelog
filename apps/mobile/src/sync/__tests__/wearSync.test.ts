@@ -9,6 +9,10 @@ jest.mock('wear-sync', () => ({
     addListener: jest.fn(),
     publishSnapshot: jest.fn(),
     ackWorkout: jest.fn(),
+    publishActiveWorkoutState: jest.fn().mockResolvedValue(undefined),
+    publishActiveWorkoutResult: jest.fn().mockResolvedValue(undefined),
+    enumerateActiveWorkoutDataItems: jest.fn().mockResolvedValue([]),
+    deleteDataItem: jest.fn().mockResolvedValue(undefined),
   },
 }));
 

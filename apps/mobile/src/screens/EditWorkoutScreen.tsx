@@ -6,6 +6,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { mobileStore } from '../db/mobileStore';
+import { updateWorkoutName } from '../application/activeWorkout';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { useTheme } from '../theme/ThemeContext';
 import { NAME_MAX_LENGTH, validateText } from '../validation/textInput';
@@ -75,7 +76,7 @@ export function EditWorkoutScreen({ route, navigation }: Props) {
 
     setSaving(true);
     try {
-      await mobileStore.workouts.updateName(workoutId, result.value);
+      await updateWorkoutName(workoutId, result.value);
       navigation.goBack();
     } catch {
       setGeneralError('Could not save workout.');

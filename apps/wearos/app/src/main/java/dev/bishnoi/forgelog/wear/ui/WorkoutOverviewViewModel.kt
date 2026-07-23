@@ -29,6 +29,20 @@ class WorkoutOverviewViewModel(
     private val finishWorkoutUseCase: FinishWorkout,
     private val workoutId: String,
 ) : ViewModel() {
+    val workoutOpen: StateFlow<Boolean?> = workouts.state.map { state ->
+        state.activeWorkout?.id == workoutId
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val syncStatus: StateFlow<String?> = workouts.state.map { state ->
+        when {
+            state.legacyMode -> "Live sync unavailable for this legacy workout"
+            state.syncError != null || state.rejectedMutations.isNotEmpty() -> "Sync conflict — review on phone"
+            state.pendingMutations.isNotEmpty() || state.acceptedAwaitingCanonical.isNotEmpty() -> "Sync pending"
+            state.coordinatorEpoch != null -> "Synced"
+            else -> "Offline"
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     val exercises: StateFlow<List<ExerciseProgress>> = workouts.activeWorkout.map { workout ->
         if (workout?.id != workoutId) return@map emptyList()
         val rows = workout.exercises.sortedBy { it.position }.map { exercise ->

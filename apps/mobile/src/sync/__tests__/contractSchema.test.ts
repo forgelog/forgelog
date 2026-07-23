@@ -8,6 +8,9 @@ const versionSkewPayloadFixture = require('../../../../../data/contracts/fixture
 const syncSnapshotFixture = require('../../../../../data/contracts/fixtures/sync-snapshot.json');
 const malformedSyncSnapshotFixture = require('../../../../../data/contracts/fixtures/malformed-sync-snapshot.json');
 const versionSkewSyncSnapshotFixture = require('../../../../../data/contracts/fixtures/version-skew-sync-snapshot.json');
+const activeWorkoutSchema = require('../../../../../data/contracts/active-workout.schema.json');
+const activeWorkoutStateFixture = require('../../../../../data/contracts/fixtures/active-workout-state.json');
+const activeWorkoutMutationsFixture = require('../../../../../data/contracts/fixtures/active-workout-mutations.json');
 
 const ajv = new Ajv();
 
@@ -42,4 +45,22 @@ test('malformed-sync-snapshot fixture fails SyncSnapshot schema', () => {
 
 test('version-skew-sync-snapshot fixture fails SyncSnapshot schema', () => {
   expect(validateSyncSnapshot(versionSkewSyncSnapshotFixture)).toBe(false);
+});
+
+test('active workout canonical state and every mutation family validate', () => {
+  const activeAjv = new Ajv({ discriminator: true, allowUnionTypes: true });
+  const stateValidator = activeAjv.compile({
+    ...activeWorkoutSchema.definitions.CanonicalState,
+    definitions: activeWorkoutSchema.definitions,
+  });
+  const mutationValidator = activeAjv.compile({
+    ...activeWorkoutSchema.definitions.Mutation,
+    definitions: activeWorkoutSchema.definitions,
+  });
+  expect(stateValidator(activeWorkoutStateFixture)).toBe(true);
+  expect(stateValidator.errors).toBeNull();
+  for (const fixture of activeWorkoutMutationsFixture) {
+    expect(mutationValidator(fixture)).toBe(true);
+    expect(mutationValidator.errors).toBeNull();
+  }
 });

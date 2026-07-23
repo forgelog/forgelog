@@ -7,10 +7,12 @@ import * as profile from './repositories/profile';
 import * as routines from './repositories/routines';
 import * as sync from './repositories/sync';
 import * as workouts from './repositories/workouts';
+import * as activeWorkoutSync from './repositories/activeWorkoutSync';
 import type { DatabaseExecutor } from './executor';
 import { getDb } from './index';
 
 export type { ExerciseFilters } from './repositories/exercises';
+export type { ActiveWorkoutConflict } from './repositories/activeWorkoutSync';
 export type {
   CurrentMeasurement,
   MeasurementDimension,
@@ -125,6 +127,24 @@ function createBoundMobileStore(
     sync: {
       getSnapshot: bind(sync.getSyncSnapshot),
       ingestWatchWorkout: bindTransaction(sync.ingestWatchWorkout),
+      verifyActiveWorkoutCheckpoint: bind(sync.verifyActiveWorkoutCheckpoint),
+    },
+    activeWorkoutSync: {
+      ensureCoordinator: bind(activeWorkoutSync.ensureCoordinator),
+      getStatus: bind(activeWorkoutSync.getStatus),
+      commitLocalRevision: bind(activeWorkoutSync.commitLocalRevision),
+      clearLegacyWorkout: bind(activeWorkoutSync.clearLegacyWorkout),
+      markStatePublished: bind(activeWorkoutSync.markStatePublished),
+      markResultPublished: bind(activeWorkoutSync.markResultPublished),
+      getCanonicalState: bind(activeWorkoutSync.getCanonicalState),
+      listDirtyPublications: bind(activeWorkoutSync.listDirtyPublications),
+      applyRemoteMutation: bind(activeWorkoutSync.applyRemoteMutation),
+      rejectMalformedMutation: bind(activeWorkoutSync.rejectMalformedMutation),
+      listConflicts: bind(activeWorkoutSync.listConflicts),
+      resolveConflict: bind(activeWorkoutSync.resolveConflict),
+      acknowledgeWatchState: bind(activeWorkoutSync.acknowledgeWatchState),
+      capturePrBaselinesForWorkout: bind(activeWorkoutSync.capturePrBaselinesForWorkout),
+      addAlertedRecordTypes: bind(activeWorkoutSync.addAlertedRecordTypes),
     },
   } as const;
 }

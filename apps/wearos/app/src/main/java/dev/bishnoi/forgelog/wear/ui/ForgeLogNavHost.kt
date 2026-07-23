@@ -106,9 +106,15 @@ fun ForgeLogNavHost() {
             )
             val exercises by vm.exercises.collectAsState()
             val elapsed by vm.elapsedSeconds.collectAsState()
+            val syncStatus by vm.syncStatus.collectAsState()
+            val workoutOpen by vm.workoutOpen.collectAsState()
+            LaunchedEffect(workoutOpen) {
+                if (workoutOpen == false) navController.popToHome()
+            }
             WorkoutOverviewScreen(
                 exercises = exercises,
                 elapsedSeconds = elapsed,
+                syncStatus = syncStatus,
                 onOpenExercise = { workoutExerciseId ->
                     navController.navigate(WearRoutes.exercise(workoutExerciseId))
                 },

@@ -4,6 +4,9 @@ import type { LoggedSet, PersonalRecord, RoutineDetail, SetType } from '../types
 import { listRoutines, getRoutineDetail } from './routines';
 import { getRecordsForExercise, replaceRecordsForExercise } from './personalRecords';
 import { getProfile, type Sex } from './profile';
+import * as Crypto from 'expo-crypto';
+import { getCanonicalState } from './activeWorkoutSync';
+import { normalizedActiveWorkoutJson } from '../../sync/activeWorkoutProtocol';
 
 export const SYNC_PROTOCOL_VERSION = 2;
 
@@ -70,6 +73,14 @@ export type WatchWorkoutPayload = {
   ended_at: string | null;
   notes: string | null;
   exercises: WatchWorkoutExercisePayload[];
+  active_sync?: {
+    finish_operation_id: string;
+    device_id: string;
+    device_sequence: number;
+    canonical_revision: number | null;
+    provisional: boolean;
+    payload_hash: string;
+  };
 };
 
 export type WatchWorkoutExercisePayload = {
@@ -168,4 +179,65 @@ export async function ingestWatchWorkout(
   for (const exerciseId of touchedExerciseIds) {
     await replaceRecordsForExercise(db, exerciseId);
   }
+}
+
+export async function verifyActiveWorkoutCheckpoint(
+  db: DatabaseExecutor,
+  payload: WatchWorkoutPayload
+): Promise<'waiting' | 'acknowledged' | 'conflict'> {
+  const metadata = payload.active_sync;
+  if (!metadata) throw new Error('Active sync metadata required');
+  if (metadata.provisional || metadata.canonical_revision == null) return 'waiting';
+  const operation = await db.getFirstAsync<{ status: string; accepted_revision: number | null; result_json: string }>(
+    `SELECT status, accepted_revision, result_json FROM active_workout_operations
+      WHERE operation_id = $operationId AND device_id = $deviceId AND device_sequence = $sequence`,
+    { $operationId: metadata.finish_operation_id, $deviceId: metadata.device_id, $sequence: metadata.device_sequence }
+  );
+  if (!operation || !['accepted', 'resolved'].includes(operation.status)) return 'waiting';
+  if (operation.accepted_revision !== metadata.canonical_revision) return 'conflict';
+
+  const { active_sync: _metadata, ...completedPayload } = payload;
+  const payloadJson = normalizedActiveWorkoutJson(completedPayload);
+  const payloadHash = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, payloadJson);
+  if (payloadHash !== metadata.payload_hash) return 'conflict';
+
+  const canonical = await getCanonicalState(db);
+  const retainedResult = JSON.parse(operation.result_json) as { terminal_workout?: import('../../sync/activeWorkoutProtocol').ActiveWorkoutSnapshot };
+  const workout = canonical.workout?.id === payload.id
+    ? canonical.workout
+    : retainedResult.terminal_workout ?? null;
+  if (!workout || workout.id !== payload.id || canonical.revision < metadata.canonical_revision) {
+    return 'waiting';
+  }
+  const expected: WatchWorkoutPayload = {
+    protocol_version: SYNC_PROTOCOL_VERSION,
+    id: workout.id,
+    routine_id: workout.routine_id,
+    name: workout.name,
+    started_at: workout.started_at,
+    ended_at: workout.ended_at,
+    notes: workout.notes,
+    exercises: workout.exercises.map((exercise) => ({
+      id: exercise.id,
+      exercise_id: exercise.exercise_id,
+      position: exercise.position,
+      superset_group_id: exercise.superset_group_id,
+      exercise_type: exercise.exercise_type,
+      notes: exercise.notes,
+      sets: exercise.sets.map((set) => ({
+        id: set.id,
+        workout_exercise_id: exercise.id,
+        position: set.position,
+        set_type: set.set_type as SetType,
+        weight: set.weight,
+        reps: set.reps,
+        duration_seconds: set.duration_seconds,
+        distance_meters: set.distance_meters,
+        rpe: set.rpe,
+        completed: set.completed,
+        completed_at: set.completed_at,
+      })),
+    })),
+  };
+  return normalizedActiveWorkoutJson(expected) === payloadJson ? 'acknowledged' : 'conflict';
 }

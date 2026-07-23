@@ -101,6 +101,30 @@ class WearSyncListenerServiceTest {
   }
 
   @Test
+  fun activeMutationDeliversPersistentPathAndPayload() {
+    val payload = """{"protocol_version":1,"operation_id":"op-1"}"""
+    val received = mutableListOf<WearSyncBridge.ActiveDataItem>()
+    WearSyncBridge.attachActiveListener { received.add(it) }
+    val path = "/active-workout/mutation/epoch/watch/1"
+    val request = PutDataMapRequest.create(path).apply {
+      dataMap.putString("payload", payload)
+    }.asPutDataRequest().setUrgent()
+
+    WearSyncListenerService.deliverDataItem(FakeDataItem(Uri.parse("wear://self$path"), checkNotNull(request.data)))
+
+    assertEquals(listOf(WearSyncBridge.ActiveDataItem(path, payload)), received)
+  }
+
+  @Test
+  fun activeStatePublicationEnforcesSizeGuard() {
+    val request = WearSyncModule.buildJsonRequest("/active-workout/state", "{}", 123L)
+    assertEquals("/active-workout/state", request.uri.path)
+    assertThrows(IllegalArgumentException::class.java) {
+      WearSyncModule.buildJsonRequest("/active-workout/state", "x".repeat(100_000))
+    }
+  }
+
+  @Test
   fun acknowledgeWorkoutBuildsPersistentUrgentDataItem() {
     val timestamp = 1_725_000_000_000L
 

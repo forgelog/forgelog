@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class JsonStateSerializerTest {
@@ -45,6 +46,22 @@ class JsonStateSerializerTest {
                 WorkoutStateSerializer.readFrom(ByteArrayInputStream("{\"formatVersion\":99}".toByteArray()))
             }
         }
+    }
+
+    @Test
+    fun `workout format 1 migrates active and pending data into explicit legacy mode`() = runBlocking {
+        val encoded = """{
+          "formatVersion":1,
+          "activeWorkout":{"id":"w1","routineId":"r1","name":"Push","startedAt":"2026-07-23T10:00:00Z","exercises":[]},
+          "pendingUploads":[]
+        }""".trimIndent()
+
+        val migrated = WorkoutStateSerializer.readFrom(ByteArrayInputStream(encoded.toByteArray()))
+
+        assertEquals(2, migrated.formatVersion)
+        assertEquals("w1", migrated.activeWorkout?.id)
+        assertTrue(migrated.legacyMode)
+        assertEquals(null, migrated.installationId)
     }
 
     @Test
