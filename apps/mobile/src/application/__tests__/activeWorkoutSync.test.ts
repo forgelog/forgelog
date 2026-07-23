@@ -213,6 +213,7 @@ test('malformed payload at a valid sequence is finalized so later sequences can 
     deviceId: 'watch-1',
     deviceSequence: 1,
   }, '{bad-json')).resolves.toMatchObject({ status: 'rejected', reason: 'malformed_payload' });
+  await expect(getActiveWorkoutConflicts()).resolves.toEqual([]);
 
   const operation = { type: 'rename_workout' as const, name: 'After malformed' };
   await expect(applyRemoteActiveWorkoutMutation({

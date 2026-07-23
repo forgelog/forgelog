@@ -246,24 +246,34 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       [
         {
           text: 'Keep Phone',
-          onPress: () => void resolveActiveWorkoutConflict(
-            conflict.operationId,
-            'canonical_kept',
-            conflict.result.canonical_revision
-          ).then(() => reload({ showLoading: false })),
+          onPress: () => void resolveSyncConflict('canonical_kept'),
         },
         {
           text: operation.type === 'start_workout' ? 'Use Watch' : 'Apply Watch',
           style: operation.type === 'start_workout' ? 'destructive' : 'default',
-          onPress: () => void resolveActiveWorkoutConflict(
-            conflict.operationId,
-            'operation_reapplied',
-            conflict.result.canonical_revision
-          ).then(() => reload({ showLoading: false })),
+          onPress: () => void resolveSyncConflict('operation_reapplied'),
         },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
+
+    async function resolveSyncConflict(
+      resolution: 'canonical_kept' | 'operation_reapplied'
+    ): Promise<void> {
+      try {
+        await resolveActiveWorkoutConflict(
+          conflict.operationId,
+          resolution,
+          conflict.result.canonical_revision
+        );
+        await reload({ showLoading: false });
+      } catch {
+        Alert.alert(
+          'Resolution failed',
+          'The watch change could not be resolved. Please try again.'
+        );
+      }
+    }
   }
 
   async function handleAddSet(we: WorkoutExerciseDetail) {

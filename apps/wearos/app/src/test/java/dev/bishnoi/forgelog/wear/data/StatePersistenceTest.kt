@@ -97,24 +97,35 @@ class StatePersistenceTest {
 
     @Test
     fun `protocol identity and optimistic mutation survive DataStore recreation`() = runBlocking {
-        val fixture = WearRepositoryTestFixture(ids = listOf("device-1", "w1", "we1", "s1", "s2", "we2", "s3"))
-        fixture.use {
-            it.seedReferenceState()
-            it.workouts.applyCanonicalState(
-                dev.bishnoi.forgelog.wear.sync.CanonicalActiveWorkoutState(
-                    coordinatorId = "phone-1",
-                    coordinatorEpoch = "epoch-1",
-                    revision = 0,
-                    revisionCommittedAt = "2026-07-23T09:00:00Z",
-                    lifecycle = "none",
-                ),
-            )
-            it.workouts.startWorkout("r1")
-            val state = it.workouts.state.first()
-            assertEquals("device-1", state.installationId)
-            assertEquals(2L, state.nextDeviceSequence)
-            assertEquals(1, state.pendingMutations.size)
-            assertNotNull(state.activeWorkout)
+        val directory = Files.createTempDirectory("wear-protocol-recreation").toFile()
+        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val firstReferences = referenceRepository(firstScope, directory)
+            val ids = ArrayDeque(listOf("device-1", "w1", "we1", "s1", "s2", "we2", "s3", "start-op"))
+            val firstWorkouts = workoutRepository(firstScope, directory, firstReferences) { ids.removeFirst() }
+            firstReferences.replaceSnapshot(sampleSnapshot())
+            firstWorkouts.applyCanonicalState(canonicalNone("epoch-1"))
+            firstWorkouts.startWorkout("r1")
+
+            firstScope.coroutineContext.job.cancelAndJoin()
+
+            val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            try {
+                val secondReferences = referenceRepository(secondScope, directory)
+                val secondWorkouts = workoutRepository(secondScope, directory, secondReferences) { "unused" }
+                val restored = secondWorkouts.state.first()
+                assertEquals("device-1", restored.installationId)
+                assertEquals(2L, restored.nextDeviceSequence)
+                assertEquals(1, restored.pendingMutations.size)
+                assertNotNull(restored.activeWorkout)
+            } finally {
+                secondScope.coroutineContext.job.cancelAndJoin()
+            }
+        } finally {
+            if (firstScope.coroutineContext.job.isActive) {
+                firstScope.coroutineContext.job.cancelAndJoin()
+            }
+            directory.deleteRecursively()
         }
     }
     @Test

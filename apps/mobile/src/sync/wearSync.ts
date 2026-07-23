@@ -122,36 +122,37 @@ async function handlePersistentDataItem(path: string, payload: string): Promise<
     assertActiveWorkoutPayloadSize(payload);
     raw = JSON.parse(payload);
   } catch {
-    const result = await rejectMalformedActiveWorkoutMutation({
-      coordinatorEpoch: parts[3], deviceId: parts[4], deviceSequence: Number(parts[5]),
-    }, payload);
-    if (!isWaitingForPredecessor(result)) await WearSync.deleteDataItem(path);
-    await publishDirtyActiveWorkout();
-    return;
+    return rejectAndFinalizeMutation(path, parts, payload);
   }
   const mutation = parseActiveWorkoutMutation(raw);
-  if (!mutation) {
-    const result = await rejectMalformedActiveWorkoutMutation({
-      coordinatorEpoch: parts[3], deviceId: parts[4], deviceSequence: Number(parts[5]),
-    }, payload);
-    if (!isWaitingForPredecessor(result)) await WearSync.deleteDataItem(path);
-    await publishDirtyActiveWorkout();
-    return;
-  }
+  if (!mutation) return rejectAndFinalizeMutation(path, parts, payload);
   if (
     parts.length !== 6 ||
     parts[3] !== mutation.coordinator_epoch ||
     parts[4] !== mutation.device_id ||
     Number(parts[5]) !== mutation.device_sequence
   ) {
-    const result = await rejectMalformedActiveWorkoutMutation({
-      coordinatorEpoch: parts[3], deviceId: parts[4], deviceSequence: Number(parts[5]),
-    }, payload);
-    if (!isWaitingForPredecessor(result)) await WearSync.deleteDataItem(path);
-    await publishDirtyActiveWorkout();
-    return;
+    return rejectAndFinalizeMutation(path, parts, payload);
   }
   const result = await applyRemoteActiveWorkoutMutation(mutation);
+  await finalizeMutationOutcome(path, result);
+}
+
+async function rejectAndFinalizeMutation(
+  path: string,
+  parts: string[],
+  payload: string
+): Promise<void> {
+  const result = await rejectMalformedActiveWorkoutMutation({
+    coordinatorEpoch: parts[3], deviceId: parts[4], deviceSequence: Number(parts[5]),
+  }, payload);
+  await finalizeMutationOutcome(path, result);
+}
+
+async function finalizeMutationOutcome(
+  path: string,
+  result: { status: string; reason?: string }
+): Promise<void> {
   if (!isWaitingForPredecessor(result)) await WearSync.deleteDataItem(path);
   await publishDirtyActiveWorkout();
 }
@@ -173,10 +174,14 @@ function activeDataItemOrder(left: string, right: string): number {
 export async function publishDirtyActiveWorkout(): Promise<void> {
   const dirty = await getDirtyActiveWorkoutPublications();
   if (dirty.state) {
-    const json = JSON.stringify(dirty.state);
-    assertActiveWorkoutPayloadSize(json);
-    await WearSync.publishActiveWorkoutState(json);
-    await markActiveWorkoutStatePublished(dirty.state.revision);
+    try {
+      const json = JSON.stringify(dirty.state);
+      assertActiveWorkoutPayloadSize(json);
+      await WearSync.publishActiveWorkoutState(json);
+      await markActiveWorkoutStatePublished(dirty.state.revision);
+    } catch {
+      // Preserve the dirty state for retry without blocking independent results.
+    }
   }
   for (const result of dirty.results) {
     const json = JSON.stringify(result);

@@ -277,6 +277,30 @@ test('publishes dirty canonical state and operation results', async () => {
   expect(mockMarkResultPublished).toHaveBeenCalledTimes(1);
 });
 
+test('retains a failed state publication without blocking independent results', async () => {
+  const result: ActiveWorkoutResult = {
+    protocol_version: 1,
+    coordinator_epoch: 'epoch-1',
+    device_id: 'watch-1',
+    device_sequence: 3,
+    operation_id: 'op-3',
+    status: 'accepted',
+    canonical_revision: 4,
+    idempotent: false,
+  };
+  mockGetDirty.mockResolvedValueOnce({ state, results: [result] });
+  mockPublishState.mockRejectedValueOnce(new Error('state too large'));
+
+  await expect(publishDirtyActiveWorkout()).resolves.toBeUndefined();
+
+  expect(mockMarkStatePublished).not.toHaveBeenCalled();
+  expect(mockPublishResult).toHaveBeenCalledWith(
+    '/active-workout/result/epoch-1/watch-1/3',
+    JSON.stringify(result)
+  );
+  expect(mockMarkResultPublished).toHaveBeenCalledWith('op-3');
+});
+
 test('sorts persistent mutations by stream and sequence before applying', async () => {
   const first = { ...mutation, operation_id: 'first', device_sequence: 1 };
   const second = { ...mutation, operation_id: 'second', device_sequence: 2 };

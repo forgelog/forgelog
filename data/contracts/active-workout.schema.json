@@ -129,7 +129,15 @@
         "device_sequence": { "type": "integer", "minimum": 1 },
         "operation_id": { "type": ["string", "null"] },
         "status": { "enum": ["accepted", "rejected", "needs_resolution", "blocked_by_predecessor", "resolved"] },
-        "canonical_revision": { "type": "integer", "minimum": 0 }
+        "canonical_revision": { "type": "integer", "minimum": 0 },
+        "reason": { "type": "string" },
+        "conflict_keys": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "idempotent": { "type": "boolean" },
+        "normalized_values": { "type": "object" },
+        "canonical_values": { "type": "object" },
+        "resolution": { "enum": ["canonical_kept", "operation_reapplied"] },
+        "resolution_revision": { "type": "integer", "minimum": 0 },
+        "terminal_workout": { "$ref": "#/definitions/Workout" }
       },
       "additionalProperties": true
     }

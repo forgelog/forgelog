@@ -8,6 +8,7 @@ import {
   assertActiveWorkoutPayloadSize,
   deriveConflictKeys,
   normalizedActiveWorkoutJson,
+  parseActiveWorkoutMutation,
   type ActiveWorkoutCanonicalState,
   type ActiveWorkoutMutation,
   type ActiveWorkoutOperation,
@@ -229,12 +230,20 @@ export async function listConflicts(db: DatabaseExecutor): Promise<ActiveWorkout
       WHERE status IN ('rejected', 'needs_resolution', 'blocked_by_predecessor')
       ORDER BY coordinator_epoch, device_id, device_sequence`
   );
-  return rows.map((row) => ({
-    operationId: row.operation_id,
-    status: row.status,
-    mutation: JSON.parse(row.payload_json) as ActiveWorkoutMutation,
-    result: JSON.parse(row.result_json) as ActiveWorkoutResult,
-  }));
+  return rows.flatMap((row) => {
+    try {
+      const mutation = parseActiveWorkoutMutation(JSON.parse(row.payload_json));
+      if (!mutation) return [];
+      return [{
+        operationId: row.operation_id,
+        status: row.status,
+        mutation,
+        result: JSON.parse(row.result_json) as ActiveWorkoutResult,
+      }];
+    } catch {
+      return [];
+    }
+  });
 }
 
 export async function resolveConflict(
@@ -249,7 +258,8 @@ export async function resolveConflict(
   if (resolution === 'operation_reapplied' && status.revision !== reviewedRevision) {
     throw new Error('canonical_revision_changed');
   }
-  const mutation = conflict.mutation;
+  const mutation = parseActiveWorkoutMutation(conflict.mutation);
+  if (!mutation) throw new Error('invalid_conflict_payload');
   let revision = status.revision;
   if (resolution === 'operation_reapplied') {
     if (mutation.operation.type === 'recover_workout' &&
@@ -812,7 +822,7 @@ async function applyOperationToDatabase(
       );
       await insertExerciseProtocolData(db, operation.exercise);
       return;
-    case 'remove_exercise':
+    case 'remove_exercise': {
       await clearSetReferencesForWorkoutExercise(db, operation.exercise_id);
       const removedExercise = await db.getFirstAsync<{ position: number; exercise_id: string }>(
         'SELECT position, exercise_id FROM workout_exercises WHERE id = $id', { $id: operation.exercise_id }
@@ -829,6 +839,7 @@ async function applyOperationToDatabase(
         await replaceRecordStateForExercise(db, removedExercise.exercise_id);
       }
       return;
+    }
     case 'reorder_exercises':
       for (const [position, exerciseId] of operation.exercise_ids.entries()) await db.runAsync(
         'UPDATE workout_exercises SET position = $position WHERE id = $id AND workout_id = $workoutId',
@@ -851,7 +862,7 @@ async function applyOperationToDatabase(
         setParams(operation.exercise_id, operation.set)
       );
       return;
-    case 'remove_set':
+    case 'remove_set': {
       await clearSetReference(db, operation.set_id);
       const removedSet = await db.getFirstAsync<{ position: number; workout_exercise_id: string; exercise_id: string }>(
         `SELECT ls.position, ls.workout_exercise_id, we.exercise_id FROM logged_sets ls
@@ -865,6 +876,7 @@ async function applyOperationToDatabase(
         await replaceRecordStateForExercise(db, removedSet.exercise_id);
       }
       return;
+    }
     case 'reorder_sets':
       for (const [position, setId] of operation.set_ids.entries()) await db.runAsync(
         'UPDATE logged_sets SET position = $position WHERE id = $id AND workout_exercise_id = $exerciseId',
@@ -877,7 +889,7 @@ async function applyOperationToDatabase(
         { $value: operation.value, $id: operation.set_id }
       );
       return;
-    case 'complete_set':
+    case 'complete_set': {
       await db.runAsync('UPDATE logged_sets SET completed = $completed, completed_at = $completedAt WHERE id = $id',
         { $completed: operation.completed ? 1 : 0, $completedAt: operation.completed_at, $id: operation.set_id });
       for (const type of operation.alerted_record_types) await db.runAsync(
@@ -889,6 +901,7 @@ async function applyOperationToDatabase(
       );
       if (completedExercise) await replaceRecordStateForExercise(db, completedExercise.exercise_id);
       return;
+    }
     case 'finish_workout':
       await db.runAsync('UPDATE workouts SET ended_at = $endedAt WHERE id = $id', { $endedAt: operation.ended_at, $id: workoutId });
       return;

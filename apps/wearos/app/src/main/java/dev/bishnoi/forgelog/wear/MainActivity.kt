@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import android.util.Log
 import dev.bishnoi.forgelog.wear.sync.WearDataClient
+import kotlinx.coroutines.CancellationException
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,6 +28,8 @@ class MainActivity : ComponentActivity() {
                 .collect {
                     try {
                         WearDataClient.publishPendingMutations(applicationContext, stores.workouts)
+                    } catch (error: CancellationException) {
+                        throw error
                     } catch (error: Exception) {
                         Log.w("ActiveWorkoutSync", "Pending mutations remain durable", error)
                     }

@@ -18,6 +18,10 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class WearSyncListenerServiceTest {
+  private companion object {
+    const val ACTIVE_WORKOUT_STATE_PATH = "/active-workout/state"
+  }
+
   @Before
   fun setUp() {
     WearSyncBridge.resetForTests()
@@ -117,10 +121,10 @@ class WearSyncListenerServiceTest {
 
   @Test
   fun activeStatePublicationEnforcesSizeGuard() {
-    val request = WearSyncModule.buildJsonRequest("/active-workout/state", "{}", 123L)
-    assertEquals("/active-workout/state", request.uri.path)
+    val request = WearSyncModule.buildJsonRequest(ACTIVE_WORKOUT_STATE_PATH, "{}", 123L)
+    assertEquals(ACTIVE_WORKOUT_STATE_PATH, request.uri.path)
     assertThrows(IllegalArgumentException::class.java) {
-      WearSyncModule.buildJsonRequest("/active-workout/state", "x".repeat(100_000))
+      WearSyncModule.buildJsonRequest(ACTIVE_WORKOUT_STATE_PATH, "x".repeat(100_000))
     }
   }
 
