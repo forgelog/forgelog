@@ -1,57 +1,41 @@
 package dev.bishnoi.forgelog.wear.application
 
 import android.util.Log
-import dev.bishnoi.forgelog.wear.data.WorkoutDao
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
-import dev.bishnoi.forgelog.wear.sync.SyncRepository
 import dev.bishnoi.forgelog.wear.sync.WorkoutPayloadDto
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
 private const val TAG = "FinishWorkout"
 
 class FinishWorkout(
-    private val workoutRepository: WorkoutRepository,
-    private val syncRepository: SyncRepository,
-    private val workoutDao: WorkoutDao,
+    private val workouts: WorkoutRepository,
     private val publish: suspend (WorkoutPayloadDto) -> Unit,
+    private val logWarning: (String, Throwable) -> Unit = { message, error -> Log.w(TAG, message, error) },
 ) {
     suspend operator fun invoke(workoutId: String) {
-        workoutRepository.finishWorkout(workoutId)
-        val finished = workoutDao.getWorkout(workoutId) ?: return
-        val payload = syncRepository.buildWorkoutPayload(finished)
-        try {
-            publish(payload)
-            workoutDao.markSynced(workoutId)
-        } catch (error: Exception) {
-            error.rethrowIfCancellation()
-            Log.w(TAG, "Could not publish finished workout $workoutId", error)
-        }
+        val payload = workouts.finishWorkout(workoutId)
+        publishPending(payload)
     }
 
-    suspend fun drainUnsynced() {
-        val unsynced = try {
-            workoutDao.unsyncedWorkouts()
+    suspend fun drainPending() {
+        val pending = try {
+            workouts.pendingUploads.first()
         } catch (error: Exception) {
             error.rethrowIfCancellation()
-            Log.w(TAG, "Could not load unsynced workouts", error)
+            logWarning("Could not load pending workouts", error)
             return
         }
-        for (workout in unsynced) {
-            if (workout.endedAt == null) continue
-            val payload = try {
-                syncRepository.buildWorkoutPayload(workout)
-            } catch (error: Exception) {
-                error.rethrowIfCancellation()
-                Log.w(TAG, "Could not build payload for workout ${workout.id}", error)
-                continue
-            }
-            try {
-                publish(payload)
-                workoutDao.markSynced(workout.id)
-            } catch (error: Exception) {
-                error.rethrowIfCancellation()
-                Log.w(TAG, "Could not publish unsynced workout ${workout.id}", error)
-            }
+        pending.forEach { publishPending(it.payload) }
+    }
+
+    private suspend fun publishPending(payload: WorkoutPayloadDto) {
+        try {
+            publish(payload)
+            workouts.markPublishAttempt(payload.id)
+        } catch (error: Exception) {
+            error.rethrowIfCancellation()
+            logWarning("Could not publish pending workout ${payload.id}", error)
         }
     }
 }

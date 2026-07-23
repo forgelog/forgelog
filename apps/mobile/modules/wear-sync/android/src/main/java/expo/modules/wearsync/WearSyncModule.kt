@@ -11,7 +11,9 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import java.util.concurrent.TimeUnit
 
 private const val SNAPSHOT_PATH = "/sync-snapshot"
+private const val WORKOUT_ACK_PATH = "/workout-ack"
 private const val PAYLOAD_KEY = "payload"
+private const val WORKOUT_ID_KEY = "workout_id"
 private const val TIMESTAMP_KEY = "timestamp"
 
 class WearSyncModule : Module() {
@@ -42,6 +44,12 @@ class WearSyncModule : Module() {
       publishSnapshot(context, json)
       Unit
     }
+
+    AsyncFunction("ackWorkout") { workoutId: String ->
+      val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      publishWorkoutAck(context, workoutId)
+      Unit
+    }
   }
 
   internal companion object {
@@ -58,6 +66,22 @@ class WearSyncModule : Module() {
       val request = buildSnapshotRequest(json)
       // AsyncFunction already runs off the JS thread, so a blocking wait here
       // is safe and avoids pulling in kotlinx-coroutines-play-services.
+      Tasks.await(Wearable.getDataClient(context).putDataItem(request), 30, TimeUnit.SECONDS)
+    }
+
+    fun buildWorkoutAckRequest(
+      workoutId: String,
+      timestamp: Long = System.currentTimeMillis(),
+    ): PutDataRequest {
+      require(workoutId.isNotBlank()) { "workoutId must not be blank" }
+      return PutDataMapRequest.create("$WORKOUT_ACK_PATH/$workoutId").apply {
+        dataMap.putString(WORKOUT_ID_KEY, workoutId)
+        dataMap.putLong(TIMESTAMP_KEY, timestamp)
+      }.asPutDataRequest().setUrgent()
+    }
+
+    fun publishWorkoutAck(context: Context, workoutId: String) {
+      val request = buildWorkoutAckRequest(workoutId)
       Tasks.await(Wearable.getDataClient(context).putDataItem(request), 30, TimeUnit.SECONDS)
     }
   }

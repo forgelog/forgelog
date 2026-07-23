@@ -7,6 +7,7 @@ const malformedPayloadFixture = require('../../../../../data/contracts/fixtures/
 const versionSkewPayloadFixture = require('../../../../../data/contracts/fixtures/version-skew-watch-workout-payload.json');
 const syncSnapshotFixture = require('../../../../../data/contracts/fixtures/sync-snapshot.json');
 const malformedSyncSnapshotFixture = require('../../../../../data/contracts/fixtures/malformed-sync-snapshot.json');
+const versionSkewSyncSnapshotFixture = require('../../../../../data/contracts/fixtures/version-skew-sync-snapshot.json');
 
 const ajv = new Ajv();
 
@@ -37,4 +38,8 @@ test('version-skew-watch-workout-payload fixture fails WatchWorkoutPayload schem
 
 test('malformed-sync-snapshot fixture fails SyncSnapshot schema', () => {
   expect(validateSyncSnapshot(malformedSyncSnapshotFixture)).toBe(false);
+});
+
+test('version-skew-sync-snapshot fixture fails SyncSnapshot schema', () => {
+  expect(validateSyncSnapshot(versionSkewSyncSnapshotFixture)).toBe(false);
 });

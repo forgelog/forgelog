@@ -2,11 +2,12 @@ package dev.bishnoi.forgelog.wear.sync
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import dev.bishnoi.forgelog.wear.data.AppDatabase
+import dev.bishnoi.forgelog.wear.data.WearStoreProvider
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -26,14 +27,19 @@ class PhoneSyncListenerServiceTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Before
-    fun clearDb() {
-        runBlocking { AppDatabase.get(context).clearAllTables() }
+    fun clearReferenceState() {
+        runBlocking {
+            val stores = WearStoreProvider.get(context)
+            stores.references.clearRecoverableCache()
+            stores.workouts.currentActiveWorkout()?.let { stores.workouts.discardWorkout(it.id) }
+            stores.workouts.pendingUploads.first().forEach { stores.workouts.acknowledgeWorkout(it.payload.id) }
+        }
     }
 
     @Test
     fun publishingSyncSnapshotDataItemPopulatesReferenceTables() {
         val json = """
-            {"routines":[{"id":"itr1","name":"Instrumented Routine","position":0,"exercises":[]}],"personalRecords":[]}
+            {"protocol_version":2,"routines":[{"id":"itr1","name":"Instrumented Routine","position":0,"exercises":[]}],"personalRecords":[],"profile":{"name":"Jordan","sex":null,"birth_date":null,"height_cm":null,"bodyweight_kg":null}}
         """.trimIndent()
 
         val request = PutDataMapRequest.create("/sync-snapshot").apply {
@@ -42,31 +48,59 @@ class PhoneSyncListenerServiceTest {
 
         Tasks.await(Wearable.getDataClient(context).putDataItem(request))
 
-        val db = AppDatabase.get(context)
-        var found = false
-        repeat(50) {
-            val routines = runBlocking { db.referenceDao().getRoutines() }
-            if (routines.any { it.name == "Instrumented Routine" }) {
-                found = true
-                return@repeat
+        val references = WearStoreProvider.get(context).references
+        val found = runBlocking {
+            waitForCondition {
+                references.routines.first().any { it.name == "Instrumented Routine" }
             }
-            Thread.sleep(200)
         }
 
-        assertTrue("expected the synced routine to appear in Room within 10s", found)
+        assertTrue("expected the synced routine to appear in JSON state within 10s", found)
     }
 
     @Test
     fun malformedSyncSnapshotPayloadIsRejectedWithoutPartialReferenceWrites() = runBlocking {
-        val db = AppDatabase.get(context)
+        val references = WearStoreProvider.get(context).references
         val payload = InstrumentationRegistry.getInstrumentation().context.assets
             .open("malformed-sync-snapshot.json")
             .bufferedReader()
             .use { it.readText() }
 
-        val applied = applySyncSnapshotPayload(payload, db)
+        val applied = applySyncSnapshotPayload(payload, references)
 
         assertFalse(applied)
-        assertEquals(emptyList<String>(), db.referenceDao().getRoutines().map { it.name })
+        assertEquals(emptyList<String>(), references.routines.first().map { it.name })
+    }
+
+    @Test
+    fun workoutAcknowledgementDataItemRemovesPendingUpload() = runBlocking {
+        val stores = WearStoreProvider.get(context)
+        val payload = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("sync-snapshot.json")
+            .bufferedReader()
+            .use { it.readText() }
+        assertTrue(applySyncSnapshotPayload(payload, stores.references))
+        val workout = stores.workouts.startWorkout("r1")
+        stores.workouts.finishWorkout(workout.id)
+
+        val request = PutDataMapRequest.create("/workout-ack/${workout.id}").apply {
+            dataMap.putString("workout_id", workout.id)
+            dataMap.putLong("timestamp", System.currentTimeMillis())
+        }.asPutDataRequest().setUrgent()
+        Tasks.await(Wearable.getDataClient(context).putDataItem(request))
+
+        val acknowledged = waitForCondition {
+            stores.workouts.pendingUploads.first().none { it.payload.id == workout.id }
+        }
+
+        assertTrue("expected the workout acknowledgement to clear the JSON outbox", acknowledged)
+    }
+
+    private suspend fun waitForCondition(condition: suspend () -> Boolean): Boolean {
+        repeat(50) { attempt ->
+            if (condition()) return true
+            if (attempt < 49) Thread.sleep(200)
+        }
+        return false
     }
 }

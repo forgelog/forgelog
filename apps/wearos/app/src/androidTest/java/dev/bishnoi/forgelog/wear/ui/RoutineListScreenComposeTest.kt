@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -67,6 +68,45 @@ class RoutineListScreenComposeTest {
         compose.onNodeWithText(PULL_DAY).assertIsDisplayed().performClick()
         compose.runOnIdle { assertTrue(openedRoutine == "pull") }
         compose.onNodeWithText("1 exercise").assertIsDisplayed()
+    }
+
+    @Test
+    fun activeWorkoutCanBeResumedEvenWithoutRoutines() {
+        var resumedWorkout: String? = null
+
+        compose.setContent {
+            RoutineListScreen(
+                routines = emptyList(),
+                activeWorkout = ActiveWorkoutListItem(
+                    "w1",
+                    "Morning Session",
+                    "2026-07-23T10:00:00Z",
+                ),
+                onOpenRoutine = {},
+                onResumeWorkout = { resumedWorkout = it },
+            )
+        }
+
+        compose.onNodeWithText("Resume Workout").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Morning Session").assertIsDisplayed()
+        compose.onNodeWithText("Started", substring = true).assertIsDisplayed()
+        compose.runOnIdle { assertTrue(resumedWorkout == "w1") }
+    }
+
+    @Test
+    fun workoutStorageErrorIsVisibleAndDisablesRoutineStarts() {
+        var opened = false
+        compose.setContent {
+            RoutineListScreen(
+                routines = listOf(RoutineListItem("r1", "Push Day", 1)),
+                workoutStorageError = true,
+                onOpenRoutine = { opened = true },
+            )
+        }
+
+        compose.onNodeWithText("Workout storage unavailable").assertIsDisplayed()
+        compose.onNodeWithText("Push Day").assertIsNotEnabled()
+        compose.runOnIdle { assertTrue(!opened) }
     }
 }
 

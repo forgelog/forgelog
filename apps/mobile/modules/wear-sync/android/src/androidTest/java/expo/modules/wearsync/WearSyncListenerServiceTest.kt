@@ -8,6 +8,7 @@ import com.google.android.gms.wearable.DataMap
 import com.google.android.gms.wearable.PutDataMapRequest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -97,6 +98,26 @@ class WearSyncListenerServiceTest {
     assertTrue("expected snapshot request to be urgent", request.isUrgent)
     assertEquals(payload, dataMap.getString("payload"))
     assertEquals(timestamp, dataMap.getLong("timestamp"))
+  }
+
+  @Test
+  fun acknowledgeWorkoutBuildsPersistentUrgentDataItem() {
+    val timestamp = 1_725_000_000_000L
+
+    val request = WearSyncModule.buildWorkoutAckRequest("workout-123", timestamp)
+    val dataMap = DataMap.fromByteArray(checkNotNull(request.data))
+
+    assertEquals("/workout-ack/workout-123", request.uri.path)
+    assertTrue("expected acknowledgement request to be urgent", request.isUrgent)
+    assertEquals("workout-123", dataMap.getString("workout_id"))
+    assertEquals(timestamp, dataMap.getLong("timestamp"))
+  }
+
+  @Test
+  fun acknowledgeWorkoutRejectsBlankId() {
+    assertThrows(IllegalArgumentException::class.java) {
+      WearSyncModule.buildWorkoutAckRequest("   ")
+    }
   }
 
   private class FakeDataItem(

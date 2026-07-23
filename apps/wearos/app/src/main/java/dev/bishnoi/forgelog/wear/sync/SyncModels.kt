@@ -7,10 +7,23 @@ import kotlinx.serialization.Serializable
 // (field names, snake_case where the phone's DB columns are snake_case) so
 // JSON round-trips without a translation layer on either side.
 
+const val SYNC_PROTOCOL_VERSION = 2
+
 @Serializable
 data class SyncSnapshot(
+    @SerialName("protocol_version") val protocolVersion: Int,
     val routines: List<RoutineDetailDto> = emptyList(),
     val personalRecords: List<PersonalRecordDto> = emptyList(),
+    val profile: UserProfileDto,
+)
+
+@Serializable
+data class UserProfileDto(
+    val name: String,
+    val sex: String? = null,
+    @SerialName("birth_date") val birthDate: String? = null,
+    @SerialName("height_cm") val heightCm: Double? = null,
+    @SerialName("bodyweight_kg") val bodyweightKg: Double? = null,
 )
 
 @Serializable
@@ -65,7 +78,7 @@ data class PersonalRecordDto(
 
 @Serializable
 data class WorkoutPayloadDto(
-    @SerialName("protocol_version") val protocolVersion: Int = 2,
+    @SerialName("protocol_version") val protocolVersion: Int = SYNC_PROTOCOL_VERSION,
     val id: String,
     @SerialName("routine_id") val routineId: String? = null,
     val name: String,

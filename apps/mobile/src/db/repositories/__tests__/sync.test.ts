@@ -7,6 +7,7 @@ import { seededExercise } from '../../../test-utils/db';
 const { saveDraft: saveRoutineDraft } = mobileStore.routines;
 const { getSnapshot: getSyncSnapshot, ingestWatchWorkout } = mobileStore.sync;
 const { getDetail: getWorkoutDetail } = mobileStore.workouts;
+const { completeOnboarding, update: updateProfile } = mobileStore.profile;
 
 const contractSchema = require('../../../../../../data/contracts/sync.schema.json');
 
@@ -50,6 +51,8 @@ async function personalRecordRows(): Promise<
 }
 
 test('snapshots validate and duplicate watch deliveries keep row counts stable', async () => {
+  await completeOnboarding({ name: 'Jordan', bodyweightKg: 80 });
+  await updateProfile({ sex: 'male', birthDate: '1990-03-14', heightCm: 180 });
   const bench = await seededExercise('Barbell Bench Press - Medium Grip');
   await saveRoutineDraft({
     name: 'Watch Push',
@@ -82,6 +85,17 @@ test('snapshots validate and duplicate watch deliveries keep row counts stable',
   const snapshot = await getSyncSnapshot();
   expect(validateSyncSnapshot(snapshot)).toBe(true);
   expect(validateSyncSnapshot.errors).toBeNull();
+  expect(snapshot).toMatchObject({
+    protocol_version: 2,
+    profile: {
+      name: 'Jordan',
+      sex: 'male',
+      birth_date: '1990-03-14',
+      height_cm: 180,
+      bodyweight_kg: 80,
+    },
+  });
+  expect(snapshot.profile).not.toHaveProperty('themeMode');
 
   const payload: WatchWorkoutPayload = {
     protocol_version: 2,

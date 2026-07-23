@@ -2,11 +2,14 @@ package dev.bishnoi.forgelog.wear.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.bishnoi.forgelog.wear.data.ReferenceDao
+import dev.bishnoi.forgelog.wear.data.ReferenceRepository
 import dev.bishnoi.forgelog.wear.data.WorkoutRepository
+import dev.bishnoi.forgelog.wear.data.WorkoutStorageStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class RoutineExercisePreview(val name: String, val setCount: Int)
@@ -14,12 +17,12 @@ data class RoutineExercisePreview(val name: String, val setCount: Int)
 data class RoutineDetailUiState(
     val name: String = "",
     val exercises: List<RoutineExercisePreview> = emptyList(),
+    val workoutStorageError: Boolean = false,
 )
 
-/** Routine screen (issue #28 "Routine"): preview a routine, then start its workout. */
 class RoutineDetailViewModel(
-    private val referenceDao: ReferenceDao,
-    private val workoutRepository: WorkoutRepository,
+    private val references: ReferenceRepository,
+    private val workouts: WorkoutRepository,
     private val routineId: String,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RoutineDetailUiState())
@@ -27,19 +30,32 @@ class RoutineDetailViewModel(
 
     init {
         viewModelScope.launch {
-            val routine = referenceDao.routine(routineId)
-            val exercises = referenceDao.routineExercises(routineId).map { re ->
-                val name = referenceDao.exercise(re.exerciseId)?.name ?: re.exerciseId
-                RoutineExercisePreview(name, referenceDao.routineSets(re.id).size)
+            val routine = references.currentRoutine(routineId)
+            _uiState.update {
+                it.copy(
+                    name = routine?.name ?: "Routine",
+                    exercises = routine?.exercises.orEmpty().sortedBy { exercise -> exercise.position }.map { exercise ->
+                        RoutineExercisePreview(exercise.exercise.name, exercise.sets.size)
+                    },
+                )
             }
-            _uiState.value = RoutineDetailUiState(name = routine?.name ?: "Routine", exercises = exercises)
+        }
+        viewModelScope.launch {
+            workouts.storageStatus.collect { status ->
+                _uiState.update { it.copy(workoutStorageError = status == WorkoutStorageStatus.UNAVAILABLE) }
+            }
         }
     }
 
     fun startWorkout(onStarted: (workoutId: String) -> Unit) {
+        if (_uiState.value.workoutStorageError) return
         viewModelScope.launch {
-            val workout = workoutRepository.startWorkout(routineId)
-            onStarted(workout.id)
+            try {
+                onStarted(workouts.startOrResumeWorkout(routineId).id)
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                _uiState.update { it.copy(workoutStorageError = true) }
+            }
         }
     }
 }

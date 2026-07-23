@@ -15,6 +15,7 @@ declare class WearSyncModule extends NativeModule<WearSyncEvents> {
   // Publishes a JSON-serialised SyncSnapshot as a Data Layer DataItem so the
   // watch can pick it up now or whenever it next reconnects.
   publishSnapshot(json: string): Promise<void>;
+  ackWorkout(workoutId: string): Promise<void>;
 }
 
 export default requireNativeModule<WearSyncModule>('WearSync');

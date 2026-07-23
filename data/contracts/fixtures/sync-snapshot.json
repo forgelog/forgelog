@@ -1,4 +1,5 @@
 {
+  "protocol_version": 2,
   "routines": [
     {
       "id": "r1",
@@ -38,5 +39,12 @@
       "logged_set_id": null,
       "achieved_at": "2026-01-01T00:00:00Z"
     }
-  ]
+  ],
+  "profile": {
+    "name": "Jordan",
+    "sex": "male",
+    "birth_date": "1990-03-14",
+    "height_cm": 180.0,
+    "bodyweight_kg": 80.0
+  }
 }

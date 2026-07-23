@@ -12,7 +12,7 @@ private const val REQUEST_SYNC_PATH = "/request-sync"
 
 /**
  * Sends a one-shot Message (not a DataItem — this is the "is the phone
- * reachable right now" case, unlike the persisted WAL/snapshot DataItems in
+ * reachable right now" case, unlike the persisted workout/snapshot DataItems in
  * WearDataClient/PhoneSyncListenerService) asking the phone to republish a
  * fresh SyncSnapshot. Best-effort: no connected phone shouldn't crash the
  * watch UI, matching how publishSyncSnapshot() treats "no reachable watch"

@@ -1,17 +1,23 @@
 package dev.bishnoi.forgelog.wear.sync
 
+import android.content.Context
 import android.util.Log
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.WearableListenerService
-import dev.bishnoi.forgelog.wear.data.AppDatabase
+import dev.bishnoi.forgelog.wear.application.FinishWorkout
+import dev.bishnoi.forgelog.wear.data.ReferenceRepository
+import dev.bishnoi.forgelog.wear.data.WearStoreProvider
+import dev.bishnoi.forgelog.wear.data.WorkoutRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerializationException
 
 private const val PAYLOAD_KEY = "payload"
+private const val WORKOUT_ID_KEY = "workout_id"
 private const val TAG = "PhoneSyncListener"
 
 /**
@@ -27,14 +33,38 @@ class PhoneSyncListenerService : WearableListenerService() {
         try {
             for (event in dataEvents) {
                 if (event.type != DataEvent.TYPE_CHANGED) continue
-                if (event.dataItem.uri.path.orEmpty() != "/sync-snapshot") continue
-
-                val payload = DataMapItem.fromDataItem(event.dataItem).dataMap.getString(PAYLOAD_KEY) ?: continue
-                val db = AppDatabase.get(applicationContext)
-                scope.launch {
-                    val applied = applySyncSnapshotPayload(payload, db)
-                    if (!applied) {
-                        Log.e(TAG, "Rejected malformed sync snapshot payload: ${payload.take(160)}")
+                val path = event.dataItem.uri.path.orEmpty()
+                val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+                val stores = WearStoreProvider.get(applicationContext)
+                when {
+                    path == "/sync-snapshot" -> {
+                        val payload = dataMap.getString(PAYLOAD_KEY) ?: continue
+                        scope.launch {
+                            handleListenerFailure("Could not apply sync snapshot") {
+                                val applied = applySyncSnapshotPayload(payload, stores.references)
+                                if (!applied) {
+                                    Log.e(TAG, "Rejected malformed sync snapshot payload")
+                                } else {
+                                    drainPending(applicationContext, stores.workouts)
+                                }
+                            }
+                        }
+                    }
+                    path.startsWith("/workout-ack/") -> {
+                        val workoutId = dataMap.getString(WORKOUT_ID_KEY) ?: path.substringAfterLast('/')
+                        if (workoutId.isBlank()) continue
+                        scope.launch {
+                            handleListenerFailure("Could not acknowledge workout $workoutId") {
+                                stores.workouts.acknowledgeWorkout(workoutId)
+                                try {
+                                    WearDataClient.cleanupWorkout(applicationContext, workoutId)
+                                } catch (error: Exception) {
+                                    error.rethrowIfCancellation()
+                                    Log.w(TAG, "Could not clean up acknowledged workout $workoutId", error)
+                                }
+                                drainPending(applicationContext, stores.workouts)
+                            }
+                        }
                     }
                 }
             }
@@ -44,12 +74,42 @@ class PhoneSyncListenerService : WearableListenerService() {
     }
 }
 
-suspend fun applySyncSnapshotPayload(payload: String, db: AppDatabase): Boolean {
+private suspend fun handleListenerFailure(
+    message: String,
+    operation: suspend () -> Unit,
+) {
+    try {
+        operation()
+    } catch (error: Exception) {
+        error.rethrowIfCancellation()
+        Log.e(TAG, message, error)
+    }
+}
+
+private fun Exception.rethrowIfCancellation() {
+    if (this is CancellationException) throw this
+}
+
+private suspend fun drainPending(
+    context: Context,
+    workouts: WorkoutRepository,
+) {
+    FinishWorkout(workouts, publish = { payload ->
+        WearDataClient.publishWorkout(context, payload)
+    }).drainPending()
+}
+
+suspend fun applySyncSnapshotPayload(payload: String, references: ReferenceRepository): Boolean {
     val snapshot = try {
         syncJson.decodeFromString(SyncSnapshot.serializer(), payload)
     } catch (_: SerializationException) {
         return false
     }
-    SyncRepository(db.referenceDao(), db.workoutDao()).applySnapshot(snapshot)
-    return true
+    if (snapshot.protocolVersion != SYNC_PROTOCOL_VERSION) return false
+    return try {
+        SyncRepository(references).applySnapshot(snapshot)
+        true
+    } catch (_: IllegalArgumentException) {
+        false
+    }
 }
