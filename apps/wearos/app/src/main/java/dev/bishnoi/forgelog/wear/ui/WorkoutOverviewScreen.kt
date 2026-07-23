@@ -24,6 +24,7 @@ import dev.bishnoi.forgelog.wear.logic.formatElapsed
 fun WorkoutOverviewScreen(
     exercises: List<ExerciseProgress>,
     elapsedSeconds: Long,
+    syncStatus: String? = null,
     onOpenExercise: (String) -> Unit,
     onFinish: () -> Unit,
     onDiscard: () -> Unit,
@@ -43,6 +44,16 @@ fun WorkoutOverviewScreen(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+                if (syncStatus != null) {
+                    item {
+                        Text(
+                            text = syncStatus,
+                            style = MaterialTheme.typography.caption2,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
                 items(exercises) { exercise ->
                     Chip(

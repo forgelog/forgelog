@@ -89,6 +89,114 @@ const MIGRATIONS: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 4,
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE UNIQUE INDEX idx_workouts_single_active
+          ON workouts ((1)) WHERE ended_at IS NULL;
+        CREATE TRIGGER trg_workouts_single_active_insert
+          BEFORE INSERT ON workouts
+          WHEN NEW.ended_at IS NULL AND EXISTS (SELECT 1 FROM workouts WHERE ended_at IS NULL)
+          BEGIN SELECT RAISE(ABORT, 'only one active workout is allowed'); END;
+        CREATE TRIGGER trg_workouts_single_active_update
+          BEFORE UPDATE OF ended_at ON workouts
+          WHEN NEW.ended_at IS NULL AND EXISTS (
+            SELECT 1 FROM workouts WHERE ended_at IS NULL AND id != NEW.id
+          )
+          BEGIN SELECT RAISE(ABORT, 'only one active workout is allowed'); END;
+
+        CREATE TABLE active_workout_coordinator (
+          singleton                  INTEGER PRIMARY KEY CHECK (singleton = 1),
+          installation_id            TEXT NOT NULL,
+          coordinator_epoch          TEXT NOT NULL,
+          revision                   INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+          revision_committed_at      TEXT NOT NULL,
+          lifecycle                  TEXT NOT NULL CHECK (lifecycle IN ('none', 'active', 'finished', 'discarded')),
+          workout_id                 TEXT,
+          publish_needed_revision    INTEGER,
+          legacy_workout_id          TEXT,
+          initialized_at             TEXT NOT NULL
+        );
+
+        CREATE TABLE active_workout_devices (
+          coordinator_epoch          TEXT NOT NULL,
+          device_id                  TEXT NOT NULL,
+          last_finalized_sequence    INTEGER NOT NULL DEFAULT 0,
+          last_seen_at               TEXT NOT NULL,
+          acknowledged_revision      INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (coordinator_epoch, device_id)
+        );
+
+        CREATE TABLE active_workout_operations (
+          operation_id               TEXT PRIMARY KEY,
+          coordinator_epoch          TEXT NOT NULL,
+          device_id                  TEXT NOT NULL,
+          device_sequence            INTEGER NOT NULL,
+          workout_id                 TEXT,
+          base_revision              INTEGER,
+          predecessor_operation_id   TEXT,
+          payload_hash               TEXT NOT NULL,
+          payload_json               TEXT,
+          status                     TEXT NOT NULL,
+          result_json                TEXT NOT NULL,
+          accepted_revision          INTEGER,
+          publish_needed             INTEGER NOT NULL DEFAULT 1,
+          retained_until             TEXT,
+          UNIQUE (coordinator_epoch, device_id, device_sequence)
+        );
+
+        CREATE TABLE active_workout_receipts (
+          coordinator_epoch          TEXT NOT NULL,
+          device_id                  TEXT NOT NULL,
+          device_sequence            INTEGER NOT NULL,
+          operation_id               TEXT,
+          payload_hash               TEXT NOT NULL,
+          disposition                TEXT NOT NULL,
+          canonical_revision         INTEGER NOT NULL,
+          minimal_result_json        TEXT NOT NULL,
+          PRIMARY KEY (coordinator_epoch, device_id, device_sequence)
+        );
+
+        CREATE TABLE active_workout_conflict_keys (
+          conflict_key               TEXT PRIMARY KEY,
+          revision                   INTEGER NOT NULL,
+          operation_id               TEXT,
+          device_id                  TEXT NOT NULL,
+          device_sequence            INTEGER,
+          resolution_audit_id        TEXT
+        );
+
+        CREATE TABLE active_workout_tombstones (
+          entity_key                 TEXT PRIMARY KEY,
+          workout_id                 TEXT NOT NULL,
+          deleted_revision           INTEGER NOT NULL,
+          operation_id               TEXT,
+          deleted_at                 TEXT NOT NULL
+        );
+
+        CREATE TABLE active_workout_pr_baselines (
+          workout_exercise_id        TEXT NOT NULL,
+          record_type                TEXT NOT NULL,
+          value                      REAL NOT NULL,
+          PRIMARY KEY (workout_exercise_id, record_type),
+          FOREIGN KEY (workout_exercise_id) REFERENCES workout_exercises(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE active_workout_alerts (
+          workout_exercise_id        TEXT NOT NULL,
+          record_type                TEXT NOT NULL,
+          PRIMARY KEY (workout_exercise_id, record_type),
+          FOREIGN KEY (workout_exercise_id) REFERENCES workout_exercises(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX idx_active_workout_operations_publish
+          ON active_workout_operations(publish_needed, coordinator_epoch, device_id, device_sequence);
+        CREATE INDEX idx_active_workout_tombstones_workout
+          ON active_workout_tombstones(workout_id);
+      `);
+    },
+  },
 ];
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;

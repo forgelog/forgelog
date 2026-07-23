@@ -61,6 +61,18 @@
         "exercises": {
           "type": "array",
           "items": { "$ref": "#/definitions/WorkoutExercisePayload" }
+        },
+        "active_sync": {
+          "type": "object",
+          "required": ["finish_operation_id", "device_id", "device_sequence", "canonical_revision", "provisional", "payload_hash"],
+          "properties": {
+            "finish_operation_id": { "type": "string", "minLength": 1 },
+            "device_id": { "type": "string", "minLength": 1 },
+            "device_sequence": { "type": "integer", "minimum": 1 },
+            "canonical_revision": { "type": ["integer", "null"], "minimum": 0 },
+            "provisional": { "type": "boolean" },
+            "payload_hash": { "type": "string", "minLength": 1 }
+          }
         }
       }
     },

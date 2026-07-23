@@ -86,6 +86,25 @@ class WearSyncBridgeTest {
   }
 
   @Test
+  fun activeItemsQueueUntilAttachAndResumeQueuingAfterDetach() {
+    val first = WearSyncBridge.ActiveDataItem("/active-workout/mutation/epoch/watch/1", "first")
+    val live = WearSyncBridge.ActiveDataItem("/active-workout/state-ack/watch", "live")
+    val detached = WearSyncBridge.ActiveDataItem("/workout/checkpoint", "detached")
+    val firstListenerItems = mutableListOf<WearSyncBridge.ActiveDataItem>()
+    val secondListenerItems = mutableListOf<WearSyncBridge.ActiveDataItem>()
+
+    WearSyncBridge.deliverActive(first.path, first.payload)
+    WearSyncBridge.attachActiveListener { firstListenerItems.add(it) }
+    WearSyncBridge.deliverActive(live.path, live.payload)
+    WearSyncBridge.detachActiveListener()
+    WearSyncBridge.deliverActive(detached.path, detached.payload)
+    WearSyncBridge.attachActiveListener { secondListenerItems.add(it) }
+
+    assertEquals(listOf(first, live), firstListenerItems)
+    assertEquals(listOf(detached), secondListenerItems)
+  }
+
+  @Test
   fun concurrentDeliverAndAttachDoesNotLosePayloads() {
     val payloadCount = 200
     val executor = Executors.newFixedThreadPool(8)

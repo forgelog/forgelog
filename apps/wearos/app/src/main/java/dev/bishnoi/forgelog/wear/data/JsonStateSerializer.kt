@@ -7,6 +7,9 @@ import java.io.InputStream
 import java.io.OutputStream
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.intOrNull
 
 private class JsonStateSerializer<T>(
     override val defaultValue: T,
@@ -37,7 +40,35 @@ val ReferenceStateSerializer: Serializer<ReferenceState> =
         it.formatVersion == REFERENCE_STATE_FORMAT_VERSION
     }
 
-val WorkoutStateSerializer: Serializer<WorkoutState> =
-    JsonStateSerializer(WorkoutState(), WorkoutState.serializer()) {
-        it.formatVersion == WORKOUT_STATE_FORMAT_VERSION
+val WorkoutStateSerializer: Serializer<WorkoutState> = object : Serializer<WorkoutState> {
+    override val defaultValue = WorkoutState()
+
+    override suspend fun readFrom(input: InputStream): WorkoutState {
+        val text = input.bufferedReader(Charsets.UTF_8).readText()
+        try {
+            val element = syncJson.parseToJsonElement(text)
+            return when (element.jsonObject["formatVersion"]?.jsonPrimitive?.intOrNull ?: 1) {
+                1 -> syncJson.decodeFromJsonElement(WorkoutStateV1.serializer(), element).let { legacy ->
+                    WorkoutState(
+                        activeWorkout = legacy.activeWorkout,
+                        pendingUploads = legacy.pendingUploads,
+                        legacyMode = legacy.activeWorkout != null || legacy.pendingUploads.isNotEmpty(),
+                    )
+                }
+                WORKOUT_STATE_FORMAT_VERSION ->
+                    syncJson.decodeFromJsonElement(WorkoutState.serializer(), element)
+                else -> throw CorruptionException("Unsupported JSON state format")
+            }
+        } catch (error: CorruptionException) {
+            throw error
+        } catch (error: Exception) {
+            throw CorruptionException("Unable to decode JSON state", error)
+        }
     }
+
+    override suspend fun writeTo(t: WorkoutState, output: OutputStream) {
+        val writer = output.bufferedWriter(Charsets.UTF_8)
+        writer.write(syncJson.encodeToString(WorkoutState.serializer(), t))
+        writer.flush()
+    }
+}

@@ -18,6 +18,10 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class WearSyncListenerServiceTest {
+  private companion object {
+    const val ACTIVE_WORKOUT_STATE_PATH = "/active-workout/state"
+  }
+
   @Before
   fun setUp() {
     WearSyncBridge.resetForTests()
@@ -98,6 +102,30 @@ class WearSyncListenerServiceTest {
     assertTrue("expected snapshot request to be urgent", request.isUrgent)
     assertEquals(payload, dataMap.getString("payload"))
     assertEquals(timestamp, dataMap.getLong("timestamp"))
+  }
+
+  @Test
+  fun activeMutationDeliversPersistentPathAndPayload() {
+    val payload = """{"protocol_version":1,"operation_id":"op-1"}"""
+    val received = mutableListOf<WearSyncBridge.ActiveDataItem>()
+    WearSyncBridge.attachActiveListener { received.add(it) }
+    val path = "/active-workout/mutation/epoch/watch/1"
+    val request = PutDataMapRequest.create(path).apply {
+      dataMap.putString("payload", payload)
+    }.asPutDataRequest().setUrgent()
+
+    WearSyncListenerService.deliverDataItem(FakeDataItem(Uri.parse("wear://self$path"), checkNotNull(request.data)))
+
+    assertEquals(listOf(WearSyncBridge.ActiveDataItem(path, payload)), received)
+  }
+
+  @Test
+  fun activeStatePublicationEnforcesSizeGuard() {
+    val request = WearSyncModule.buildJsonRequest(ACTIVE_WORKOUT_STATE_PATH, "{}", 123L)
+    assertEquals(ACTIVE_WORKOUT_STATE_PATH, request.uri.path)
+    assertThrows(IllegalArgumentException::class.java) {
+      WearSyncModule.buildJsonRequest(ACTIVE_WORKOUT_STATE_PATH, "x".repeat(100_000))
+    }
   }
 
   @Test
