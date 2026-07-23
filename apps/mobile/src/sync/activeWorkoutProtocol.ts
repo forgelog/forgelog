@@ -382,7 +382,7 @@ export function deriveConflictKeys(
         return [`workout:${workoutId}:status`];
     }
   })();
-  return [...keys].sort();
+  return [...keys].sort(compareProtocolStrings);
 }
 
 export function applyActiveWorkoutMutation(
@@ -391,7 +391,7 @@ export function applyActiveWorkoutMutation(
 ): ActiveWorkoutApplyResult {
   const operation = mutation.operation;
   const expectedKeys = deriveConflictKeys(operation, mutation.workout_id);
-  if (!sameValue(expectedKeys, [...mutation.conflict_keys].sort())) {
+  if (!sameValue(expectedKeys, [...mutation.conflict_keys].sort(compareProtocolStrings))) {
     return { kind: 'conflict', reason: 'conflict_key_mismatch', conflict_keys: expectedKeys };
   }
   if (mutation.protocol_version !== ACTIVE_WORKOUT_PROTOCOL_VERSION) {
@@ -537,7 +537,7 @@ export function applyActiveWorkoutMutation(
         alerted_record_types: [...new Set([
           ...target.alerted_record_types,
           ...operation.alerted_record_types,
-        ])].sort(),
+        ])].sort(compareProtocolStrings),
         sets: target.sets.map((set) =>
           set.id === operation.set_id
             ? { ...set, completed: operation.completed, completed_at: operation.completed_at }
@@ -640,6 +640,14 @@ function normalizePositions<T extends { position: number }>(items: T[]): T[] {
 
 function sameValue(left: unknown, right: unknown): boolean {
   return stableJson(left) === stableJson(right);
+}
+
+// Protocol normalization uses Unicode code-unit ordering on every platform.
+// localeCompare handles equality while the explicit ordering avoids locale-specific drift.
+function compareProtocolStrings(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return left.localeCompare(right);
 }
 
 function stableJson(value: unknown): string {
