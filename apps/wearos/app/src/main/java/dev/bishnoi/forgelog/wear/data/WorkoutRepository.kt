@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import dev.bishnoi.forgelog.wear.logic.ExerciseType
 import dev.bishnoi.forgelog.wear.logic.RecordType
 import dev.bishnoi.forgelog.wear.logic.SetPerformance
+import dev.bishnoi.forgelog.wear.logic.activeBodyDominates
 import dev.bishnoi.forgelog.wear.logic.computeRecords
 import dev.bishnoi.forgelog.wear.logic.materializeActiveWorkout
 import dev.bishnoi.forgelog.wear.logic.newId
@@ -428,7 +429,15 @@ class WorkoutRepository(
                     intent.workoutId == candidate.workoutId ||
                     resolved.replica.generationIsAtLeast(intent)
                 )
-        return if (watchJoinNeedsSending) resolved.replica else intent
+        if (watchJoinNeedsSending) return resolved.replica
+        val candidateActive = candidate.state as? WorkoutReplicaState.Active
+        val intentActive = intent?.state as? WorkoutReplicaState.Active
+        return if (
+            candidateActive != null &&
+            intentActive != null &&
+            intent.workoutId == candidate.workoutId &&
+            activeBodyDominates(candidateActive.workout, intentActive.workout)
+        ) null else intent
     }
 
     private fun WorkoutState.consumeWatchReceipt(receipt: WorkoutReceipt?): WorkoutState {

@@ -77,26 +77,48 @@ test('sync requests publish a fresh reference snapshot', async () => {
 });
 
 test('peer mailbox events use the persisted reducer then publish committed desired state', async () => {
-  const mailbox = { protocol_version: 1, candidate: null, watch_receipt: null };
+  const mailbox = { protocol_version: 1 as const, candidate: null, watch_receipt: null };
+  const desired = {
+    protocol_version: 1 as const,
+    candidate: {
+      workout_id: 'committed-workout',
+      started_at_ms: 1,
+      changed_at_ms: 2,
+      state: { kind: 'discarded' as const },
+    },
+    watch_receipt: null,
+  };
+  mockGetDesiredMailbox.mockResolvedValue(desired);
   const applied = jest.fn();
   const unsubscribe = subscribeWorkoutMailboxApplied(applied);
 
   await onPeerWorkoutMailbox({ payload: JSON.stringify(mailbox) });
 
   expect(mockApplyWatchMailbox).toHaveBeenCalledWith(mailbox);
-  expect(mockPublishWorkoutMailbox).toHaveBeenCalledWith(JSON.stringify(mailbox));
+  expect(mockPublishWorkoutMailbox).toHaveBeenCalledWith(JSON.stringify(desired));
   expect(applied).toHaveBeenCalledTimes(1);
   unsubscribe();
 });
 
 test('foreground refresh reads and reduces the durable peer mailbox', async () => {
-  const mailbox = { protocol_version: 1, candidate: null, watch_receipt: null };
+  const mailbox = { protocol_version: 1 as const, candidate: null, watch_receipt: null };
+  const desired = {
+    protocol_version: 1 as const,
+    candidate: {
+      workout_id: 'committed-workout',
+      started_at_ms: 1,
+      changed_at_ms: 2,
+      state: { kind: 'discarded' as const },
+    },
+    watch_receipt: null,
+  };
+  mockGetDesiredMailbox.mockResolvedValue(desired);
   mockGetPeerWorkoutMailbox.mockResolvedValueOnce(JSON.stringify(mailbox));
 
   await refreshWorkoutMailbox();
 
   expect(mockApplyWatchMailbox).toHaveBeenCalledWith(mailbox);
-  expect(mockPublishWorkoutMailbox).toHaveBeenCalledWith(JSON.stringify(mailbox));
+  expect(mockPublishWorkoutMailbox).toHaveBeenCalledWith(JSON.stringify(desired));
 });
 
 test('unparseable peer payload is dropped', async () => {
@@ -108,6 +130,12 @@ test('publisher reads durable desired state and swallows transport failure', asy
   mockPublishWorkoutMailbox.mockRejectedValueOnce(new Error('offline'));
   await expect(publishWorkoutMailbox()).resolves.toBeUndefined();
   expect(mockGetDesiredMailbox).toHaveBeenCalled();
+});
+
+test('publisher swallows desired-mailbox read failures', async () => {
+  mockGetDesiredMailbox.mockRejectedValueOnce(new Error('storage unavailable'));
+  await expect(publishWorkoutMailbox()).resolves.toBeUndefined();
+  expect(mockPublishWorkoutMailbox).not.toHaveBeenCalled();
 });
 
 test('reference snapshot publication remains best effort', async () => {

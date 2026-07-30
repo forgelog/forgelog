@@ -178,7 +178,7 @@ export const mobileStore = {
     moveExercise: defaultStore.workoutReplicas.moveExercise,
     addSet: defaultStore.workoutReplicas.addSet,
     finish: defaultStore.workoutReplicas.finish,
-    updateName: defaultStore.workouts.updateName,
+    updateName: defaultStore.workoutReplicas.updateName,
     list: defaultStore.workouts.list,
     hasCompletedSet: defaultStore.workouts.hasCompletedSet,
   },

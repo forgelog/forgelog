@@ -104,11 +104,18 @@ export type WorkoutMailbox = {
   watch_receipt: WorkoutReceipt | null;
 };
 
+/** Canonical UTF-16 code-unit order, matching Kotlin String.compareTo. */
+export function compareCanonicalStrings(left: string, right: string): number {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 export function compareEntryVersions(left: EntryVersion, right: EntryVersion): number {
   if (left.changed_at_ms !== right.changed_at_ms) {
     return left.changed_at_ms - right.changed_at_ms;
   }
-  return left.writer.localeCompare(right.writer);
+  return compareCanonicalStrings(left.writer, right.writer);
 }
 
 function greaterVersioned<T>(left: VersionedValue<T>, right: VersionedValue<T>): VersionedValue<T> {
@@ -126,7 +133,7 @@ function mergeById<T extends { id: string }>(
     const existing = entries.get(entry.id);
     entries.set(entry.id, existing ? merge(existing, entry) : entry);
   }
-  return [...entries.values()].sort((a, b) => a.id.localeCompare(b.id));
+  return [...entries.values()].sort((a, b) => compareCanonicalStrings(a.id, b.id));
 }
 
 function joinSets(left: ActiveLoggedSet[], right: ActiveLoggedSet[]): ActiveLoggedSet[] {
@@ -166,7 +173,7 @@ export function joinActiveWorkoutBodies(
 
 function byDisplayPosition<T extends { id: string; position: number | null }>(a: T, b: T): number {
   return (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER) ||
-    a.id.localeCompare(b.id);
+    compareCanonicalStrings(a.id, b.id);
 }
 
 export function materializeActiveWorkout(body: ActiveWorkoutBody): WorkoutBody {
@@ -212,7 +219,7 @@ function lifecycleRank(replica: WorkoutReplica): number {
 function compareEnvelopes(left: AuthoredWorkoutReplica, right: AuthoredWorkoutReplica): number {
   return (
     left.replica.changed_at_ms - right.replica.changed_at_ms ||
-    left.writer.localeCompare(right.writer)
+    compareCanonicalStrings(left.writer, right.writer)
   );
 }
 
@@ -286,7 +293,7 @@ export function selectCurrentGeneration(
       if (!selected) return candidate;
       const startComparison = candidate.replica.started_at_ms - selected.replica.started_at_ms;
       if (startComparison !== 0) return startComparison > 0 ? candidate : selected;
-      return candidate.replica.workout_id.localeCompare(selected.replica.workout_id) > 0
+      return compareCanonicalStrings(candidate.replica.workout_id, selected.replica.workout_id) > 0
         ? candidate
         : selected;
     }, null)

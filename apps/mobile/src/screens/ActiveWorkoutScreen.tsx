@@ -101,6 +101,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const exerciseListRef = useRef<FlatList<WorkoutExerciseDetail> | null>(null);
   const previousExerciseCount = useRef<number | null>(null);
   const pickedExerciseIdRef = useRef(pickedExerciseId);
+  const exitWhenFocusedRef = useRef(false);
 
   const reload = useCallback((options: { showLoading?: boolean } = {}) => {
     const { showLoading = true } = options;
@@ -155,7 +156,14 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }, [pickedExerciseId]);
 
   useFocusEffect(
-    useCallback(() => reload({ showLoading: !pickedExerciseIdRef.current }), [reload])
+    useCallback(() => {
+      if (exitWhenFocusedRef.current) {
+        exitWhenFocusedRef.current = false;
+        navigation.goBack();
+        return;
+      }
+      return reload({ showLoading: !pickedExerciseIdRef.current });
+    }, [navigation, reload])
   );
 
   useEffect(
@@ -165,7 +173,8 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
           .getActive()
           .then((activeWorkout) => {
             if (activeWorkout?.id !== workoutId) {
-              navigation.goBack();
+              if (navigation.isFocused()) navigation.goBack();
+              else exitWhenFocusedRef.current = true;
               return;
             }
             reload({ showLoading: false });

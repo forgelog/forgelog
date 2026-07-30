@@ -90,7 +90,7 @@ test('shows a missing-workout state', async () => {
   await waitFor(() => expect(missing.getByText('Workout not found.')).toBeTruthy());
 });
 
-test('leaves a visible workout after a peer mailbox makes it terminal', async () => {
+test('navigates home when a peer mailbox makes the workout terminal', async () => {
   const workout = await startWorkout({ name: 'Finished on Watch' });
   const active = await renderActiveWorkout(workout.id);
   await waitFor(() => expect(active.getByText('Finished on Watch')).toBeTruthy());
@@ -98,6 +98,21 @@ test('leaves a visible workout after a peer mailbox makes it terminal', async ()
   await finishWorkout(workout.id);
   await act(async () => notifyWorkoutMailboxApplied());
 
+  await waitFor(() => expect(active.getByLabelText('Start Empty Workout')).toBeTruthy());
+});
+
+test('does not pop a child screen when a peer mailbox makes the workout terminal', async () => {
+  const workout = await startWorkout({ name: 'Finished while picking' });
+  const active = await renderActiveWorkout(workout.id);
+  await waitFor(() => expect(active.getByText('Finished while picking')).toBeTruthy());
+  fireEvent.press(active.getByText('Add Exercise'));
+  await waitFor(() => expect(active.getByText('Add exercise')).toBeTruthy());
+
+  await finishWorkout(workout.id);
+  await act(async () => notifyWorkoutMailboxApplied());
+
+  expect(active.getByText('Add exercise')).toBeTruthy();
+  fireEvent.press(active.getByLabelText('Close'));
   await waitFor(() => expect(active.getByLabelText('Start Empty Workout')).toBeTruthy());
 });
 

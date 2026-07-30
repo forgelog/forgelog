@@ -259,6 +259,17 @@ class StateRepositoriesTest {
     }
 
     @Test
+    fun `phone echo of the current body clears stale transport intent`() = runBlocking {
+        referenceRepository.replaceSnapshot(snapshot())
+        workoutRepository.startWorkout("r1")
+        val current = workoutRepository.state.first().resolvedReplicas.single().replica
+
+        workoutRepository.applyPhoneMailbox(WorkoutMailbox(candidate = current))
+
+        assertNull(workoutRepository.state.first().transportIntent)
+    }
+
+    @Test
     fun `valid receipt advances pending finish even when coexisting candidate is invalid`() = runBlocking {
         referenceRepository.replaceSnapshot(snapshot())
         workoutRepository.startWorkout("r1")

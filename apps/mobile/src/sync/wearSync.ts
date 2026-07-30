@@ -43,7 +43,7 @@ export function initWearSync(): void {
     void publishWorkoutMailbox();
   });
   WearSync.addListener('onPeerWorkoutMailbox', (event) =>
-    applyPeerMailboxPayload(event.payload)
+    applyPeerMailboxPayload(event.payload).catch(() => false)
   );
   WearSync.addListener('onSyncRequested', () => {
     void publishSyncSnapshot();
@@ -63,8 +63,8 @@ export function publishWorkoutMailbox(): Promise<void> {
 async function runPublishPump(): Promise<void> {
   while (publishRequested) {
     publishRequested = false;
-    const mailbox = await mobileStore.sync.getDesiredWorkoutMailbox();
     try {
+      const mailbox = await mobileStore.sync.getDesiredWorkoutMailbox();
       await WearSync.publishWorkoutMailbox(JSON.stringify(mailbox));
     } catch {
       // Desired state is durable; startup or a later local/peer event retries it.

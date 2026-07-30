@@ -1,6 +1,7 @@
 import {
   activeBodyDominates,
   canonicalWorkoutContentEqual,
+  compareCanonicalStrings,
   resolveSameWorkout,
   type AuthoredWorkoutReplica,
   type WorkoutMailbox,
@@ -38,7 +39,7 @@ function generationIsAtLeast(candidate: WorkoutReplica, current: WorkoutReplica)
   if (candidate.started_at_ms !== current.started_at_ms) {
     return candidate.started_at_ms > current.started_at_ms;
   }
-  return candidate.workout_id.localeCompare(current.workout_id) >= 0;
+  return compareCanonicalStrings(candidate.workout_id, current.workout_id) >= 0;
 }
 
 async function loadPendingReceipt(db: DatabaseExecutor): Promise<WorkoutReceipt | null> {

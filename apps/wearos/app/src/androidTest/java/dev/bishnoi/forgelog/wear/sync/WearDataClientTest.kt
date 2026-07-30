@@ -26,13 +26,15 @@ class WearDataClientTest {
             ),
         )
 
-        WearDataClient.publishWorkoutMailbox(context, mailbox)
+        val productionRequest = WearDataClient.buildWorkoutMailboxRequest(mailbox)
+        assertEquals("/workout-mailbox/watch", productionRequest.uri.path)
+        putTestMailbox(mailbox)
 
         val items = Tasks.await(Wearable.getDataClient(context).dataItems)
         try {
             val matches = (0 until items.count)
                 .map { items[it] }
-                .filter { it.uri.path == "/workout-mailbox/watch" }
+                .filter { it.uri.path == TEST_WATCH_MAILBOX_PATH }
             val match = matches.single()
             val dataMap = DataMapItem.fromDataItem(match).dataMap
             val decoded = syncJson.decodeFromString(
@@ -48,13 +50,23 @@ class WearDataClientTest {
 
     @Test
     fun explicitEmptyMailboxReplacesCandidateAtTheSamePath() = runBlocking {
-        WearDataClient.publishWorkoutMailbox(context, WorkoutMailbox())
+        putTestMailbox(
+            WorkoutMailbox(
+                candidate = WorkoutReplica(
+                    workoutId = "mailbox-test-replaced",
+                    startedAtMs = 3,
+                    changedAtMs = 4,
+                    state = WorkoutReplicaState.Discarded,
+                ),
+            ),
+        )
+        putTestMailbox(WorkoutMailbox())
 
         val items = Tasks.await(Wearable.getDataClient(context).dataItems)
         try {
             val matches = (0 until items.count)
                 .map { items[it] }
-                .filter { it.uri.path == "/workout-mailbox/watch" }
+                .filter { it.uri.path == TEST_WATCH_MAILBOX_PATH }
             val payload = DataMapItem.fromDataItem(matches.single()).dataMap.getString("payload")!!
             assertEquals(WorkoutMailbox(), decodeWorkoutMailboxPayload(payload))
         } finally {
@@ -71,5 +83,18 @@ class WearDataClientTest {
         Tasks.await(Wearable.getDataClient(context).putDataItem(request))
 
         assertEquals(payload, WearDataClient.getPhoneWorkoutMailbox(context))
+    }
+
+    private fun putTestMailbox(mailbox: WorkoutMailbox) {
+        Tasks.await(
+            Wearable.getDataClient(context).putDataItem(
+                WearDataClient.buildWorkoutMailboxRequest(mailbox, TEST_WATCH_MAILBOX_PATH),
+            ),
+        )
+    }
+
+    companion object {
+        // The app coordinator owns the production path and may republish it during this suite.
+        private const val TEST_WATCH_MAILBOX_PATH = "/workout-mailbox/watch-test"
     }
 }

@@ -15,6 +15,7 @@ import dev.bishnoi.forgelog.wear.sync.WorkoutWriter
 
 fun compareEntryVersions(left: EntryVersion, right: EntryVersion): Int {
     val time = left.changedAtMs.compareTo(right.changedAtMs)
+    // Writer names and all replica ids use Kotlin's UTF-16 code-unit order as the cross-platform contract.
     return if (time != 0) time else left.writer.ordinal.compareTo(right.writer.ordinal)
 }
 
@@ -64,6 +65,9 @@ fun joinActiveWorkoutBodies(left: ActiveWorkoutBody, right: ActiveWorkoutBody): 
         ),
         exercises = joinExercises(left.exercises, right.exercises),
     )
+
+fun activeBodyDominates(left: ActiveWorkoutBody, right: ActiveWorkoutBody): Boolean =
+    joinActiveWorkoutBodies(left, right) == left
 
 fun materializeActiveWorkout(body: ActiveWorkoutBody): WorkoutBody = WorkoutBody(
     routineId = body.fields.routineId.value,

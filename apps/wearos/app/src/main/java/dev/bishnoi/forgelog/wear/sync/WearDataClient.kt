@@ -51,8 +51,11 @@ object WearDataClient {
         }
     }
 
-    internal fun buildWorkoutMailboxRequest(mailbox: WorkoutMailbox): PutDataRequest =
-        PutDataMapRequest.create(WATCH_WORKOUT_MAILBOX_PATH).apply {
+    internal fun buildWorkoutMailboxRequest(
+        mailbox: WorkoutMailbox,
+        path: String = WATCH_WORKOUT_MAILBOX_PATH,
+    ): PutDataRequest =
+        PutDataMapRequest.create(path).apply {
             dataMap.putString(
                 PAYLOAD_KEY,
                 syncJson.encodeToString(WorkoutMailbox.serializer(), mailbox),

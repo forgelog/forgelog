@@ -1,4 +1,5 @@
 import {
+  compareCanonicalStrings,
   materializeActiveWorkout,
   type ActiveLoggedSet,
   type ActiveWorkoutBody,
@@ -267,10 +268,10 @@ function canonicalBody(body: ActiveWorkoutBody): ActiveWorkoutBody {
   return {
     ...body,
     exercises: [...body.exercises]
-      .sort((a, b) => a.id.localeCompare(b.id))
+      .sort((a, b) => compareCanonicalStrings(a.id, b.id))
       .map((exercise) => ({
         ...exercise,
-        sets: [...exercise.sets].sort((a, b) => a.id.localeCompare(b.id)),
+        sets: [...exercise.sets].sort((a, b) => compareCanonicalStrings(a.id, b.id)),
       })),
   };
 }
@@ -351,7 +352,7 @@ export async function startActiveWorkoutReplica(
               completed_at_ms: null,
             },
           }))
-          .sort((a, b) => a.id.localeCompare(b.id)),
+          .sort((a, b) => compareCanonicalStrings(a.id, b.id)),
       })) ?? [],
   });
   const replica: WorkoutReplica = {
@@ -587,21 +588,25 @@ export async function moveActiveExercise(
   await updateCurrentActive(db, nowMs, (body, stamp) => {
     const live = body.exercises
       .filter((exercise) => !exercise.deleted)
-      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || a.id.localeCompare(b.id));
+      .sort(
+        (a, b) =>
+          (a.position ?? 0) - (b.position ?? 0) || compareCanonicalStrings(a.id, b.id)
+      );
     const currentIndex = live.findIndex((exercise) => exercise.id === workoutExerciseId);
     const targetIndex = currentIndex + delta;
     if (currentIndex < 0) throw new Error('Workout exercise not found');
     if (targetIndex < 0 || targetIndex >= live.length) return body;
-    const current = live[currentIndex];
-    const target = live[targetIndex];
-    const currentPosition = current.position;
-    const targetPosition = target.position;
+    const reordered = [...live];
+    const [current] = reordered.splice(currentIndex, 1);
+    reordered.splice(targetIndex, 0, current);
+    const positions = new Map(reordered.map((exercise, index) => [exercise.id, index]));
     return {
       ...body,
       exercises: body.exercises.map((exercise) => {
-        if (exercise.id === current.id) return { ...exercise, version: stamp, position: targetPosition };
-        if (exercise.id === target.id) return { ...exercise, version: stamp, position: currentPosition };
-        return exercise;
+        const position = positions.get(exercise.id);
+        return position === undefined || position === exercise.position
+          ? exercise
+          : { ...exercise, version: stamp, position };
       }),
     };
   });

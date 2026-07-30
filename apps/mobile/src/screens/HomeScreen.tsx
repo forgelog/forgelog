@@ -1,6 +1,6 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -40,35 +40,37 @@ export function HomeScreen() {
   const [starterRoutineSheet, setStarterRoutineSheet] = useState<StarterRoutineSheetState | null>(
     null
   );
+  const reloadRequestId = useRef(0);
 
-  const reload = useCallback(() => {
-    let current = true;
-    setLoading(true);
+  const reload = useCallback((options: { showLoading?: boolean } = {}) => {
+    const requestId = ++reloadRequestId.current;
+    const isCurrent = () => requestId === reloadRequestId.current;
+    if (options.showLoading !== false) setLoading(true);
     setLoadFailed(false);
     Promise.all([mobileStore.workouts.getActive(), mobileStore.routines.getWithSummaries()])
       .then(([activeWorkout, routineRows]) => {
-        if (!current) return;
+        if (!isCurrent()) return;
         setActive(activeWorkout);
         setRoutines(routineRows);
       })
       .catch(() => {
-        if (!current) return;
+        if (!isCurrent()) return;
         setActive(null);
         setRoutines([]);
         setLoadFailed(true);
       })
       .finally(() => {
-        if (current) setLoading(false);
+        if (isCurrent()) setLoading(false);
       });
     return () => {
-      current = false;
+      if (isCurrent()) reloadRequestId.current += 1;
     };
   }, []);
 
-  useFocusEffect(reload);
+  useFocusEffect(useCallback(() => reload(), [reload]));
 
   useEffect(
-    () => subscribeWorkoutMailboxApplied(() => void reload()),
+    () => subscribeWorkoutMailboxApplied(() => void reload({ showLoading: false })),
     [reload]
   );
 

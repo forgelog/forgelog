@@ -47,11 +47,15 @@ test('mobileStore exposes feature operations through one persistence entry point
   });
 
   const workout = await runInMobileStoreTransaction((store) =>
-    store.workouts.start({ routineId: routine.id })
+    store.workoutReplicas.start({ routineId: routine.id })
   );
   await expect(mobileStore.workouts.getDetail(workout.id)).resolves.toMatchObject({
     id: workout.id,
     exercises: [expect.objectContaining({ exercise_id: bench?.id })],
+  });
+  await mobileStore.workouts.updateName(workout.id, 'Renamed active workout');
+  await expect(mobileStore.workouts.getDetail(workout.id)).resolves.toMatchObject({
+    name: 'Renamed active workout',
   });
 });
 

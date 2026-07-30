@@ -49,8 +49,10 @@ class PhoneSyncListenerService : WearableListenerService() {
                     path == "/workout-mailbox/phone" -> {
                         val payload = dataMap.getString(PAYLOAD_KEY) ?: continue
                         scope.launch {
-                            val applied = stores.workoutMailboxSync.applyPeerPayload(payload)
-                            if (!applied) Log.e(TAG, "Rejected malformed workout mailbox payload")
+                            handleListenerFailure("Could not apply workout mailbox") {
+                                val applied = stores.workoutMailboxSync.applyPeerPayload(payload)
+                                if (!applied) Log.e(TAG, "Rejected malformed workout mailbox payload")
+                            }
                         }
                     }
                 }

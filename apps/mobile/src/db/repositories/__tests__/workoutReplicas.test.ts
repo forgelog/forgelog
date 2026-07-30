@@ -7,6 +7,7 @@ import {
   getActiveWorkoutFromReplica,
   getWorkoutDetailFromReplica,
   listAuthoredWorkoutReplicas,
+  moveActiveExercise,
   saveAuthoredWorkoutReplica,
   setActiveSetCompletion,
   startActiveWorkoutReplica,
@@ -64,6 +65,39 @@ test('active exercise and set mutations persist as versioned replica entries', a
     ],
   });
   expect(detail?.exercises[0].sets[0].completed_at).toBe(new Date(1004).toISOString());
+});
+
+test('moving exercises assigns dense positions when merged positions collide', async () => {
+  const db = await getDb();
+  const bench = await seededExercise('Barbell Bench Press - Medium Grip');
+  const squat = await seededExercise('Barbell Full Squat');
+  const workout = await startActiveWorkoutReplica(db, { nowMs: 1000 });
+  const first = await addExerciseToActiveReplica(db, workout.id, bench.id, 1001);
+  await addExerciseToActiveReplica(db, workout.id, squat.id, 1002);
+  const authored = (await listAuthoredWorkoutReplicas(db))[0];
+  if (authored.replica.state.kind !== 'active') throw new Error('Expected active replica');
+  await saveAuthoredWorkoutReplica(db, {
+    ...authored,
+    replica: {
+      ...authored.replica,
+      state: {
+        kind: 'active',
+        workout: {
+          ...authored.replica.state.workout,
+          exercises: authored.replica.state.workout.exercises.map((exercise) => ({
+            ...exercise,
+            id: exercise.id === first.id ? 'Z' : 'a',
+            position: 0,
+          })),
+        },
+      },
+    },
+  });
+
+  await moveActiveExercise(db, 'Z', 1, 1003);
+
+  const detail = await getWorkoutDetailFromReplica(db, workout.id);
+  expect(detail?.exercises.map((exercise) => exercise.id)).toEqual(['a', 'Z']);
 });
 
 test('finishing atomically projects one immutable snapshot into normalized history', async () => {

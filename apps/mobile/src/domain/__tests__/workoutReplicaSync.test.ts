@@ -206,6 +206,44 @@ describe('workout replica merge', () => {
     );
   });
 
+  test('canonical entry ordering matches Kotlin code-unit ordering', () => {
+    const left = activeBody(phoneVersion(1));
+    const right = activeBody(phoneVersion(1));
+    const exerciseValue = {
+      exercise_id: 'bench',
+      exercise_name: 'Bench Press',
+      source_routine_exercise_id: null,
+      superset_group_id: null,
+      exercise_type: 'weight_reps',
+      notes: null,
+    };
+    left.exercises = [
+      {
+        id: 'a',
+        version: phoneVersion(1),
+        deleted: false,
+        position: 1,
+        value: exerciseValue,
+        sets: [],
+      },
+    ];
+    right.exercises = [
+      {
+        id: 'Z',
+        version: phoneVersion(1),
+        deleted: false,
+        position: 0,
+        value: exerciseValue,
+        sets: [],
+      },
+    ];
+
+    expect(joinActiveWorkoutBodies(left, right).exercises.map((exercise) => exercise.id)).toEqual([
+      'Z',
+      'a',
+    ]);
+  });
+
   test('materialization hides tombstones and orders entries by position then id', () => {
     const body = activeBody(phoneVersion(1));
     const exerciseValue = {

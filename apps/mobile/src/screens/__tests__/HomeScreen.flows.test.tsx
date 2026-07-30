@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 import { getDb, resetDbForTests } from '../../db/index';
 import { mobileStore, runInMobileStoreTransaction } from '../../db/mobileStore';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
-import { latestAlertButtons } from '../../test-utils/async';
+import { deferred, latestAlertButtons } from '../../test-utils/async';
 import { seededExercise } from '../../test-utils/db';
 import { renderWithStack } from '../../test-utils/render';
 import { notifyWorkoutMailboxApplied } from '../../sync/workoutMailboxSignal';
@@ -110,6 +110,26 @@ test('refreshes the visible home screen when a peer mailbox changes the active w
   await act(async () => notifyWorkoutMailboxApplied());
 
   await waitFor(() => expect(home.getByLabelText('Resume Workout')).toBeTruthy());
+});
+
+test('keeps visible home content while a mailbox refresh is pending', async () => {
+  const home = await renderHomeStack();
+  await waitFor(() =>
+    expect(home.getByText('No saved routines yet. Create one above.')).toBeTruthy()
+  );
+  const pendingRoutines = deferred<
+    Awaited<ReturnType<typeof mobileStore.routines.getWithSummaries>>
+  >();
+  jest.spyOn(mobileStore.routines, 'getWithSummaries').mockReturnValueOnce(pendingRoutines.promise);
+
+  await act(async () => notifyWorkoutMailboxApplied());
+
+  expect(home.queryByText('Loading routines...')).toBeNull();
+  expect(home.getByText('No saved routines yet. Create one above.')).toBeTruthy();
+  await act(async () => {
+    pendingRoutines.resolve([]);
+    await pendingRoutines.promise;
+  });
 });
 
 test('creates and saves a routine from the inline starter-routine sheet', async () => {

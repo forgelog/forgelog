@@ -70,6 +70,17 @@ class WorkoutReplicaSyncTest {
     }
 
     @Test
+    fun `active dominance recognizes an already observed body`() {
+        val observed = body(version(1, WorkoutWriter.WATCH), "Observed")
+        val stale = observed.copy(
+            fields = observed.fields.copy(name = VersionedString(version(0, WorkoutWriter.PHONE), "Stale")),
+        )
+
+        assertTrue(activeBodyDominates(observed, stale))
+        assertFalse(activeBodyDominates(stale, observed))
+    }
+
+    @Test
     fun `shared mailbox fixture decodes with the version one contract`() {
         val mailbox = syncJson.decodeFromString(WorkoutMailbox.serializer(), fixtureText("workout-mailbox.json"))
 
