@@ -234,7 +234,7 @@ function canonicalizeJson(value: unknown): unknown {
   return Object.fromEntries(
     Object.keys(object)
       .filter((key) => object[key] !== undefined)
-      .sort((left, right) => left.localeCompare(right))
+      .sort(compareCanonicalStrings)
       .map((key) => [key, canonicalizeJson(object[key])])
   );
 }

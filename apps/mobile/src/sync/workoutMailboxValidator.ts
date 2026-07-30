@@ -2,6 +2,7 @@ import Ajv from 'ajv';
 
 import {
   canonicalWorkoutContentEqual,
+  compareCanonicalStrings,
   type ActiveLoggedSet,
   type ActiveWorkoutBody,
   type ActiveWorkoutExercise,
@@ -27,7 +28,7 @@ const validateReceiptShape = ajv.compile<WorkoutReceipt>({
 
 function isOuterMailbox(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const keys = Object.keys(value).sort((left, right) => left.localeCompare(right));
+  const keys = Object.keys(value).sort(compareCanonicalStrings);
   return (
     keys.length === 3 &&
     keys[0] === 'candidate' &&
