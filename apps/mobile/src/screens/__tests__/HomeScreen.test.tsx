@@ -61,17 +61,24 @@ beforeEach(() => {
 });
 
 test('cancels the latest mailbox reload when its subscription is cleaned up', () => {
-  const cancelReload = jest.fn();
-  const reload = jest.fn(() => cancelReload);
+  const cancelFirstReload = jest.fn();
+  const cancelLatestReload = jest.fn();
+  const reload = jest
+    .fn()
+    .mockReturnValueOnce(cancelFirstReload)
+    .mockReturnValueOnce(cancelLatestReload);
   const unsubscribe = subscribeHomeMailboxReload(reload);
 
   notifyWorkoutMailboxApplied();
+  notifyWorkoutMailboxApplied();
+  expect(reload).toHaveBeenCalledTimes(2);
   expect(reload).toHaveBeenCalledWith({ showLoading: false });
 
   unsubscribe();
-  expect(cancelReload).toHaveBeenCalledTimes(1);
+  expect(cancelFirstReload).not.toHaveBeenCalled();
+  expect(cancelLatestReload).toHaveBeenCalledTimes(1);
   notifyWorkoutMailboxApplied();
-  expect(reload).toHaveBeenCalledTimes(1);
+  expect(reload).toHaveBeenCalledTimes(2);
 });
 
 test('renders the Home screen with a start action', async () => {
