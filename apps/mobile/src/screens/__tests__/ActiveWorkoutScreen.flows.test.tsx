@@ -2,10 +2,21 @@ import { act, cleanup, fireEvent, waitFor } from '@testing-library/react-native'
 import { Alert } from 'react-native';
 
 import { getDb, resetDbForTests } from '../../db/index';
+import { mobileStore, runInMobileStoreTransaction } from '../../db/mobileStore';
+import type { SetType } from '../../db/types';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { deferred, latestAlertButtons } from '../../test-utils/async';
-import { mobileStoreForTests as mobileStore, seededExercise } from '../../test-utils/db';
+import { seededExercise } from '../../test-utils/db';
 import { renderWithStack } from '../../test-utils/render';
+import { notifyWorkoutMailboxApplied } from '../../sync/workoutMailboxSignal';
+import {
+  addExerciseToWorkout,
+  addSetToWorkout,
+  completeSet,
+  finishWorkoutWithRoutineAction,
+  uncompleteSet,
+  updateSetAndRecomputeRecords,
+} from '../../application/activeWorkout';
 import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 import { ExerciseDetailScreen } from '../ExerciseDetailScreen';
 import { ExerciseLibraryScreen } from '../ExerciseLibraryScreen';
@@ -13,16 +24,34 @@ import { HomeScreen } from '../HomeScreen';
 
 jest.mock('@expo/ui/community/bottom-sheet');
 
-const {
-  addExercise: addExerciseToWorkout,
-  addSet,
-  finish: finishWorkout,
-  getDetail: getWorkoutDetail,
-  start: startWorkout,
-  setSetCompletion,
-  updateSetValues: updateLoggedSetValues,
-} = mobileStore.workouts;
+const { getDetail: getWorkoutDetail } = mobileStore.workouts;
 const { getDetail: getRoutineDetail, saveDraft: saveRoutineDraft } = mobileStore.routines;
+
+function startWorkout(options: { routineId?: string; name?: string } = {}) {
+  return runInMobileStoreTransaction((store) => store.workoutReplicas.start(options));
+}
+
+function addSet(workoutExerciseId: string, setType: SetType = 'normal') {
+  if (setType === 'normal') return addSetToWorkout(workoutExerciseId);
+  return runInMobileStoreTransaction((store) =>
+    store.workoutReplicas.addSet(workoutExerciseId, setType)
+  );
+}
+
+function updateLoggedSetValues(
+  setId: string,
+  fields: Parameters<typeof updateSetAndRecomputeRecords>[2]
+) {
+  return updateSetAndRecomputeRecords(setId, '', fields);
+}
+
+function setSetCompletion(setId: string, completed: boolean) {
+  return completed ? completeSet(setId, '') : uncompleteSet(setId, '');
+}
+
+async function finishWorkout(workoutId: string) {
+  await finishWorkoutWithRoutineAction(workoutId, { kind: 'finish-only' });
+}
 
 type TestStackParamList = RootStackParamList & {
   Home: undefined;
@@ -59,6 +88,17 @@ test('shows a missing-workout state', async () => {
   const missing = await renderActiveWorkout('missing-workout');
 
   await waitFor(() => expect(missing.getByText('Workout not found.')).toBeTruthy());
+});
+
+test('leaves a visible workout after a peer mailbox makes it terminal', async () => {
+  const workout = await startWorkout({ name: 'Finished on Watch' });
+  const active = await renderActiveWorkout(workout.id);
+  await waitFor(() => expect(active.getByText('Finished on Watch')).toBeTruthy());
+
+  await finishWorkout(workout.id);
+  await act(async () => notifyWorkoutMailboxApplied());
+
+  await waitFor(() => expect(active.getByLabelText('Start Empty Workout')).toBeTruthy());
 });
 
 test('shows a load-error state', async () => {

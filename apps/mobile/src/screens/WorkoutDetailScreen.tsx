@@ -1,10 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { discardWorkout } from '../application/activeWorkout';
-import { Icon } from '../components/Icon';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { mobileStore } from '../db/mobileStore';
 import type { PersonalRecordEvent, WorkoutDetail } from '../db/types';
@@ -37,31 +35,12 @@ export function WorkoutDetailScreen({ route }: Props) {
 
   const volume = totalVolume(detail);
 
-  function handleDiscard() {
-    Alert.alert('Delete workout', 'This workout will be permanently deleted.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await discardWorkout(workoutId);
-          navigation.goBack();
-        },
-      },
-    ]);
-  }
-
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       <ScreenHeader
         title={detail.name}
         leading="back"
         onLeadingPress={() => navigation.goBack()}
-        trailing={
-          <Pressable onPress={handleDiscard} hitSlop={8}>
-            <Icon name="trash-can-outline" variant="sub" size={20} />
-          </Pressable>
-        }
       />
       <ScrollView>
         <Text style={[styles.date, { color: c.sub }]}>

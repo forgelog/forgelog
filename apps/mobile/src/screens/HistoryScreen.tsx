@@ -81,11 +81,6 @@ export function HistoryScreen() {
     navigation.navigate('RoutineEditor', { sourceWorkoutId: workout.id });
   }
 
-  function handleEditWorkout(workout: Workout) {
-    setWorkoutSheet(null);
-    navigation.navigate('EditWorkout', { workoutId: workout.id });
-  }
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -131,7 +126,6 @@ export function HistoryScreen() {
         state={workoutSheet}
         onClose={closeWorkoutSheet}
         onClosed={handleWorkoutSheetClosed}
-        onEditWorkout={handleEditWorkout}
         onSaveAsRoutine={handleSaveWorkoutAsRoutine}
       />
     </SafeAreaView>
@@ -210,7 +204,6 @@ type WorkoutActionsSheetProps = Readonly<{
   state: WorkoutSheetState | null;
   onClose: () => void;
   onClosed: () => void;
-  onEditWorkout: (workout: Workout) => void;
   onSaveAsRoutine: (workout: Workout) => void;
 }>;
 
@@ -218,7 +211,6 @@ function WorkoutActionsSheet({
   state,
   onClose,
   onClosed,
-  onEditWorkout,
   onSaveAsRoutine,
 }: WorkoutActionsSheetProps) {
   if (!state) return null;
@@ -232,13 +224,6 @@ function WorkoutActionsSheet({
       closing={state.closing}
       onClosed={onClosed}
     >
-      <OptionsSheetAction
-        label="Edit workout"
-        icon="pencil-outline"
-        onPress={() => onEditWorkout(workout)}
-        accessibilityLabel={`Edit workout ${workout.name}`}
-        testID="workout-action-edit"
-      />
       <OptionsSheetAction
         label="Save as routine"
         icon="content-save-outline"

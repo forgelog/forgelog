@@ -11,65 +11,65 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Verifies the outbox DataItem WearDataClient.publishWorkout produces is retrievable and well-formed. */
 @RunWith(AndroidJUnit4::class)
 class WearDataClientTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
-    fun publishWorkoutWritesRetrievableDataItem() = runBlocking {
-        val payload = WorkoutPayloadDto(
-            id = "outbox-test-1",
-            routineId = null,
-            name = "Freestyle",
-            startedAt = "2026-07-07T00:00:00.000Z",
-            endedAt = null,
-            exercises = emptyList(),
+    fun publishWorkoutMailboxWritesRetrievableFixedDataItem() = runBlocking {
+        val mailbox = WorkoutMailbox(
+            candidate = WorkoutReplica(
+                workoutId = "mailbox-test-1",
+                startedAtMs = 1,
+                changedAtMs = 2,
+                state = WorkoutReplicaState.Discarded,
+            ),
         )
 
-        WearDataClient.publishWorkout(context, payload)
+        WearDataClient.publishWorkoutMailbox(context, mailbox)
 
         val items = Tasks.await(Wearable.getDataClient(context).dataItems)
         try {
-            val match = (0 until items.count)
+            val matches = (0 until items.count)
                 .map { items[it] }
-                .firstOrNull { it.uri.path == "/workout/outbox-test-1" }
-            requireNotNull(match) { "expected a DataItem at /workout/outbox-test-1" }
-
+                .filter { it.uri.path == "/workout-mailbox/watch" }
+            val match = matches.single()
             val dataMap = DataMapItem.fromDataItem(match).dataMap
-            val decoded = syncJson.decodeFromString(WorkoutPayloadDto.serializer(), dataMap.getString("payload")!!)
-            assertEquals(payload, decoded)
+            val decoded = syncJson.decodeFromString(
+                WorkoutMailbox.serializer(),
+                dataMap.getString("payload")!!,
+            )
+            assertEquals(mailbox, decoded)
+            assertEquals(false, dataMap.containsKey("timestamp"))
         } finally {
             items.release()
         }
     }
 
     @Test
-    fun cleanupWorkoutDeletesPayloadAndAcknowledgementDataItems() = runBlocking {
-        val workoutId = "cleanup-${System.nanoTime()}"
-        val payload = WorkoutPayloadDto(
-            id = workoutId,
-            routineId = null,
-            name = "Cleanup",
-            startedAt = "2026-07-07T00:00:00.000Z",
-            endedAt = null,
-            exercises = emptyList(),
-        )
-        WearDataClient.publishWorkout(context, payload)
-        val acknowledgement = PutDataMapRequest.create("/workout-ack/$workoutId").apply {
-            dataMap.putString("workout_id", workoutId)
-        }.asPutDataRequest().setUrgent()
-        Tasks.await(Wearable.getDataClient(context).putDataItem(acknowledgement))
-
-        WearDataClient.cleanupWorkout(context, workoutId)
+    fun explicitEmptyMailboxReplacesCandidateAtTheSamePath() = runBlocking {
+        WearDataClient.publishWorkoutMailbox(context, WorkoutMailbox())
 
         val items = Tasks.await(Wearable.getDataClient(context).dataItems)
         try {
-            val paths = (0 until items.count).map { items[it].uri.path }
-            assertEquals(false, "/workout/$workoutId" in paths)
-            assertEquals(false, "/workout-ack/$workoutId" in paths)
+            val matches = (0 until items.count)
+                .map { items[it] }
+                .filter { it.uri.path == "/workout-mailbox/watch" }
+            val payload = DataMapItem.fromDataItem(matches.single()).dataMap.getString("payload")!!
+            assertEquals(WorkoutMailbox(), decodeWorkoutMailboxPayload(payload))
         } finally {
             items.release()
         }
+    }
+
+    @Test
+    fun getPhoneWorkoutMailboxReadsOnlyTheExactPeerPath() = runBlocking {
+        val payload = """{"protocol_version":1,"candidate":null,"watch_receipt":null}"""
+        val request = PutDataMapRequest.create("/workout-mailbox/phone").apply {
+            dataMap.putString("payload", payload)
+        }.asPutDataRequest().setUrgent()
+        Tasks.await(Wearable.getDataClient(context).putDataItem(request))
+
+        assertEquals(payload, WearDataClient.getPhoneWorkoutMailbox(context))
     }
 }

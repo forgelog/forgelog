@@ -2,8 +2,8 @@
   <application
     android:allowBackup="false"
     android:usesCleartextTraffic="false">
-    <!-- Woken by Play Services when a DataItem lands under /workout, even if
-         the app isn't running — matches the offline JSON outbox flush.
+    <!-- Woken by Play Services when the watch mailbox changes, even if the
+         app isn't running.
          Also woken by the watch's /request-sync Message (on-demand sync). -->
     <service
       android:name="expo.modules.wearsync.WearSyncListenerService"
@@ -13,14 +13,14 @@
         <data
           android:scheme="wear"
           android:host="*"
-          android:pathPrefix="/workout" />
+          android:path="/workout-mailbox/watch" />
       </intent-filter>
       <intent-filter>
         <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
         <data
           android:scheme="wear"
           android:host="*"
-          android:pathPrefix="/request-sync" />
+          android:path="/request-sync" />
       </intent-filter>
     </service>
   </application>

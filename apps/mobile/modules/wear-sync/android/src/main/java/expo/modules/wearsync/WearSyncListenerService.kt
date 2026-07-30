@@ -14,7 +14,7 @@ private const val PAYLOAD_KEY = "payload"
 private const val REQUEST_SYNC_PATH = "/request-sync"
 
 /**
- * Receives the watch's durable JSON outbox flush (DataItems under /workout) and
+ * Receives the watch's fixed workout mailbox and
  * on-demand sync requests (Messages at /request-sync). Only unpacks bytes
  * and hands them to [WearSyncBridge] — all parsing/DB writes/snapshot
  * building happen in JS (src/sync/wearSync.ts), so PR logic and schema stay
@@ -45,7 +45,7 @@ class WearSyncListenerService : WearableListenerService() {
   internal companion object {
     fun deliverDataItem(dataItem: DataItem) {
       val path = dataItem.uri.path.orEmpty()
-      if (path != "/workout" && !path.startsWith("/workout/")) return
+      if (path != "/workout-mailbox/watch") return
 
       val dataMap = DataMapItem.fromDataItem(dataItem).dataMap
       val payload = dataMap.getString(PAYLOAD_KEY) ?: return

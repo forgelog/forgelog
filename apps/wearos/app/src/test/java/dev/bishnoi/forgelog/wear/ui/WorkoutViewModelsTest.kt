@@ -77,14 +77,13 @@ class WorkoutViewModelsTest {
     }
 
     @Test
-    fun `workout overview reports progress and finish moves session to outbox`() = runBlocking {
+    fun `workout overview reports progress and finish moves session to mailbox queue`() = runBlocking {
         fixture.seedReferenceState()
         fixture.workouts.startWorkout("r1")
         fixture.workouts.markSetCompleted("s1", true)
-        val published = mutableListOf<String>()
         val viewModel = WorkoutOverviewViewModel(
             fixture.workouts,
-            FinishWorkout(fixture.workouts, publish = { published += it.id }),
+            FinishWorkout(fixture.workouts),
             "w1",
         )
 
@@ -96,8 +95,8 @@ class WorkoutViewModelsTest {
         viewModel.finishWorkout { finished.complete(Unit) }
         withTimeout(5_000) { finished.await() }
 
-        assertEquals(listOf("w1"), published)
         assertEquals(null, fixture.workouts.currentActiveWorkout())
-        assertEquals(listOf("w1"), fixture.workouts.pendingUploads.first().map { it.payload.id })
+        assertEquals(listOf("w1"), fixture.workouts.pendingFinished.first().map { it.workoutId })
+        assertEquals("w1", fixture.workouts.state.first().desiredMailbox.candidate?.workoutId)
     }
 }

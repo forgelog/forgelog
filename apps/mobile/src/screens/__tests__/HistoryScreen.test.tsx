@@ -1,5 +1,4 @@
 import { act, cleanup, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
 
 import { currentWeekDays, monthLabel } from '../../domain/dates';
 import { getDb, resetDbForTests } from '../../db/index';
@@ -10,7 +9,6 @@ import {
   setWorkoutTimestamps,
 } from '../../test-utils/db';
 import { renderWithStack } from '../../test-utils/render';
-import { EditWorkoutScreen } from '../EditWorkoutScreen';
 import { HistoryScreen } from '../HistoryScreen';
 import { RoutineEditorScreen } from '../RoutineEditorScreen';
 import { WorkoutDetailScreen } from '../WorkoutDetailScreen';
@@ -59,7 +57,6 @@ function renderHistoryStack() {
     { name: 'History', component: HistoryScreen },
     { name: 'WorkoutDetail', component: WorkoutDetailScreen },
     { name: 'RoutineEditor', component: RoutineEditorScreen },
-    { name: 'EditWorkout', component: EditWorkoutScreen },
   ]);
 }
 
@@ -125,7 +122,7 @@ test('saves a historical workout as an editable routine draft', async () => {
   });
 });
 
-test('edits a historical workout name from the workout options sheet', async () => {
+test('keeps finished workout snapshots immutable in the options sheet', async () => {
   await createFinishedBenchWorkout('Phase Six Push');
   const history = await renderHistoryStack();
 
@@ -133,34 +130,8 @@ test('edits a historical workout name from the workout options sheet', async () 
   fireEvent.press(history.getByLabelText('Workout options Phase Six Push'));
 
   await waitFor(() => expect(history.getByTestId('workout-actions-sheet')).toBeTruthy());
-  fireEvent.press(history.getByLabelText('Edit workout Phase Six Push'));
-
-  await waitFor(() => expect(history.getByDisplayValue('Phase Six Push')).toBeTruthy());
-  await act(async () => fireEvent.changeText(history.getByLabelText('Workout name'), 'Renamed Push'));
-  await act(async () => fireEvent.press(history.getByLabelText('Save workout')));
-
-  await waitFor(() => expect(history.getByLabelText('Open workout Renamed Push')).toBeTruthy());
-  expect(history.queryByLabelText('Open workout Phase Six Push')).toBeNull();
-});
-
-test('closes the workout edit screen without saving or showing a discard alert', async () => {
-  const alertSpy = jest.spyOn(Alert, 'alert');
-  await createFinishedBenchWorkout('Phase Six Push');
-  const history = await renderHistoryStack();
-
-  await waitFor(() => expect(history.getByLabelText('Workout options Phase Six Push')).toBeTruthy());
-  fireEvent.press(history.getByLabelText('Workout options Phase Six Push'));
-
-  await waitFor(() => expect(history.getByTestId('workout-actions-sheet')).toBeTruthy());
-  fireEvent.press(history.getByLabelText('Edit workout Phase Six Push'));
-
-  await waitFor(() => expect(history.getByDisplayValue('Phase Six Push')).toBeTruthy());
-  await act(async () => fireEvent.changeText(history.getByLabelText('Workout name'), 'Unsaved Push'));
-  await act(async () => fireEvent.press(history.getByLabelText('Close')));
-
-  expect(alertSpy).not.toHaveBeenCalled();
-  await waitFor(() => expect(history.getByLabelText('Open workout Phase Six Push')).toBeTruthy());
-  expect(history.queryByLabelText('Open workout Unsaved Push')).toBeNull();
+  expect(history.queryByLabelText('Edit workout Phase Six Push')).toBeNull();
+  expect(history.getByLabelText('Save as routine from Phase Six Push')).toBeTruthy();
 });
 
 test('reports a repository load failure', async () => {

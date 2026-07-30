@@ -2,10 +2,12 @@ import { act, cleanup, fireEvent, waitFor } from '@testing-library/react-native'
 import { Alert } from 'react-native';
 
 import { getDb, resetDbForTests } from '../../db/index';
+import { mobileStore, runInMobileStoreTransaction } from '../../db/mobileStore';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { latestAlertButtons } from '../../test-utils/async';
-import { mobileStoreForTests as mobileStore, seededExercise } from '../../test-utils/db';
+import { seededExercise } from '../../test-utils/db';
 import { renderWithStack } from '../../test-utils/render';
+import { notifyWorkoutMailboxApplied } from '../../sync/workoutMailboxSignal';
 import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 import { ExerciseDetailScreen } from '../ExerciseDetailScreen';
 import { ExerciseLibraryScreen } from '../ExerciseLibraryScreen';
@@ -17,8 +19,11 @@ const { saveDraft: saveRoutineDraft } = mobileStore.routines;
 const {
   getActive: getActiveWorkout,
   getDetail: getWorkoutDetail,
-  start: startWorkout,
 } = mobileStore.workouts;
+
+function startWorkout(options: { routineId?: string; name?: string } = {}) {
+  return runInMobileStoreTransaction((store) => store.workoutReplicas.start(options));
+}
 
 jest.mock('@expo/ui/community/bottom-sheet');
 
@@ -95,6 +100,16 @@ test('starts an empty workout', async () => {
   await waitFor(() => expect(getByLabelText('Start Empty Workout')).toBeTruthy());
   fireEvent.press(getByLabelText('Start Empty Workout'));
   await waitFor(() => expect(getByText('Add Exercise')).toBeTruthy());
+});
+
+test('refreshes the visible home screen when a peer mailbox changes the active workout', async () => {
+  const home = await renderHomeStack();
+  await waitFor(() => expect(home.getByLabelText('Start Empty Workout')).toBeTruthy());
+
+  await startWorkout({ name: 'Watch Workout' });
+  await act(async () => notifyWorkoutMailboxApplied());
+
+  await waitFor(() => expect(home.getByLabelText('Resume Workout')).toBeTruthy());
 });
 
 test('creates and saves a routine from the inline starter-routine sheet', async () => {

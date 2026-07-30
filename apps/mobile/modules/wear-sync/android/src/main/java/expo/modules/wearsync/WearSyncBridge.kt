@@ -18,11 +18,11 @@ internal object WearSyncBridge {
   private var syncRequestListener: (() -> Unit)? = null
 
   @Synchronized
-  fun attach(onWorkoutReceived: (String) -> Unit) {
-    listener = onWorkoutReceived
+  fun attach(onMailboxReceived: (String) -> Unit) {
+    listener = onMailboxReceived
     val queued = pending.toList()
     pending.clear()
-    queued.forEach(onWorkoutReceived)
+    queued.forEach(onMailboxReceived)
   }
 
   @Synchronized

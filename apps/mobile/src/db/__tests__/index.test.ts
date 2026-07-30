@@ -78,3 +78,38 @@ test('migration 2 creates and seeds measurement tables', async () => {
   );
   expect(measurementSchema?.sql).toContain('CHECK (canonical_value >= 0)');
 });
+
+test('migration 4 creates canonical workout replica and mailbox state', async () => {
+  const db = await getDb();
+  const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  const tables = await db.getAllAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master
+      WHERE type = 'table' AND name IN (
+        'workout_replica_state',
+        'workout_mailbox_state',
+        'active_workout_overlay'
+      )
+      ORDER BY name`
+  );
+  const mailbox = await db.getFirstAsync<{
+    id: number;
+    outbound_workout_id: string | null;
+    desired_mailbox_json: string;
+  }>('SELECT id, outbound_workout_id, desired_mailbox_json FROM workout_mailbox_state');
+
+  expect(version?.user_version).toBeGreaterThanOrEqual(4);
+  expect(tables.map((table) => table.name)).toEqual([
+    'active_workout_overlay',
+    'workout_mailbox_state',
+    'workout_replica_state',
+  ]);
+  expect(mailbox).toEqual({
+    id: 0,
+    outbound_workout_id: null,
+    desired_mailbox_json: JSON.stringify({
+      protocol_version: 1,
+      candidate: null,
+      watch_receipt: null,
+    }),
+  });
+});

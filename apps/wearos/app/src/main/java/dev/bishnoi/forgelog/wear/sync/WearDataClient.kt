@@ -2,8 +2,9 @@ package dev.bishnoi.forgelog.wear.sync
 
 import android.content.Context
 import com.google.android.gms.tasks.Tasks
-import com.google.android.gms.wearable.DataClient
+import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.PutDataMapRequest
+import com.google.android.gms.wearable.PutDataRequest
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,23 +12,19 @@ import kotlinx.serialization.json.Json
 import java.util.concurrent.TimeUnit
 
 private const val PAYLOAD_KEY = "payload"
-private const val TIMESTAMP_KEY = "timestamp"
 private const val PUBLISH_TIMEOUT_SECONDS = 30L
+private const val PHONE_WORKOUT_MAILBOX_PATH = "/workout-mailbox/phone"
+private const val WATCH_WORKOUT_MAILBOX_PATH = "/workout-mailbox/watch"
 
-val syncJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+val syncJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+    classDiscriminator = "kind"
+}
 
-/**
- * Publishes a JSON outbox entry as a DataItem keyed by workout id. DataItems persist
- * on the node and auto-deliver to the phone whenever it next reconnects —
- * this is what satisfies the "gym floors have unreliable signal" constraint,
- * matching the phone-side WearSyncModule.publishSnapshot counterpart.
- */
 object WearDataClient {
-    suspend fun publishWorkout(context: Context, payload: WorkoutPayloadDto) {
-        val request = PutDataMapRequest.create("/workout/${payload.id}").apply {
-            dataMap.putString(PAYLOAD_KEY, syncJson.encodeToString(WorkoutPayloadDto.serializer(), payload))
-            dataMap.putLong(TIMESTAMP_KEY, System.currentTimeMillis())
-        }.asPutDataRequest().setUrgent()
+    suspend fun publishWorkoutMailbox(context: Context, mailbox: WorkoutMailbox) {
+        val request = buildWorkoutMailboxRequest(mailbox)
         withContext(Dispatchers.IO) {
             Tasks.await(
                 Wearable.getDataClient(context).putDataItem(request),
@@ -37,25 +34,28 @@ object WearDataClient {
         }
     }
 
-    suspend fun cleanupWorkout(context: Context, workoutId: String) = withContext(Dispatchers.IO) {
-        val dataClient = Wearable.getDataClient(context)
-        val paths = setOf("/workout/$workoutId", "/workout-ack/$workoutId")
+    suspend fun getPhoneWorkoutMailbox(context: Context): String? = withContext(Dispatchers.IO) {
         val items = Tasks.await(
-            dataClient.dataItems,
+            Wearable.getDataClient(context).dataItems,
             PUBLISH_TIMEOUT_SECONDS,
             TimeUnit.SECONDS,
         )
-        val uris = try {
-            (0 until items.count).map { items[it].uri }.filter { it.path in paths }
+        try {
+            (0 until items.count)
+                .asSequence()
+                .map { items[it] }
+                .firstOrNull { it.uri.path == PHONE_WORKOUT_MAILBOX_PATH }
+                ?.let { DataMapItem.fromDataItem(it).dataMap.getString(PAYLOAD_KEY) }
         } finally {
             items.release()
         }
-        uris.forEach { uri ->
-            Tasks.await(
-                dataClient.deleteDataItems(uri, DataClient.FILTER_LITERAL),
-                PUBLISH_TIMEOUT_SECONDS,
-                TimeUnit.SECONDS,
-            )
-        }
     }
+
+    internal fun buildWorkoutMailboxRequest(mailbox: WorkoutMailbox): PutDataRequest =
+        PutDataMapRequest.create(WATCH_WORKOUT_MAILBOX_PATH).apply {
+            dataMap.putString(
+                PAYLOAD_KEY,
+                syncJson.encodeToString(WorkoutMailbox.serializer(), mailbox),
+            )
+        }.asPutDataRequest().setUrgent()
 }

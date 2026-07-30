@@ -38,7 +38,7 @@ class WearSyncListenerServiceTest {
       delivered.countDown()
     }
 
-    val path = "/workout/native-bridge-${System.nanoTime()}"
+    val path = "/workout-mailbox/watch"
     val request = PutDataMapRequest.create(path).apply {
       dataMap.putString("payload", payload)
     }.asPutDataRequest().setUrgent()
@@ -67,18 +67,18 @@ class WearSyncListenerServiceTest {
   }
 
   @Test
-  fun workoutPrefixWithoutBoundaryIsIgnored() {
+  fun nonExactMailboxPathIsIgnored() {
     val payload = """{"id":"native-bridge-workout","exercises":[]}"""
     val received = mutableListOf<String>()
     WearSyncBridge.attach { received.add(it) }
 
-    val request = PutDataMapRequest.create("/workoutfoo").apply {
+    val request = PutDataMapRequest.create("/workout-mailbox/watch/extra").apply {
       dataMap.putString("payload", payload)
     }.asPutDataRequest().setUrgent()
 
     WearSyncListenerService.deliverDataItem(
       FakeDataItem(
-        uri = Uri.parse("wear://self/workoutfoo"),
+        uri = Uri.parse("wear://self/workout-mailbox/watch/extra"),
         data = checkNotNull(request.data),
       ),
     )
@@ -101,23 +101,15 @@ class WearSyncListenerServiceTest {
   }
 
   @Test
-  fun acknowledgeWorkoutBuildsPersistentUrgentDataItem() {
-    val timestamp = 1_725_000_000_000L
-
-    val request = WearSyncModule.buildWorkoutAckRequest("workout-123", timestamp)
+  fun workoutMailboxBuildsPersistentUrgentDataItemWithoutNonce() {
+    val payload = """{"protocol_version":1,"candidate":null,"watch_receipt":null}"""
+    val request = WearSyncModule.buildWorkoutMailboxRequest(payload)
     val dataMap = DataMap.fromByteArray(checkNotNull(request.data))
 
-    assertEquals("/workout-ack/workout-123", request.uri.path)
-    assertTrue("expected acknowledgement request to be urgent", request.isUrgent)
-    assertEquals("workout-123", dataMap.getString("workout_id"))
-    assertEquals(timestamp, dataMap.getLong("timestamp"))
-  }
-
-  @Test
-  fun acknowledgeWorkoutRejectsBlankId() {
-    assertThrows(IllegalArgumentException::class.java) {
-      WearSyncModule.buildWorkoutAckRequest("   ")
-    }
+    assertEquals("/workout-mailbox/phone", request.uri.path)
+    assertTrue("expected mailbox request to be urgent", request.isUrgent)
+    assertEquals(payload, dataMap.getString("payload"))
+    assertEquals(false, dataMap.containsKey("timestamp"))
   }
 
   private class FakeDataItem(

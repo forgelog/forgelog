@@ -1,6 +1,6 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,6 +18,7 @@ import { discardWorkout, startOrResumeWorkout } from '../application/activeWorko
 import type { Workout } from '../db/types';
 import type { RoutineTemplate } from '../domain/routineTemplates';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { subscribeWorkoutMailboxApplied } from '../sync/workoutMailboxSignal';
 import { useTheme } from '../theme/ThemeContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -65,6 +66,11 @@ export function HomeScreen() {
   }, []);
 
   useFocusEffect(reload);
+
+  useEffect(
+    () => subscribeWorkoutMailboxApplied(() => void reload()),
+    [reload]
+  );
 
   async function handleStartEmpty() {
     try {
