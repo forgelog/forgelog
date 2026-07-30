@@ -188,19 +188,18 @@ export function validateWorkoutMailbox(
   const rawCandidate = value.candidate;
   const rawReceipt = value.watch_receipt;
   if (pathWriter === 'watch' && rawReceipt !== null) return null;
-  if (rawCandidate !== null && rawCandidate !== undefined && !validateReplicaShape(rawCandidate)) {
-    return {
-      protocol_version: 1,
-      candidate: null,
-      watch_receipt: validateReceiptShape(rawReceipt) ? rawReceipt : null,
-    };
-  }
-  const candidate = validateReplicaShape(rawCandidate) ? rawCandidate : null;
   const receipt = validateReceiptShape(rawReceipt) ? rawReceipt : null;
+  if (rawCandidate === null) {
+    return { protocol_version: 1, candidate: null, watch_receipt: receipt };
+  }
+  if (!validateReplicaShape(rawCandidate)) {
+    return receipt ? { protocol_version: 1, candidate: null, watch_receipt: receipt } : null;
+  }
   return {
     protocol_version: 1,
-    candidate:
-      candidate && isSemanticallyValidReplica(pathWriter, candidate, knownState) ? candidate : null,
+    candidate: isSemanticallyValidReplica(pathWriter, rawCandidate, knownState)
+      ? rawCandidate
+      : null,
     watch_receipt: receipt,
   };
 }

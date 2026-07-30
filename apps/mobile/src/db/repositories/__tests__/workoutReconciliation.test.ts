@@ -168,11 +168,13 @@ test('a malformed candidate is ignored without modifying committed state', async
   const workout = await startActiveWorkoutReplica(db, { nowMs: 1000 });
   const before = await listAuthoredWorkoutReplicas(db);
 
-  await applyWatchWorkoutMailbox(
-    db,
-    { protocol_version: 1, candidate: { invalid: true }, watch_receipt: null } as unknown,
-    1001
-  );
+  await expect(
+    applyWatchWorkoutMailbox(
+      db,
+      { protocol_version: 1, candidate: { invalid: true }, watch_receipt: null } as unknown,
+      1001
+    )
+  ).resolves.toBe(false);
 
   expect(await listAuthoredWorkoutReplicas(db)).toEqual(before);
   expect((await getDesiredPhoneMailbox(db)).candidate?.workout_id).toBe(workout.id);

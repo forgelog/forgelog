@@ -101,6 +101,20 @@ describe('workout mailbox validation', () => {
     ).toEqual({ protocol_version: 1, candidate: null, watch_receipt: receipt });
   });
 
+  test('rejects a watch mailbox whose only candidate is schema-invalid', () => {
+    expect(
+      validateWorkoutMailbox(
+        'watch',
+        {
+          protocol_version: 1,
+          candidate: { invalid: true },
+          watch_receipt: null,
+        },
+        []
+      )
+    ).toBeNull();
+  });
+
   test('rejects non-canonical arrays, invalid tombstones, and future entry versions', () => {
     const mailbox = clone(validMailbox);
     if (mailbox.candidate?.state.kind !== 'active') throw new Error('fixture must be active');

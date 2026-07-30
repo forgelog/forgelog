@@ -377,6 +377,7 @@ class WorkoutRepository(
 
     suspend fun applyPhoneMailbox(mailbox: WorkoutMailbox): Boolean {
         var accepted = false
+        val joinedChangedAtMs = now().toEpochMilli()
         store.updateData { current ->
             val validated = validateWorkoutMailbox(
                 WorkoutWriter.PHONE,
@@ -384,13 +385,19 @@ class WorkoutRepository(
                 current.resolvedReplicas,
             ) ?: return@updateData current
             accepted = true
-            val next = validated.candidate?.let { applyPhoneCandidate(current, it) } ?: current
+            val next = validated.candidate?.let {
+                applyPhoneCandidate(current, it, joinedChangedAtMs)
+            } ?: current
             next.consumeWatchReceipt(validated.watchReceipt).withDesiredMailbox()
         }
         return accepted
     }
 
-    private fun applyPhoneCandidate(current: WorkoutState, candidate: WorkoutReplica): WorkoutState {
+    private fun applyPhoneCandidate(
+        current: WorkoutState,
+        candidate: WorkoutReplica,
+        joinedChangedAtMs: Long,
+    ): WorkoutState {
         val incoming = AuthoredWorkoutReplica(WorkoutWriter.PHONE, candidate)
         val existing = current.resolvedReplicas.firstOrNull {
             it.replica.workoutId == candidate.workoutId
@@ -400,7 +407,7 @@ class WorkoutRepository(
                 it,
                 incoming,
                 WorkoutWriter.WATCH,
-                maxOf(now().toEpochMilli(), it.replica.changedAtMs + 1, candidate.changedAtMs + 1),
+                maxOf(joinedChangedAtMs, it.replica.changedAtMs + 1, candidate.changedAtMs + 1),
             )
         } ?: incoming
         val next = current.copy(
