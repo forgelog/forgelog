@@ -27,7 +27,7 @@ const validateReceiptShape = ajv.compile<WorkoutReceipt>({
 
 function isOuterMailbox(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const keys = Object.keys(value).sort();
+  const keys = Object.keys(value).sort((left, right) => left.localeCompare(right));
   return (
     keys.length === 3 &&
     keys[0] === 'candidate' &&
@@ -87,20 +87,49 @@ function versionsEqual(left: EntryVersion, right: EntryVersion): boolean {
   return left.changed_at_ms === right.changed_at_ms && left.writer === right.writer;
 }
 
+function entryReusesVersion<T extends { version: EntryVersion }>(incoming: T, known?: T): boolean {
+  return (
+    known !== undefined &&
+    versionsEqual(incoming.version, known.version) &&
+    !canonicalWorkoutContentEqual(incoming, known)
+  );
+}
+
+function fieldsDoNotReuseVersion(incoming: ActiveWorkoutBody, known: ActiveWorkoutBody): boolean {
+  return (Object.keys(incoming.fields) as (keyof ActiveWorkoutBody['fields'])[]).every((key) => {
+    return !entryReusesVersion(incoming.fields[key], known.fields[key]);
+  });
+}
+
+function exerciseReusesVersion(
+  incoming: ActiveWorkoutExercise,
+  known?: ActiveWorkoutExercise
+): boolean {
+  if (!known || !versionsEqual(incoming.version, known.version)) return false;
+  return !canonicalWorkoutContentEqual(
+    { ...incoming, sets: undefined },
+    { ...known, sets: undefined }
+  );
+}
+
+function exerciseSetsDoNotReuseVersion(
+  incoming: ActiveWorkoutExercise,
+  known: ActiveWorkoutExercise | undefined,
+  knownSetParents: ReadonlyMap<string, string>
+): boolean {
+  const knownSets = new Map(known?.sets.map((set) => [set.id, set]) ?? []);
+  return incoming.sets.every((set) => {
+    const knownParent = knownSetParents.get(set.id);
+    if (knownParent !== undefined && knownParent !== incoming.id) return false;
+    return !entryReusesVersion(set, knownSets.get(set.id));
+  });
+}
+
 function entriesDoNotReuseVersion(
   incoming: ActiveWorkoutBody,
   known: ActiveWorkoutBody
 ): boolean {
-  for (const key of Object.keys(incoming.fields) as (keyof ActiveWorkoutBody['fields'])[]) {
-    const incomingField = incoming.fields[key];
-    const knownField = known.fields[key];
-    if (
-      versionsEqual(incomingField.version, knownField.version) &&
-      !canonicalWorkoutContentEqual(incomingField, knownField)
-    ) {
-      return false;
-    }
-  }
+  if (!fieldsDoNotReuseVersion(incoming, known)) return false;
 
   const knownExercises = new Map(known.exercises.map((exercise) => [exercise.id, exercise]));
   const knownSetParents = new Map<string, string>();
@@ -109,26 +138,28 @@ function entriesDoNotReuseVersion(
   }
   for (const exercise of incoming.exercises) {
     const knownExercise = knownExercises.get(exercise.id);
-    if (knownExercise && versionsEqual(exercise.version, knownExercise.version)) {
-      const incomingEntry = { ...exercise, sets: undefined };
-      const knownEntry = { ...knownExercise, sets: undefined };
-      if (!canonicalWorkoutContentEqual(incomingEntry, knownEntry)) return false;
-    }
-    const knownSets = new Map(knownExercise?.sets.map((set) => [set.id, set]) ?? []);
-    for (const set of exercise.sets) {
-      const knownParent = knownSetParents.get(set.id);
-      if (knownParent !== undefined && knownParent !== exercise.id) return false;
-      const knownSet = knownSets.get(set.id);
-      if (
-        knownSet &&
-        versionsEqual(set.version, knownSet.version) &&
-        !canonicalWorkoutContentEqual(set, knownSet)
-      ) {
-        return false;
-      }
-    }
+    if (exerciseReusesVersion(exercise, knownExercise)) return false;
+    if (!exerciseSetsDoNotReuseVersion(exercise, knownExercise, knownSetParents)) return false;
   }
   return true;
+}
+
+function isCompatibleWithKnownReplica(
+  pathWriter: WorkoutWriter,
+  replica: WorkoutReplica,
+  known: AuthoredWorkoutReplica
+): boolean {
+  if (known.replica.workout_id !== replica.workout_id) return true;
+  if (known.replica.started_at_ms !== replica.started_at_ms) return false;
+  if (
+    known.writer === pathWriter &&
+    known.replica.changed_at_ms === replica.changed_at_ms &&
+    !canonicalWorkoutContentEqual(known.replica, replica)
+  ) {
+    return false;
+  }
+  if (known.replica.state.kind !== 'active' || replica.state.kind !== 'active') return true;
+  return entriesDoNotReuseVersion(replica.state.workout, known.replica.state.workout);
 }
 
 function isSemanticallyValidReplica(
@@ -144,21 +175,7 @@ function isSemanticallyValidReplica(
   }
   if (!hasValidFinishedCompletion(replica)) return false;
 
-  for (const known of knownState) {
-    if (known.replica.workout_id !== replica.workout_id) continue;
-    if (known.replica.started_at_ms !== replica.started_at_ms) return false;
-    if (
-      known.writer === pathWriter &&
-      known.replica.changed_at_ms === replica.changed_at_ms &&
-      !canonicalWorkoutContentEqual(known.replica, replica)
-    ) {
-      return false;
-    }
-    if (known.replica.state.kind === 'active' && replica.state.kind === 'active') {
-      if (!entriesDoNotReuseVersion(replica.state.workout, known.replica.state.workout)) return false;
-    }
-  }
-  return true;
+  return knownState.every((known) => isCompatibleWithKnownReplica(pathWriter, replica, known));
 }
 
 export function validateWorkoutMailbox(

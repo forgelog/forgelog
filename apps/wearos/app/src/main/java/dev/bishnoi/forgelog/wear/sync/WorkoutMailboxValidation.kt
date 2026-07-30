@@ -190,35 +190,39 @@ fun validateWorkoutReplica(
     knownState: List<AuthoredWorkoutReplica>,
 ): Boolean {
     if (replica.startedAtMs < 0 || replica.changedAtMs < 0) return false
-    when (val state = replica.state) {
-        is WorkoutReplicaState.Active -> if (!validateActive(state.workout, replica.changedAtMs)) return false
-        is WorkoutReplicaState.Finished -> {
-            if (state.endedAtMs < replica.startedAtMs) return false
-            if (state.workout.exercises.any { exercise ->
-                    exercise.exerciseType !in VALID_EXERCISE_TYPES || exercise.sets.any {
-                        it.setType !in VALID_SET_TYPES ||
-                            it.completedAtMs?.let { completedAt -> completedAt < 0 } == true ||
-                            (!it.completed && it.completedAtMs != null)
-                    }
-                }
-            ) return false
+    if (!hasValidReplicaState(replica)) return false
+    return knownState.all { isCompatibleWithKnownReplica(pathWriter, replica, it) }
+}
+
+private fun hasValidReplicaState(replica: WorkoutReplica): Boolean = when (val state = replica.state) {
+    is WorkoutReplicaState.Active -> validateActive(state.workout, replica.changedAtMs)
+    is WorkoutReplicaState.Finished -> validateFinished(state, replica.startedAtMs)
+    WorkoutReplicaState.Discarded -> true
+}
+
+private fun validateFinished(state: WorkoutReplicaState.Finished, startedAtMs: Long): Boolean =
+    state.endedAtMs >= startedAtMs && state.workout.exercises.all { exercise ->
+        exercise.exerciseType in VALID_EXERCISE_TYPES && exercise.sets.all { set ->
+            set.setType in VALID_SET_TYPES &&
+                hasValidCompletion(set.completed, set.completedAtMs)
         }
-        WorkoutReplicaState.Discarded -> Unit
     }
-    for (known in knownState.filter { it.replica.workoutId == replica.workoutId }) {
-        if (known.replica.startedAtMs != replica.startedAtMs) return false
-        if (
-            known.writer == pathWriter &&
-            known.replica.changedAtMs == replica.changedAtMs &&
-            known.replica != replica
-        ) return false
-        val incomingActive = replica.state as? WorkoutReplicaState.Active
-        val knownActive = known.replica.state as? WorkoutReplicaState.Active
-        if (incomingActive != null && knownActive != null &&
-            !versionsKeepCanonicalContent(incomingActive.workout, knownActive.workout)
-        ) return false
-    }
-    return true
+
+private fun isCompatibleWithKnownReplica(
+    pathWriter: WorkoutWriter,
+    replica: WorkoutReplica,
+    known: AuthoredWorkoutReplica,
+): Boolean {
+    if (known.replica.workoutId != replica.workoutId) return true
+    if (known.replica.startedAtMs != replica.startedAtMs) return false
+    if (
+        known.writer == pathWriter &&
+        known.replica.changedAtMs == replica.changedAtMs &&
+        known.replica != replica
+    ) return false
+    val incomingActive = replica.state as? WorkoutReplicaState.Active ?: return true
+    val knownActive = known.replica.state as? WorkoutReplicaState.Active ?: return true
+    return versionsKeepCanonicalContent(incomingActive.workout, knownActive.workout)
 }
 
 private fun validateActive(body: ActiveWorkoutBody, envelopeChangedAtMs: Long): Boolean {
@@ -229,32 +233,50 @@ private fun validateActive(body: ActiveWorkoutBody, envelopeChangedAtMs: Long): 
         body.fields.notes.version,
         body.fields.bodyweightKg.version,
     )
-    if (fieldVersions.any { it.changedAtMs < 0 || it.changedAtMs > envelopeChangedAtMs }) return false
+    if (!fieldVersions.all { it.isWithinEnvelope(envelopeChangedAtMs) }) return false
     if (!body.exercises.isCanonicalById()) return false
     val setIds = mutableSetOf<String>()
-    for (exercise in body.exercises) {
-        if (exercise.version.changedAtMs < 0 || exercise.version.changedAtMs > envelopeChangedAtMs) return false
-        if (exercise.deleted) {
-            if (exercise.position != null || exercise.value != null) return false
-        } else {
-            if (exercise.position == null || exercise.position < 0 || exercise.value == null) return false
-            if (exercise.value.exerciseType !in VALID_EXERCISE_TYPES) return false
-        }
-        if (!exercise.sets.isCanonicalById()) return false
-        for (set in exercise.sets) {
-            if (!setIds.add(set.id)) return false
-            if (set.version.changedAtMs < 0 || set.version.changedAtMs > envelopeChangedAtMs) return false
-            if (set.deleted) {
-                if (set.position != null || set.value != null) return false
-            } else {
-                if (set.position == null || set.position < 0 || set.value == null) return false
-                if (set.value.setType !in VALID_SET_TYPES) return false
-            }
-            if (set.value?.completedAtMs?.let { it < 0 } == true) return false
-            if (set.value?.let { !it.completed && it.completedAtMs != null } == true) return false
-        }
-    }
-    return true
+    return body.exercises.all { validateActiveExercise(it, envelopeChangedAtMs, setIds) }
+}
+
+private fun EntryVersion.isWithinEnvelope(envelopeChangedAtMs: Long): Boolean =
+    changedAtMs in 0..envelopeChangedAtMs
+
+private fun validateActiveExercise(
+    exercise: ActiveWorkoutExercise,
+    envelopeChangedAtMs: Long,
+    setIds: MutableSet<String>,
+): Boolean {
+    if (!exercise.version.isWithinEnvelope(envelopeChangedAtMs)) return false
+    if (!exercise.hasValidLiveOrDeletedShape()) return false
+    if (!exercise.sets.isCanonicalById()) return false
+    return exercise.sets.all { validateActiveSet(it, envelopeChangedAtMs, setIds) }
+}
+
+private fun ActiveWorkoutExercise.hasValidLiveOrDeletedShape(): Boolean {
+    if (deleted) return position == null && value == null
+    return position != null && position >= 0 && value?.exerciseType in VALID_EXERCISE_TYPES
+}
+
+private fun validateActiveSet(
+    set: ActiveLoggedSet,
+    envelopeChangedAtMs: Long,
+    setIds: MutableSet<String>,
+): Boolean {
+    if (!setIds.add(set.id)) return false
+    if (!set.version.isWithinEnvelope(envelopeChangedAtMs)) return false
+    if (!set.hasValidLiveOrDeletedShape()) return false
+    return set.value?.let { hasValidCompletion(it.completed, it.completedAtMs) } != false
+}
+
+private fun ActiveLoggedSet.hasValidLiveOrDeletedShape(): Boolean {
+    if (deleted) return position == null && value == null
+    return position != null && position >= 0 && value?.setType in VALID_SET_TYPES
+}
+
+private fun hasValidCompletion(completed: Boolean, completedAtMs: Long?): Boolean {
+    if (completedAtMs != null && completedAtMs < 0) return false
+    return completed || completedAtMs == null
 }
 
 private fun <T : Any> List<T>.isCanonicalById(): Boolean {

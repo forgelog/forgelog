@@ -30,6 +30,8 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
+private const val PHONE_B_ID = "phone-b"
+
 class StateRepositoriesTest {
     private lateinit var directory: File
     private lateinit var storeScope: CoroutineScope
@@ -225,7 +227,7 @@ class StateRepositoriesTest {
         val baseA = workoutRepository.state.first().resolvedReplicas.single().replica
         workoutRepository.updateSetValues("s1", 70.0, 5)
         val phoneB = baseA.copy(
-            workoutId = "phone-b",
+            workoutId = PHONE_B_ID,
             startedAtMs = baseA.startedAtMs + 1_000,
             changedAtMs = baseA.changedAtMs + 1_000,
         )
@@ -252,8 +254,8 @@ class StateRepositoriesTest {
         workoutRepository.applyPhoneMailbox(WorkoutMailbox(candidate = phoneA))
 
         val state = workoutRepository.state.first()
-        assertEquals("phone-b", state.transportIntent?.workoutId)
-        assertEquals("phone-b", state.desiredMailbox.candidate?.workoutId)
+        assertEquals(PHONE_B_ID, state.transportIntent?.workoutId)
+        assertEquals(PHONE_B_ID, state.desiredMailbox.candidate?.workoutId)
     }
 
     @Test

@@ -25,6 +25,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+private const val WORKOUT_ID = "workout-1"
+
 class WorkoutReplicaSyncTest {
     private fun fixtureText(name: String): String =
         checkNotNull(javaClass.classLoader!!.getResourceAsStream(name)) { "fixture not found: $name" }
@@ -72,7 +74,7 @@ class WorkoutReplicaSyncTest {
         val mailbox = syncJson.decodeFromString(WorkoutMailbox.serializer(), fixtureText("workout-mailbox.json"))
 
         assertEquals(1, mailbox.protocolVersion)
-        assertEquals("workout-1", mailbox.candidate?.workoutId)
+        assertEquals(WORKOUT_ID, mailbox.candidate?.workoutId)
         assertTrue(mailbox.candidate?.state is WorkoutReplicaState.Active)
     }
 
@@ -80,12 +82,12 @@ class WorkoutReplicaSyncTest {
     fun `finished state wins unchanged and current generation ignores lifecycle rank`() {
         val active = AuthoredWorkoutReplica(
             WorkoutWriter.PHONE,
-            WorkoutReplica("workout-1", 100, 9, WorkoutReplicaState.Active(body(version(9, WorkoutWriter.PHONE)))),
+            WorkoutReplica(WORKOUT_ID, 100, 9, WorkoutReplicaState.Active(body(version(9, WorkoutWriter.PHONE)))),
         )
         val finished = AuthoredWorkoutReplica(
             WorkoutWriter.WATCH,
             WorkoutReplica(
-                "workout-1",
+                WORKOUT_ID,
                 100,
                 8,
                 WorkoutReplicaState.Finished(108, WorkoutBody(name = "Watch snapshot")),
@@ -127,7 +129,7 @@ class WorkoutReplicaSyncTest {
     fun `negative receipt timestamps are ignored independently`() {
         val mailbox = validateWorkoutMailbox(
             WorkoutWriter.PHONE,
-            WorkoutMailbox(watchReceipt = WorkoutReceipt("workout-1", -1, 2)),
+            WorkoutMailbox(watchReceipt = WorkoutReceipt(WORKOUT_ID, -1, 2)),
             emptyList(),
         )
 
@@ -140,7 +142,7 @@ class WorkoutReplicaSyncTest {
     fun `live entries require both a position and a value`() {
         val stamp = version(1, WorkoutWriter.PHONE)
         val invalidExercise = WorkoutReplica(
-            "workout-1",
+            WORKOUT_ID,
             1,
             1,
             WorkoutReplicaState.Active(

@@ -248,7 +248,7 @@ async function materializeDetail(
 
 export async function getActiveWorkoutFromReplica(db: DatabaseExecutor): Promise<Workout | null> {
   const current = await loadCurrentGeneration(db);
-  if (!current || current.replica.state.kind !== 'active') return null;
+  if (current?.replica.state.kind !== 'active') return null;
   return activeWorkoutRow(current.replica, materializeActiveWorkout(current.replica.state.workout));
 }
 
@@ -279,8 +279,7 @@ function requireActive(stored: AuthoredWorkoutReplica | null, workoutId?: string
   state: { kind: 'active'; workout: ActiveWorkoutBody };
 } {
   if (
-    !stored ||
-    stored.replica.state.kind !== 'active' ||
+    stored?.replica.state.kind !== 'active' ||
     (workoutId !== undefined && stored.replica.workout_id !== workoutId)
   ) {
     throw new Error('Active workout not found');

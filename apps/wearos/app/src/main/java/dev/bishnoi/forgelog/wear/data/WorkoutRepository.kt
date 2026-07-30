@@ -383,57 +383,59 @@ class WorkoutRepository(
                 current.resolvedReplicas,
             ) ?: return@updateData current
             accepted = true
-            var next = current
-            val candidate = validated.candidate
-            if (candidate != null) {
-                val incoming = AuthoredWorkoutReplica(WorkoutWriter.PHONE, candidate)
-                val existing = next.resolvedReplicas.firstOrNull {
-                    it.replica.workoutId == candidate.workoutId
-                }
-                val resolved = if (existing == null) {
-                    incoming
-                } else {
-                    resolveSameWorkout(
-                        existing,
-                        incoming,
-                        WorkoutWriter.WATCH,
-                        maxOf(now().toEpochMilli(), existing.replica.changedAtMs + 1, candidate.changedAtMs + 1),
-                    )
-                }
-                var intent = next.transportIntent
-                if (resolved.writer == WorkoutWriter.PHONE && intent?.workoutId == candidate.workoutId) {
-                    intent = null
-                } else if (
-                    existing != null &&
-                    resolved.writer == WorkoutWriter.WATCH &&
-                    resolved != existing &&
-                    (
-                        intent == null ||
-                            intent.workoutId == candidate.workoutId ||
-                            resolved.replica.generationIsAtLeast(intent)
-                        )
-                ) {
-                    intent = resolved.replica
-                }
-                val beforeCurrent = next.activeWorkout?.id
-                next = next.copy(
-                    resolvedReplicas = next.resolvedReplicas.upsert(resolved),
-                    transportIntent = intent,
-                )
-                val afterCurrent = next.activeWorkout?.id
-                if (beforeCurrent != afterCurrent) next = next.copy(uiOverlay = WorkoutUiOverlay())
-            }
-            validated.watchReceipt?.let { receipt ->
-                val matching = next.pendingFinished.firstOrNull {
-                    receiptMatchesPendingFinish(receipt, it)
-                }
-                if (matching != null) {
-                    next = next.copy(pendingFinished = next.pendingFinished - matching)
-                }
-            }
-            next.withDesiredMailbox()
+            val next = validated.candidate?.let { applyPhoneCandidate(current, it) } ?: current
+            next.consumeWatchReceipt(validated.watchReceipt).withDesiredMailbox()
         }
         return accepted
+    }
+
+    private fun applyPhoneCandidate(current: WorkoutState, candidate: WorkoutReplica): WorkoutState {
+        val incoming = AuthoredWorkoutReplica(WorkoutWriter.PHONE, candidate)
+        val existing = current.resolvedReplicas.firstOrNull {
+            it.replica.workoutId == candidate.workoutId
+        }
+        val resolved = existing?.let {
+            resolveSameWorkout(
+                it,
+                incoming,
+                WorkoutWriter.WATCH,
+                maxOf(now().toEpochMilli(), it.replica.changedAtMs + 1, candidate.changedAtMs + 1),
+            )
+        } ?: incoming
+        val next = current.copy(
+            resolvedReplicas = current.resolvedReplicas.upsert(resolved),
+            transportIntent = nextPhoneTransportIntent(current.transportIntent, existing, resolved, candidate),
+        )
+        return if (current.activeWorkout?.id == next.activeWorkout?.id) {
+            next
+        } else {
+            next.copy(uiOverlay = WorkoutUiOverlay())
+        }
+    }
+
+    private fun nextPhoneTransportIntent(
+        intent: WorkoutReplica?,
+        existing: AuthoredWorkoutReplica?,
+        resolved: AuthoredWorkoutReplica,
+        candidate: WorkoutReplica,
+    ): WorkoutReplica? {
+        if (resolved.writer == WorkoutWriter.PHONE && intent?.workoutId == candidate.workoutId) return null
+        val watchJoinNeedsSending = existing != null &&
+            resolved.writer == WorkoutWriter.WATCH &&
+            resolved != existing &&
+            (
+                intent == null ||
+                    intent.workoutId == candidate.workoutId ||
+                    resolved.replica.generationIsAtLeast(intent)
+                )
+        return if (watchJoinNeedsSending) resolved.replica else intent
+    }
+
+    private fun WorkoutState.consumeWatchReceipt(receipt: WorkoutReceipt?): WorkoutState {
+        if (receipt == null) return this
+        val matching = pendingFinished.firstOrNull { receiptMatchesPendingFinish(receipt, it) }
+            ?: return this
+        return copy(pendingFinished = pendingFinished - matching)
     }
 
     suspend fun currentActiveWorkout(): ActiveWorkout? = state.first().activeWorkout

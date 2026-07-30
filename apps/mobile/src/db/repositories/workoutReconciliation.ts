@@ -69,6 +69,101 @@ function isRawExplicitlyEmpty(mailbox: unknown): boolean {
   );
 }
 
+function discardStaleReceipt(
+  receipt: WorkoutReceipt | null,
+  mailbox: WorkoutMailbox,
+  rawMailbox: unknown
+): WorkoutReceipt | null {
+  if (!receipt || (mailbox.candidate === null && !isRawExplicitlyEmpty(rawMailbox))) return receipt;
+  return receiptMatchesCandidate(receipt, mailbox.candidate) ? receipt : null;
+}
+
+function shouldSendResolvedReplica(
+  existing: AuthoredWorkoutReplica | undefined,
+  resolved: AuthoredWorkoutReplica,
+  incomingReplica: WorkoutReplica,
+  transportIntent: WorkoutReplica | null
+): boolean {
+  return (
+    resolved.writer === 'phone' &&
+    existing !== undefined &&
+    !canonicalWorkoutContentEqual(resolved, existing) &&
+    (transportIntent === null ||
+      transportIntent.workout_id === incomingReplica.workout_id ||
+      generationIsAtLeast(resolved.replica, transportIntent))
+  );
+}
+
+function incomingActiveDominatesIntent(
+  incomingReplica: WorkoutReplica,
+  transportIntent: WorkoutReplica | null
+): boolean {
+  return (
+    incomingReplica.state.kind === 'active' &&
+    transportIntent?.workout_id === incomingReplica.workout_id &&
+    transportIntent.state.kind === 'active' &&
+    activeBodyDominates(incomingReplica.state.workout, transportIntent.state.workout)
+  );
+}
+
+function nextTransportIntent(
+  existing: AuthoredWorkoutReplica | undefined,
+  resolved: AuthoredWorkoutReplica,
+  incomingReplica: WorkoutReplica,
+  transportIntent: WorkoutReplica | null
+): WorkoutReplica | null {
+  if (resolved.writer === 'watch' && transportIntent?.workout_id === incomingReplica.workout_id) {
+    return null;
+  }
+  if (shouldSendResolvedReplica(existing, resolved, incomingReplica, transportIntent)) {
+    return resolved.replica;
+  }
+  return incomingActiveDominatesIntent(incomingReplica, transportIntent) ? null : transportIntent;
+}
+
+async function persistResolvedCandidate(
+  db: DatabaseExecutor,
+  existing: AuthoredWorkoutReplica | undefined,
+  resolved: AuthoredWorkoutReplica
+): Promise<void> {
+  if (!existing || !canonicalWorkoutContentEqual(existing, resolved)) {
+    await saveAuthoredWorkoutReplica(db, resolved);
+  }
+  if (resolved.replica.state.kind === 'finished') {
+    await writeFinishedWorkoutTreeInDb(
+      db,
+      resolved.replica,
+      resolved.replica.state.workout,
+      resolved.replica.state.ended_at_ms
+    );
+  }
+}
+
+async function reconcileCandidate(
+  db: DatabaseExecutor,
+  known: readonly AuthoredWorkoutReplica[],
+  incomingReplica: WorkoutReplica,
+  transportIntent: WorkoutReplica | null,
+  receipt: WorkoutReceipt | null,
+  nowMs: number
+): Promise<{ transportIntent: WorkoutReplica | null; receipt: WorkoutReceipt | null }> {
+  const incoming: AuthoredWorkoutReplica = { writer: 'watch', replica: incomingReplica };
+  const existing = known.find(
+    (candidate) => candidate.replica.workout_id === incomingReplica.workout_id
+  );
+  const resolved = existing ? resolveSameWorkout(existing, incoming, 'phone', nowMs) : incoming;
+  await persistResolvedCandidate(db, existing, resolved);
+
+  const nextReceipt =
+    incomingReplica.state.kind === 'finished' && resolved.replica.state.kind === 'finished'
+      ? exactWatchReceipt(incomingReplica)
+      : receipt;
+  return {
+    receipt: nextReceipt,
+    transportIntent: nextTransportIntent(existing, resolved, incomingReplica, transportIntent),
+  };
+}
+
 export async function applyWatchWorkoutMailbox(
   db: DatabaseExecutor,
   rawMailbox: unknown,
@@ -78,63 +173,22 @@ export async function applyWatchWorkoutMailbox(
   const mailbox = validateWorkoutMailbox('watch', rawMailbox, known);
   if (!mailbox) return false;
 
-  let receipt = await loadPendingReceipt(db);
-  if (
-    receipt &&
-    (mailbox.candidate !== null || isRawExplicitlyEmpty(rawMailbox)) &&
-    !receiptMatchesCandidate(receipt, mailbox.candidate)
-  ) {
-    receipt = null;
-  }
+  let receipt = discardStaleReceipt(await loadPendingReceipt(db), mailbox, rawMailbox);
 
   const desiredBefore = await getDesiredPhoneMailbox(db);
   let transportIntent = desiredBefore.candidate;
   const incomingReplica = mailbox.candidate;
   if (incomingReplica) {
-    const incoming: AuthoredWorkoutReplica = { writer: 'watch', replica: incomingReplica };
-    const existing = known.find(
-      (candidate) => candidate.replica.workout_id === incomingReplica.workout_id
+    const reconciled = await reconcileCandidate(
+      db,
+      known,
+      incomingReplica,
+      transportIntent,
+      receipt,
+      nowMs
     );
-    const resolved = existing
-      ? resolveSameWorkout(existing, incoming, 'phone', nowMs)
-      : incoming;
-
-    if (!existing || !canonicalWorkoutContentEqual(existing, resolved)) {
-      await saveAuthoredWorkoutReplica(db, resolved);
-    }
-
-    if (resolved.replica.state.kind === 'finished') {
-      await writeFinishedWorkoutTreeInDb(
-        db,
-        resolved.replica,
-        resolved.replica.state.workout,
-        resolved.replica.state.ended_at_ms
-      );
-    }
-
-    if (incomingReplica.state.kind === 'finished' && resolved.replica.state.kind === 'finished') {
-      receipt = exactWatchReceipt(incomingReplica);
-    }
-
-    if (resolved.writer === 'watch' && transportIntent?.workout_id === incomingReplica.workout_id) {
-      transportIntent = null;
-    } else if (
-      resolved.writer === 'phone' &&
-      existing &&
-      !canonicalWorkoutContentEqual(resolved, existing) &&
-      (transportIntent === null ||
-        transportIntent.workout_id === incomingReplica.workout_id ||
-        generationIsAtLeast(resolved.replica, transportIntent))
-    ) {
-      transportIntent = resolved.replica;
-    } else if (
-      incomingReplica.state.kind === 'active' &&
-      transportIntent?.workout_id === incomingReplica.workout_id &&
-      transportIntent.state.kind === 'active' &&
-      activeBodyDominates(incomingReplica.state.workout, transportIntent.state.workout)
-    ) {
-      transportIntent = null;
-    }
+    receipt = reconciled.receipt;
+    transportIntent = reconciled.transportIntent;
   }
 
   await storePendingReceipt(db, receipt);
