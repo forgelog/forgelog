@@ -22,6 +22,7 @@ import { subscribeWorkoutMailboxApplied } from '../sync/workoutMailboxSignal';
 import { useTheme } from '../theme/ThemeContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type HomeReload = (options?: { showLoading?: boolean }) => () => void;
 type RoutineSheetState = {
   routine: RoutineSummary;
   mode: 'actions' | 'delete';
@@ -29,6 +30,18 @@ type RoutineSheetState = {
   error?: string;
   closing?: boolean;
 };
+
+export function subscribeHomeMailboxReload(reload: HomeReload): () => void {
+  let cancelReload: (() => void) | undefined;
+  const unsubscribe = subscribeWorkoutMailboxApplied(() => {
+    cancelReload = reload({ showLoading: false });
+  });
+  return () => {
+    unsubscribe();
+    cancelReload?.();
+  };
+}
+
 export function HomeScreen() {
   const c = useTheme();
   const navigation = useNavigation<Nav>();
@@ -69,10 +82,7 @@ export function HomeScreen() {
 
   useFocusEffect(useCallback(() => reload(), [reload]));
 
-  useEffect(
-    () => subscribeWorkoutMailboxApplied(() => void reload({ showLoading: false })),
-    [reload]
-  );
+  useEffect(() => subscribeHomeMailboxReload(reload), [reload]);
 
   async function handleStartEmpty() {
     try {
