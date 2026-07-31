@@ -3,6 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { renameCompletedWorkout } from '../application/completedWorkoutHistory';
 import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { mobileStore } from '../db/mobileStore';
@@ -75,7 +76,7 @@ export function EditWorkoutScreen({ route, navigation }: Props) {
 
     setSaving(true);
     try {
-      await mobileStore.workouts.updateName(workoutId, result.value);
+      await renameCompletedWorkout(workoutId, result.value);
       navigation.goBack();
     } catch {
       setGeneralError('Could not save workout.');

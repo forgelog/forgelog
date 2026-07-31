@@ -598,10 +598,9 @@ export async function updateWorkoutName(
 /**
  * Permanently deletes a workout and its cascade-owned exercise and set rows.
  *
- * Exposed only on the transaction-bound store as `store.workouts.remove`. Home,
- * Active Workout, and Workout Detail reach it through `discardWorkout`, which
- * first clears personal-record references and later rebuilds affected records
- * within the same transaction.
+ * Exposed only on the transaction-bound store as `store.workouts.remove`.
+ * Application use cases clear personal-record references and rebuild affected
+ * records in the same transaction before exposing deletion to a screen.
  */
 export async function deleteWorkout(db: DatabaseExecutor, workoutId: string): Promise<void> {
   await db.runAsync('DELETE FROM workouts WHERE id = $id', { $id: workoutId });

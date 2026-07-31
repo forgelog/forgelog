@@ -28,6 +28,7 @@ import type {
   WorkoutExercise,
   WorkoutExerciseDetail,
 } from '../types';
+import { getCompletedWorkoutLocalState } from './completedWorkoutHistory';
 import { getExercise } from './exercises';
 import { getRecordsForExercise } from './personalRecords';
 import { getProfile } from './profile';
@@ -763,6 +764,8 @@ export async function writeFinishedWorkoutTreeInDb(
   body: WorkoutBody,
   endedAtMs: number
 ): Promise<void> {
+  const localState = await getCompletedWorkoutLocalState(db, envelope.workout_id);
+  if (localState?.deleted) return;
   const routine = body.routine_id
     ? await db.getFirstAsync<{ id: string }>('SELECT id FROM routines WHERE id = $id', {
         $id: body.routine_id,
@@ -798,7 +801,7 @@ export async function writeFinishedWorkoutTreeInDb(
     {
       $id: envelope.workout_id,
       $routine_id: routine?.id ?? null,
-      $name: body.name,
+      $name: localState?.name_override ?? body.name,
       $started_at: new Date(envelope.started_at_ms).toISOString(),
       $ended_at: new Date(endedAtMs).toISOString(),
       $notes: body.notes,

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import * as completedWorkoutHistory from './repositories/completedWorkoutHistory';
 import * as exercises from './repositories/exercises';
 import * as measurements from './repositories/measurements';
 import * as personalRecords from './repositories/personalRecords';
@@ -109,6 +110,10 @@ function createBoundMobileStore(
       getDesiredMailbox: bind(workoutReplicas.getDesiredPhoneMailbox),
       recomputeRecordOverlay: bindTransaction(workoutReplicas.recomputeActiveRecordOverlay),
       getRecordEvents: bind(workoutReplicas.getActiveWorkoutRecordEvents),
+    },
+    completedWorkoutHistory: {
+      saveNameOverride: bind(completedWorkoutHistory.saveCompletedWorkoutNameOverride),
+      saveDeletion: bind(completedWorkoutHistory.saveCompletedWorkoutDeletion),
     },
     records: {
       getForExercise: bind(personalRecords.getRecordsForExercise),

@@ -138,6 +138,18 @@ const MIGRATIONS: readonly Migration[] = [
       await backfillPersonalRecordState(db);
     },
   },
+  {
+    version: 5,
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE completed_workout_local_state (
+          workout_id    TEXT PRIMARY KEY,
+          name_override TEXT,
+          deleted       INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1))
+        );
+      `);
+    },
+  },
 ];
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;

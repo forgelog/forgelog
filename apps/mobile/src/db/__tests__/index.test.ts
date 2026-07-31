@@ -113,3 +113,15 @@ test('migration 4 creates canonical workout replica and mailbox state', async ()
     }),
   });
 });
+
+test('migration 5 creates durable completed-workout local state', async () => {
+  const db = await getDb();
+  const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  const table = await db.getFirstAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master
+      WHERE type = 'table' AND name = 'completed_workout_local_state'`
+  );
+
+  expect(version?.user_version).toBeGreaterThanOrEqual(5);
+  expect(table?.name).toBe('completed_workout_local_state');
+});
