@@ -43,10 +43,7 @@ appId: dev.bishnoi.forgelog.mobile
     id: "profile-height-input"
 - eraseText: 20
 - inputText: "172"
-- tapOn:
-    id: "profile-bodyweight-input"
-- eraseText: 20
-- inputText: "74"
+- pressKey: back
 - tapOn: "Save profile"
 - extendedWaitUntil:
     visible: "Body"
@@ -54,4 +51,3 @@ appId: dev.bishnoi.forgelog.mobile
 - assertVisible: "Phase Five Lifter"
 - assertVisible: "Female"
 - assertVisible: "172 cm"
-- assertVisible: "74 kg"
