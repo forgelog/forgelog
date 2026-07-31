@@ -176,6 +176,7 @@ fun validateWorkoutMailbox(
     val receipt = mailbox.watchReceipt?.takeIf {
         it.watchStartedAtMs >= 0 && it.watchChangedAtMs >= 0
     }
+    if (mailbox.candidate != null && candidate == null && receipt == null) return null
     return ValidatedWorkoutMailbox(candidate, receipt)
 }
 

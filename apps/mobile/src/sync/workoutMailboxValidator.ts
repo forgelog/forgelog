@@ -195,11 +195,12 @@ export function validateWorkoutMailbox(
   if (!validateReplicaShape(rawCandidate)) {
     return receipt ? { protocol_version: 1, candidate: null, watch_receipt: receipt } : null;
   }
+  if (!isSemanticallyValidReplica(pathWriter, rawCandidate, knownState)) {
+    return receipt ? { protocol_version: 1, candidate: null, watch_receipt: receipt } : null;
+  }
   return {
     protocol_version: 1,
-    candidate: isSemanticallyValidReplica(pathWriter, rawCandidate, knownState)
-      ? rawCandidate
-      : null,
+    candidate: rawCandidate,
     watch_receipt: receipt,
   };
 }

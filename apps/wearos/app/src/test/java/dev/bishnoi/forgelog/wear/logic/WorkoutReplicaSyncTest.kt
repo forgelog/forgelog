@@ -174,6 +174,33 @@ class WorkoutReplicaSyncTest {
     }
 
     @Test
+    fun `invalid phone candidate is rejected unless its valid receipt can be salvaged`() {
+        val invalidCandidate = WorkoutReplica(
+            WORKOUT_ID,
+            1,
+            1,
+            WorkoutReplicaState.Active(body(version(2, WorkoutWriter.PHONE))),
+        )
+        val receipt = WorkoutReceipt(WORKOUT_ID, 1, 2)
+
+        assertEquals(
+            null,
+            validateWorkoutMailbox(
+                WorkoutWriter.PHONE,
+                WorkoutMailbox(candidate = invalidCandidate),
+                emptyList(),
+            ),
+        )
+        val salvaged = validateWorkoutMailbox(
+            WorkoutWriter.PHONE,
+            WorkoutMailbox(candidate = invalidCandidate, watchReceipt = receipt),
+            emptyList(),
+        )
+        assertEquals(null, salvaged?.candidate)
+        assertEquals(receipt, salvaged?.watchReceipt)
+    }
+
+    @Test
     fun `live entries require both a position and a value`() {
         val stamp = version(1, WorkoutWriter.PHONE)
         val invalidExercise = WorkoutReplica(

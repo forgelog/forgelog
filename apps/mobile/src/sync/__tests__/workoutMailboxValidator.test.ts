@@ -99,6 +99,18 @@ describe('workout mailbox validation', () => {
         []
       )
     ).toEqual({ protocol_version: 1, candidate: null, watch_receipt: receipt });
+
+    const semanticallyInvalid = clone(validMailbox);
+    if (semanticallyInvalid.candidate?.state.kind !== 'active') {
+      throw new Error('fixture must be active');
+    }
+    semanticallyInvalid.candidate.state.workout.fields.name.version.changed_at_ms = 1003;
+    semanticallyInvalid.watch_receipt = receipt;
+    expect(validateWorkoutMailbox('phone', semanticallyInvalid, [])).toEqual({
+      protocol_version: 1,
+      candidate: null,
+      watch_receipt: receipt,
+    });
   });
 
   test('rejects a watch mailbox whose only candidate is schema-invalid', () => {
@@ -145,11 +157,11 @@ describe('workout mailbox validation', () => {
       },
     ];
 
-    expect(validateWorkoutMailbox('watch', mailbox, [])?.candidate).toBeNull();
+    expect(validateWorkoutMailbox('watch', mailbox, [])).toBeNull();
 
     mailbox.candidate.state.workout.exercises = [];
     mailbox.candidate.state.workout.fields.name.version.changed_at_ms = 1003;
-    expect(validateWorkoutMailbox('watch', mailbox, [])?.candidate).toBeNull();
+    expect(validateWorkoutMailbox('watch', mailbox, [])).toBeNull();
   });
 
   test('accepts a canonical live exercise and set', () => {
@@ -212,7 +224,7 @@ describe('workout mailbox validation', () => {
     const mailbox = mailboxWithEntries();
     mutate(mailbox);
 
-    expect(validateWorkoutMailbox('watch', mailbox, [])?.candidate).toBeNull();
+    expect(validateWorkoutMailbox('watch', mailbox, [])).toBeNull();
   });
 
   test('rejects reused workout and entry versions with conflicting canonical content', () => {
@@ -222,12 +234,12 @@ describe('workout mailbox validation', () => {
     if (conflicting.candidate?.state.kind !== 'active') throw new Error('fixture must be active');
     conflicting.candidate.state.workout.fields.name.value = 'Different name';
 
-    expect(validateWorkoutMailbox('watch', conflicting, [knownAuthored])?.candidate).toBeNull();
+    expect(validateWorkoutMailbox('watch', conflicting, [knownAuthored])).toBeNull();
 
     const reusedId = clone(validMailbox);
     if (!reusedId.candidate) throw new Error('fixture must have candidate');
     reusedId.candidate.started_at_ms += 1;
-    expect(validateWorkoutMailbox('watch', reusedId, [knownAuthored])?.candidate).toBeNull();
+    expect(validateWorkoutMailbox('watch', reusedId, [knownAuthored])).toBeNull();
   });
 
   test('rejects reused exercise and set versions or a moved set id', () => {
@@ -241,9 +253,7 @@ describe('workout mailbox validation', () => {
     const exerciseValue = exerciseConflict.candidate.state.workout.exercises[0].value;
     if (!exerciseValue) throw new Error('Expected live exercise');
     exerciseValue.notes = 'Different';
-    expect(
-      validateWorkoutMailbox('watch', exerciseConflict, [knownAuthored])?.candidate
-    ).toBeNull();
+    expect(validateWorkoutMailbox('watch', exerciseConflict, [knownAuthored])).toBeNull();
 
     const setConflict = mailboxWithEntries();
     if (setConflict.candidate?.state.kind !== 'active') throw new Error('Expected active');
@@ -251,7 +261,7 @@ describe('workout mailbox validation', () => {
     const setValue = setConflict.candidate.state.workout.exercises[0].sets[0].value;
     if (!setValue) throw new Error('Expected live set');
     setValue.weight = 70;
-    expect(validateWorkoutMailbox('watch', setConflict, [knownAuthored])?.candidate).toBeNull();
+    expect(validateWorkoutMailbox('watch', setConflict, [knownAuthored])).toBeNull();
 
     const movedSet = mailboxWithEntries();
     if (movedSet.candidate?.state.kind !== 'active') throw new Error('Expected active');
@@ -264,7 +274,7 @@ describe('workout mailbox validation', () => {
       id: 'exercise-2',
       sets: [moved],
     });
-    expect(validateWorkoutMailbox('watch', movedSet, [knownAuthored])?.candidate).toBeNull();
+    expect(validateWorkoutMailbox('watch', movedSet, [knownAuthored])).toBeNull();
   });
 
   test('rejects an invalid finished lifecycle and incomplete completion timestamp', () => {
@@ -285,11 +295,17 @@ describe('workout mailbox validation', () => {
         },
       },
     };
-    expect(validateWorkoutMailbox('watch', {
-      protocol_version: 1,
-      candidate: finished,
-      watch_receipt: null,
-    }, [])?.candidate).toBeNull();
+    expect(
+      validateWorkoutMailbox(
+        'watch',
+        {
+          protocol_version: 1,
+          candidate: finished,
+          watch_receipt: null,
+        },
+        []
+      )
+    ).toBeNull();
 
     finished.state = {
       kind: 'finished',
@@ -327,11 +343,17 @@ describe('workout mailbox validation', () => {
         ],
       },
     };
-    expect(validateWorkoutMailbox('watch', {
-      protocol_version: 1,
-      candidate: finished,
-      watch_receipt: null,
-    }, [])?.candidate).toBeNull();
+    expect(
+      validateWorkoutMailbox(
+        'watch',
+        {
+          protocol_version: 1,
+          candidate: finished,
+          watch_receipt: null,
+        },
+        []
+      )
+    ).toBeNull();
   });
 
   test('matches receipts to one exact pending watch finish', () => {
