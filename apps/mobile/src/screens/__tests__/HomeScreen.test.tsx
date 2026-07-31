@@ -5,7 +5,8 @@ import { Dimensions, StyleSheet, Text } from 'react-native';
 
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { mobileStore, type RoutineSummary } from '../../db/mobileStore';
-import { HomeScreen } from '../HomeScreen';
+import { notifyWorkoutMailboxApplied } from '../../sync/workoutMailboxSignal';
+import { HomeScreen, subscribeHomeMailboxReload } from '../HomeScreen';
 
 jest.mock('@expo/ui/community/bottom-sheet');
 jest.mock('../../db/mobileStore', () => ({
@@ -57,6 +58,27 @@ function renderHome() {
 beforeEach(() => {
   mockGetActiveWorkout.mockResolvedValue(null);
   mockGetRoutinesWithSummaries.mockResolvedValue([]);
+});
+
+test('cancels the latest mailbox reload when its subscription is cleaned up', () => {
+  const cancelFirstReload = jest.fn();
+  const cancelLatestReload = jest.fn();
+  const reload = jest
+    .fn()
+    .mockReturnValueOnce(cancelFirstReload)
+    .mockReturnValueOnce(cancelLatestReload);
+  const unsubscribe = subscribeHomeMailboxReload(reload);
+
+  notifyWorkoutMailboxApplied();
+  notifyWorkoutMailboxApplied();
+  expect(reload).toHaveBeenCalledTimes(2);
+  expect(reload).toHaveBeenCalledWith({ showLoading: false });
+
+  unsubscribe();
+  expect(cancelFirstReload).not.toHaveBeenCalled();
+  expect(cancelLatestReload).toHaveBeenCalledTimes(1);
+  notifyWorkoutMailboxApplied();
+  expect(reload).toHaveBeenCalledTimes(2);
 });
 
 test('renders the Home screen with a start action', async () => {

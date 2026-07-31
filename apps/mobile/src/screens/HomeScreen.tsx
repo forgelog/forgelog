@@ -1,6 +1,6 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,9 +18,11 @@ import { discardWorkout, startOrResumeWorkout } from '../application/activeWorko
 import type { Workout } from '../db/types';
 import type { RoutineTemplate } from '../domain/routineTemplates';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { subscribeWorkoutMailboxApplied } from '../sync/workoutMailboxSignal';
 import { useTheme } from '../theme/ThemeContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type HomeReload = (options?: { showLoading?: boolean }) => () => void;
 type RoutineSheetState = {
   routine: RoutineSummary;
   mode: 'actions' | 'delete';
@@ -28,6 +30,18 @@ type RoutineSheetState = {
   error?: string;
   closing?: boolean;
 };
+
+export function subscribeHomeMailboxReload(reload: HomeReload): () => void {
+  let cancelReload: (() => void) | undefined;
+  const unsubscribe = subscribeWorkoutMailboxApplied(() => {
+    cancelReload = reload({ showLoading: false });
+  });
+  return () => {
+    unsubscribe();
+    cancelReload?.();
+  };
+}
+
 export function HomeScreen() {
   const c = useTheme();
   const navigation = useNavigation<Nav>();
@@ -39,32 +53,36 @@ export function HomeScreen() {
   const [starterRoutineSheet, setStarterRoutineSheet] = useState<StarterRoutineSheetState | null>(
     null
   );
+  const reloadRequestId = useRef(0);
 
-  const reload = useCallback(() => {
-    let current = true;
-    setLoading(true);
+  const reload = useCallback((options: { showLoading?: boolean } = {}) => {
+    const requestId = ++reloadRequestId.current;
+    const isCurrent = () => requestId === reloadRequestId.current;
+    if (options.showLoading !== false) setLoading(true);
     setLoadFailed(false);
     Promise.all([mobileStore.workouts.getActive(), mobileStore.routines.getWithSummaries()])
       .then(([activeWorkout, routineRows]) => {
-        if (!current) return;
+        if (!isCurrent()) return;
         setActive(activeWorkout);
         setRoutines(routineRows);
       })
       .catch(() => {
-        if (!current) return;
+        if (!isCurrent()) return;
         setActive(null);
         setRoutines([]);
         setLoadFailed(true);
       })
       .finally(() => {
-        if (current) setLoading(false);
+        if (isCurrent()) setLoading(false);
       });
     return () => {
-      current = false;
+      if (isCurrent()) reloadRequestId.current += 1;
     };
   }, []);
 
-  useFocusEffect(reload);
+  useFocusEffect(useCallback(() => reload(), [reload]));
+
+  useEffect(() => subscribeHomeMailboxReload(reload), [reload]);
 
   async function handleStartEmpty() {
     try {

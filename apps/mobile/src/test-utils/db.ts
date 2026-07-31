@@ -22,6 +22,13 @@ export const mobileStoreForTests = {
   workouts: {
     ...mobileStore.workouts,
     start: bindTransactionOperation((store) => store.workouts.start),
+    getActive: bindTransactionOperation((store) => store.workouts.getActive),
+    getDetail: bindTransactionOperation((store) => store.workouts.getDetail),
+    addExercise: bindTransactionOperation((store) => store.workouts.addExercise),
+    moveExercise: bindTransactionOperation((store) => store.workouts.moveExercise),
+    addSet: bindTransactionOperation((store) => store.workouts.addSet),
+    finish: bindTransactionOperation((store) => store.workouts.finish),
+    updateName: bindTransactionOperation((store) => store.workouts.updateName),
     getSetRecordContext: bindTransactionOperation(
       (store) => store.workouts.getSetRecordContext
     ),

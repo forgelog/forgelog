@@ -13,6 +13,7 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import dev.bishnoi.forgelog.wear.sync.WorkoutReceipt
 
 class StatePersistenceTest {
     @Test
@@ -21,7 +22,12 @@ class StatePersistenceTest {
         val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             val firstReferences = referenceRepository(firstScope, directory)
-            val ids = ArrayDeque(listOf("w1", "we1", "s1", "s2", "we2", "s3"))
+            val ids = ArrayDeque(
+                listOf(
+                    "w1", "we1", "s1", "s2", "we2", "s3",
+                    "w2", "we3", "s4", "s5", "we4", "s6",
+                ),
+            )
             val firstWorkouts = workoutRepository(firstScope, directory, firstReferences) { ids.removeFirst() }
             firstReferences.replaceSnapshot(sampleSnapshot())
             firstWorkouts.startWorkout("r1")
@@ -41,6 +47,51 @@ class StatePersistenceTest {
                 assertEquals(77.5, restored?.exercises?.first()?.sets?.first()?.weight)
                 assertEquals(true, restored?.exercises?.first()?.sets?.first()?.completed)
                 assertEquals("Jordan", secondReferences.currentProfile()?.name)
+            } finally {
+                secondScope.coroutineContext.job.cancelAndJoin()
+            }
+        } finally {
+            if (firstScope.coroutineContext.job.isActive) {
+                firstScope.coroutineContext.job.cancelAndJoin()
+            }
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `pending finish and later active intent survive restart and advance after receipt`() = runBlocking {
+        val directory = Files.createTempDirectory("wear-mailbox-recreation").toFile()
+        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val firstReferences = referenceRepository(firstScope, directory)
+            val ids = ArrayDeque(
+                listOf(
+                    "w1", "we1", "s1", "s2", "we2", "s3",
+                    "w2", "we3", "s4", "s5", "we4", "s6",
+                ),
+            )
+            val firstWorkouts = workoutRepository(firstScope, directory, firstReferences) { ids.removeFirst() }
+            firstReferences.replaceSnapshot(sampleSnapshot())
+            firstWorkouts.startWorkout("r1")
+            val finishedA = firstWorkouts.finishWorkout("w1")
+            val workoutB = firstWorkouts.startWorkout("r1")
+            firstWorkouts.updateSetValues(workoutB.exercises.first().sets.first().id, 80.0, 5)
+
+            firstScope.coroutineContext.job.cancelAndJoin()
+
+            val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            try {
+                val secondReferences = referenceRepository(secondScope, directory)
+                val secondWorkouts = workoutRepository(secondScope, directory, secondReferences) { "unused" }
+                val restored = secondWorkouts.state.first()
+                assertEquals(finishedA, restored.desiredMailbox.candidate)
+                assertEquals(workoutB.id, restored.activeWorkout?.id)
+
+                secondWorkouts.consumeReceipt(
+                    WorkoutReceipt(finishedA.workoutId, finishedA.startedAtMs, finishedA.changedAtMs),
+                )
+
+                assertEquals(workoutB.id, secondWorkouts.state.first().desiredMailbox.candidate?.workoutId)
             } finally {
                 secondScope.coroutineContext.job.cancelAndJoin()
             }

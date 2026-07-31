@@ -1,4 +1,5 @@
-import { cleanup, waitFor } from '@testing-library/react-native';
+import { cleanup, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
 import { getDb, resetDbForTests } from '../../db/index';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
@@ -22,18 +23,33 @@ const {
 
 type TestStackParamList = RootStackParamList;
 
+function EmptyScreen() {
+  return null;
+}
+
 beforeEach(() => {
   resetDbForTests();
 });
 
 afterEach(() => {
+  jest.restoreAllMocks();
   cleanup();
 });
 
 function renderWorkoutDetail(workoutId: string) {
-  return renderWithStack<TestStackParamList>([
-    { name: 'WorkoutDetail', component: WorkoutDetailScreen, initialParams: { workoutId } },
-  ]);
+  return renderWithStack<TestStackParamList>(
+    [
+      { name: 'MainTabs', component: EmptyScreen },
+      { name: 'WorkoutDetail', component: WorkoutDetailScreen },
+    ],
+    {
+      index: 1,
+      routes: [
+        { name: 'MainTabs' },
+        { name: 'WorkoutDetail', params: { workoutId } },
+      ],
+    }
+  );
 }
 
 test('shows PR badges from persisted record events', async () => {
@@ -69,4 +85,21 @@ test('shows PR badges from persisted record events', async () => {
   await waitFor(() => expect(detail.getByText('Bench PR Day')).toBeTruthy());
   expect(detail.getByText('110 kg × 5 reps')).toBeTruthy();
   expect(detail.getAllByText('PR').length).toBeGreaterThan(0);
+});
+
+test('deletes a completed workout from workout details', async () => {
+  const alertSpy = jest.spyOn(Alert, 'alert');
+  const workout = await startWorkout({ name: 'Delete from history' });
+  await finishWorkout(workout.id);
+  const detail = await renderWorkoutDetail(workout.id);
+
+  await waitFor(() => expect(detail.getByText('Delete from history')).toBeTruthy());
+  fireEvent.press(detail.getByRole('button', { name: 'Delete workout' }));
+
+  const deleteAction = alertSpy.mock.calls[0]?.[2]?.find((button) => button.text === 'Delete');
+  await deleteAction?.onPress?.();
+
+  await waitFor(async () =>
+    expect(await mobileStore.workouts.getDetail(workout.id)).toBeNull()
+  );
 });

@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
+import { backfillPersonalRecordState } from './personalRecordState';
 import { SCHEMA_SQL } from './schema';
 import { seedExercises } from './seed';
 
@@ -86,6 +87,66 @@ const MIGRATIONS: readonly Migration[] = [
 
         ALTER TABLE workouts
           ADD COLUMN routine_structure_version INTEGER;
+      `);
+    },
+  },
+  {
+    version: 4,
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE exercises
+          ADD COLUMN is_history_placeholder INTEGER NOT NULL DEFAULT 0;
+
+        CREATE TABLE workout_replica_state (
+          workout_id        TEXT PRIMARY KEY,
+          started_at_ms     INTEGER NOT NULL CHECK (started_at_ms >= 0),
+          state_kind        TEXT NOT NULL CHECK (state_kind IN ('active', 'finished', 'discarded')),
+          ended_at_ms       INTEGER,
+          changed_at_ms     INTEGER NOT NULL CHECK (changed_at_ms >= 0),
+          writer            TEXT NOT NULL CHECK (writer IN ('phone', 'watch')),
+          replica_json      TEXT NOT NULL
+        );
+
+        CREATE INDEX idx_workout_replica_generation
+          ON workout_replica_state(started_at_ms DESC, workout_id DESC);
+
+        CREATE TABLE workout_mailbox_state (
+          id                         INTEGER PRIMARY KEY CHECK (id = 0),
+          outbound_workout_id        TEXT,
+          outbound_changed_at_ms     INTEGER,
+          pending_watch_receipt_json TEXT,
+          desired_mailbox_json       TEXT NOT NULL
+        );
+
+        INSERT INTO workout_mailbox_state
+          (id, outbound_workout_id, outbound_changed_at_ms,
+           pending_watch_receipt_json, desired_mailbox_json)
+        VALUES
+          (0, NULL, NULL, NULL,
+           '{"protocol_version":1,"candidate":null,"watch_receipt":null}');
+
+        CREATE TABLE active_workout_overlay (
+          workout_id          TEXT PRIMARY KEY,
+          alerted_types_json  TEXT NOT NULL DEFAULT '{}',
+          record_events_json  TEXT NOT NULL DEFAULT '[]'
+        );
+
+        DELETE FROM personal_record_events;
+        DELETE FROM personal_records;
+        DELETE FROM workouts WHERE ended_at IS NULL;
+      `);
+      await backfillPersonalRecordState(db);
+    },
+  },
+  {
+    version: 5,
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE completed_workout_local_state (
+          workout_id    TEXT PRIMARY KEY,
+          name_override TEXT,
+          deleted       INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1))
+        );
       `);
     },
   },

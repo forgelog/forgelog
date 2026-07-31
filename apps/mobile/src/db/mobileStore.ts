@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import * as completedWorkoutHistory from './repositories/completedWorkoutHistory';
 import * as exercises from './repositories/exercises';
 import * as measurements from './repositories/measurements';
 import * as personalRecords from './repositories/personalRecords';
@@ -7,6 +8,8 @@ import * as profile from './repositories/profile';
 import * as routines from './repositories/routines';
 import * as sync from './repositories/sync';
 import * as workouts from './repositories/workouts';
+import * as workoutReconciliation from './repositories/workoutReconciliation';
+import * as workoutReplicas from './repositories/workoutReplicas';
 import type { DatabaseExecutor } from './executor';
 import { getDb } from './index';
 
@@ -20,12 +23,7 @@ export type { ExerciseRecordRow } from './repositories/personalRecords';
 export type { ReplacedRecordState } from './personalRecordState';
 export type { Profile, ProfileUpdate, Sex, ThemeMode } from './repositories/profile';
 export type { RoutineSummary, SaveRoutineDraftInput } from './repositories/routines';
-export type {
-  SyncSnapshot,
-  WatchLoggedSetPayload,
-  WatchWorkoutExercisePayload,
-  WatchWorkoutPayload,
-} from './repositories/sync';
+export type { SyncSnapshot } from './repositories/sync';
 export type {
   ExerciseHistoryEntry,
   LoggedSetValueUpdate,
@@ -95,6 +93,28 @@ function createBoundMobileStore(
       list: bind(workouts.listWorkouts),
       hasCompletedSet: workouts.hasCompletedSet,
     },
+    workoutReplicas: {
+      start: bindTransaction(workoutReplicas.startActiveWorkoutReplica),
+      getActive: bind(workoutReplicas.getActiveWorkoutFromReplica),
+      getDetail: bind(workoutReplicas.getWorkoutDetailFromReplica),
+      addExercise: bindTransaction(workoutReplicas.addExerciseToActiveReplica),
+      moveExercise: bindTransaction(workoutReplicas.moveActiveExercise),
+      addSet: bindTransaction(workoutReplicas.addSetToActiveReplica),
+      updateSetValues: bindTransaction(workoutReplicas.updateActiveSetValues),
+      setSetCompletion: bindTransaction(workoutReplicas.setActiveSetCompletion),
+      removeSet: bindTransaction(workoutReplicas.deleteActiveSet),
+      removeExercise: bindTransaction(workoutReplicas.deleteActiveExercise),
+      finish: bindTransaction(workoutReplicas.finishActiveWorkout),
+      discard: bindTransaction(workoutReplicas.discardActiveWorkout),
+      updateName: bindTransaction(workoutReplicas.updateActiveWorkoutName),
+      getDesiredMailbox: bind(workoutReplicas.getDesiredPhoneMailbox),
+      recomputeRecordOverlay: bindTransaction(workoutReplicas.recomputeActiveRecordOverlay),
+      getRecordEvents: bind(workoutReplicas.getActiveWorkoutRecordEvents),
+    },
+    completedWorkoutHistory: {
+      saveNameOverride: bind(completedWorkoutHistory.saveCompletedWorkoutNameOverride),
+      saveDeletion: bind(completedWorkoutHistory.saveCompletedWorkoutDeletion),
+    },
     records: {
       getForExercise: bind(personalRecords.getRecordsForExercise),
       getEventsForExercise: bind(personalRecords.getRecordEventsForExercise),
@@ -124,7 +144,8 @@ function createBoundMobileStore(
     },
     sync: {
       getSnapshot: bind(sync.getSyncSnapshot),
-      ingestWatchWorkout: bindTransaction(sync.ingestWatchWorkout),
+      applyWatchWorkoutMailbox: bindTransaction(workoutReconciliation.applyWatchWorkoutMailbox),
+      getDesiredWorkoutMailbox: bind(workoutReplicas.getDesiredPhoneMailbox),
     },
   } as const;
 }
@@ -154,15 +175,15 @@ export const mobileStore = {
   exercises: defaultStore.exercises,
   routines: defaultStore.routines,
   workouts: {
-    getActive: defaultStore.workouts.getActive,
-    getDetail: defaultStore.workouts.getDetail,
+    getActive: defaultStore.workoutReplicas.getActive,
+    getDetail: defaultStore.workoutReplicas.getDetail,
     getPreviousExerciseSets: defaultStore.workouts.getPreviousExerciseSets,
     listExerciseHistory: defaultStore.workouts.listExerciseHistory,
-    addExercise: defaultStore.workouts.addExercise,
-    moveExercise: defaultStore.workouts.moveExercise,
-    addSet: defaultStore.workouts.addSet,
-    finish: defaultStore.workouts.finish,
-    updateName: defaultStore.workouts.updateName,
+    addExercise: defaultStore.workoutReplicas.addExercise,
+    moveExercise: defaultStore.workoutReplicas.moveExercise,
+    addSet: defaultStore.workoutReplicas.addSet,
+    finish: defaultStore.workoutReplicas.finish,
+    updateName: defaultStore.workoutReplicas.updateName,
     list: defaultStore.workouts.list,
     hasCompletedSet: defaultStore.workouts.hasCompletedSet,
   },

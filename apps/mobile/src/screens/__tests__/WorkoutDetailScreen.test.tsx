@@ -1,7 +1,9 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
+import { deleteCompletedWorkout } from '../../application/completedWorkoutHistory';
 import { getRecordEventsForWorkout } from '../../db/repositories/personalRecords';
 import { getWorkoutDetail } from '../../db/repositories/workouts';
 import type { WorkoutDetail } from '../../db/types';
@@ -9,10 +11,14 @@ import { WorkoutDetailScreen } from '../WorkoutDetailScreen';
 
 jest.mock('../../db/repositories/workouts');
 jest.mock('../../db/repositories/personalRecords');
+jest.mock('../../application/completedWorkoutHistory');
 
 const mockGetWorkoutDetail = getWorkoutDetail as jest.MockedFunction<typeof getWorkoutDetail>;
 const mockGetRecordEventsForWorkout = getRecordEventsForWorkout as jest.MockedFunction<
   typeof getRecordEventsForWorkout
+>;
+const mockDeleteCompletedWorkout = deleteCompletedWorkout as jest.MockedFunction<
+  typeof deleteCompletedWorkout
 >;
 
 type TestParamList = { WorkoutDetail: { workoutId: string } };
@@ -73,8 +79,10 @@ const workoutDetail: WorkoutDetail = {
 };
 
 beforeEach(() => {
+  jest.restoreAllMocks();
   mockGetWorkoutDetail.mockResolvedValue(workoutDetail);
   mockGetRecordEventsForWorkout.mockResolvedValue([]);
+  mockDeleteCompletedWorkout.mockResolvedValue();
 });
 
 test('does not show a superset tag even when exercises share a superset_group_id', async () => {
@@ -111,4 +119,33 @@ test('keeps workout detail visible when PR events fail to load', async () => {
 
   await waitFor(() => expect(getByText('Overhead Press')).toBeTruthy());
   expect(queryByText('PR')).toBeNull();
+});
+
+test('keeps workout detail visible and reports a completed-workout deletion failure', async () => {
+  const alertSpy = jest.spyOn(Alert, 'alert');
+  mockDeleteCompletedWorkout.mockRejectedValueOnce(new Error('database unavailable'));
+  const detail = await render(
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen
+          name="WorkoutDetail"
+          component={WorkoutDetailScreen}
+          initialParams={{ workoutId: 'w1' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+
+  await waitFor(() => expect(detail.getByText('Overhead Press')).toBeTruthy());
+  fireEvent.press(detail.getByRole('button', { name: 'Delete workout' }));
+  const deleteAction = alertSpy.mock.calls[0]?.[2]?.find((button) => button.text === 'Delete');
+  await deleteAction?.onPress?.();
+
+  await waitFor(() =>
+    expect(alertSpy).toHaveBeenLastCalledWith(
+      'Could not delete workout',
+      'Your workout was not deleted. Please try again.'
+    )
+  );
+  expect(detail.getByText('Overhead Press')).toBeTruthy();
 });

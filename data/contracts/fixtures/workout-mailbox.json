@@ -1,0 +1,22 @@
+{
+  "protocol_version": 1,
+  "candidate": {
+    "workout_id": "workout-1",
+    "started_at_ms": 1000,
+    "changed_at_ms": 1002,
+    "state": {
+      "kind": "active",
+      "workout": {
+        "fields": {
+          "routine_id": { "version": { "changed_at_ms": 1000, "writer": "watch" }, "value": "routine-1" },
+          "routine_structure_version": { "version": { "changed_at_ms": 1000, "writer": "watch" }, "value": 1 },
+          "name": { "version": { "changed_at_ms": 1000, "writer": "watch" }, "value": "Push Day" },
+          "notes": { "version": { "changed_at_ms": 1000, "writer": "watch" }, "value": null },
+          "bodyweight_kg": { "version": { "changed_at_ms": 1000, "writer": "watch" }, "value": 80 }
+        },
+        "exercises": []
+      }
+    }
+  },
+  "watch_receipt": null
+}

@@ -17,7 +17,6 @@ import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import dev.bishnoi.forgelog.wear.application.FinishWorkout
 import dev.bishnoi.forgelog.wear.data.WearStoreProvider
 import dev.bishnoi.forgelog.wear.sync.SyncRequestClient
-import dev.bishnoi.forgelog.wear.sync.WearDataClient
 
 /**
  * Watch navigation (issue #28): Home routine list -> Routine detail -> Active
@@ -32,15 +31,7 @@ fun ForgeLogNavHost() {
     val stores = remember { WearStoreProvider.get(application) }
     val references = stores.references
     val workoutRepository = stores.workouts
-    val finishWorkout = remember {
-        FinishWorkout(workoutRepository, publish = { payload ->
-            WearDataClient.publishWorkout(application, payload)
-        })
-    }
-
-    LaunchedEffect(Unit) {
-        finishWorkout.drainPending()
-    }
+    val finishWorkout = remember { FinishWorkout(workoutRepository) }
 
     SwipeDismissableNavHost(navController = navController, startDestination = WearRoutes.ROUTINES) {
         composable(WearRoutes.ROUTINES) {
@@ -48,7 +39,7 @@ fun ForgeLogNavHost() {
                 factory = SimpleViewModelFactory {
                     RoutineListViewModel(references, workoutRepository, syncWithPhone = {
                         val sent = SyncRequestClient.requestSync(application)
-                        finishWorkout.drainPending()
+                        stores.workoutMailboxSync.requestPublish()
                         sent
                     })
                 },

@@ -40,7 +40,7 @@ export async function listExercises(
   db: DatabaseExecutor,
   filters: ExerciseFilters = {}
 ): Promise<Exercise[]> {
-  const where: string[] = [];
+  const where: string[] = ['is_history_placeholder = 0'];
   const params: Record<string, string> = {};
 
   if (filters.muscleGroup) {
@@ -56,7 +56,7 @@ export async function listExercises(
     params.$search = `%${filters.search}%`;
   }
 
-  const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const clause = `WHERE ${where.join(' AND ')}`;
   // todo: audit pending
   const rows = await db.getAllAsync<ExerciseRow>(
     `SELECT * FROM exercises ${clause} ORDER BY name COLLATE NOCASE`,
@@ -79,7 +79,9 @@ export async function getExercise(
 export async function listMuscleGroups(db: DatabaseExecutor): Promise<string[]> {
   // todo: audit pending
   const rows = await db.getAllAsync<{ muscle_group: string }>(
-    'SELECT DISTINCT muscle_group FROM exercises ORDER BY muscle_group'
+    `SELECT DISTINCT muscle_group FROM exercises
+      WHERE is_history_placeholder = 0
+      ORDER BY muscle_group`
   );
   return rows.map((r) => r.muscle_group);
 }
@@ -87,7 +89,9 @@ export async function listMuscleGroups(db: DatabaseExecutor): Promise<string[]> 
 export async function listEquipment(db: DatabaseExecutor): Promise<string[]> {
   // todo: audit pending
   const rows = await db.getAllAsync<{ equipment: string }>(
-    'SELECT DISTINCT equipment FROM exercises ORDER BY equipment'
+    `SELECT DISTINCT equipment FROM exercises
+      WHERE is_history_placeholder = 0
+      ORDER BY equipment`
   );
   return rows.map((r) => r.equipment);
 }

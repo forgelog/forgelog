@@ -1,7 +1,6 @@
 package dev.bishnoi.forgelog.wear.data
 
 import androidx.datastore.core.DataStoreFactory
-import dev.bishnoi.forgelog.wear.application.FinishWorkout
 import dev.bishnoi.forgelog.wear.sync.ExerciseDto
 import dev.bishnoi.forgelog.wear.sync.PersonalRecordDto
 import dev.bishnoi.forgelog.wear.sync.RoutineDetailDto
@@ -10,6 +9,10 @@ import dev.bishnoi.forgelog.wear.sync.RoutineSetDto
 import dev.bishnoi.forgelog.wear.sync.SYNC_PROTOCOL_VERSION
 import dev.bishnoi.forgelog.wear.sync.SyncSnapshot
 import dev.bishnoi.forgelog.wear.sync.UserProfileDto
+import dev.bishnoi.forgelog.wear.sync.WorkoutReceipt
+import dev.bishnoi.forgelog.wear.sync.WorkoutMailbox
+import dev.bishnoi.forgelog.wear.sync.WorkoutReplicaState
+import dev.bishnoi.forgelog.wear.sync.WorkoutWriter
 import java.io.File
 import java.nio.file.Files
 import java.time.Instant
@@ -27,6 +30,8 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
+private const val PHONE_B_ID = "phone-b"
+
 class StateRepositoriesTest {
     private lateinit var directory: File
     private lateinit var storeScope: CoroutineScope
@@ -37,7 +42,9 @@ class StateRepositoriesTest {
     @Before
     fun setUp() {
         directory = Files.createTempDirectory("wear-json-store").toFile()
-        ids = ArrayDeque(listOf("w1", "we1", "s1", "s2", "s3"))
+        ids = ArrayDeque(
+            listOf("w1", "we1", "s1", "w2", "we2", "s2", "w3", "we3", "s3", "extra"),
+        )
         storeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         referenceRepository = ReferenceRepository(
             DataStoreFactory.create(
@@ -126,13 +133,164 @@ class StateRepositoriesTest {
 
         val finished = workoutRepository.state.first()
         assertNull(finished.activeWorkout)
-        assertEquals("w1", payload.id)
-        assertEquals("2026-07-23T10:00:00Z", payload.endedAt)
-        assertEquals(listOf("w1"), finished.pendingUploads.map { it.payload.id })
+        assertEquals("w1", payload.workoutId)
+        assertEquals(
+            Instant.parse("2026-07-23T10:00:00Z").toEpochMilli() + 1,
+            (payload.state as WorkoutReplicaState.Finished).endedAtMs,
+        )
+        assertEquals(listOf("w1"), finished.pendingFinished.map { it.workoutId })
 
-        workoutRepository.acknowledgeWorkout("w1")
+        workoutRepository.consumeReceipt(
+            WorkoutReceipt(payload.workoutId, payload.startedAtMs, payload.changedAtMs),
+        )
 
-        assertEquals(emptyList<PendingWorkout>(), workoutRepository.state.first().pendingUploads)
+        assertEquals(emptyList<Any>(), workoutRepository.state.first().pendingFinished)
+    }
+
+    @Test
+    fun `pending finish keeps the mailbox while a later workout remains locally usable`() = runBlocking {
+        referenceRepository.replaceSnapshot(snapshot())
+        workoutRepository.startWorkout("r1")
+
+        val finishedA = workoutRepository.finishWorkout("w1")
+        val workoutB = workoutRepository.startWorkout("r1")
+        workoutRepository.updateSetValues(workoutB.exercises.single().sets.single().id, 70.0, 6)
+
+        val state = workoutRepository.state.first()
+        assertEquals("w1", state.pendingFinished.single().workoutId)
+        assertEquals("w1", state.desiredMailbox.candidate?.workoutId)
+        assertEquals(workoutB.id, state.activeWorkout?.id)
+        assertEquals(finishedA, state.pendingFinished.single())
+    }
+
+    @Test
+    fun `three pending finishes drain in exact receipt order`() = runBlocking {
+        referenceRepository.replaceSnapshot(snapshot())
+        val finished = mutableListOf<dev.bishnoi.forgelog.wear.sync.WorkoutReplica>()
+        repeat(3) {
+            val workout = workoutRepository.startWorkout("r1")
+            finished += workoutRepository.finishWorkout(workout.id)
+        }
+
+        assertEquals(finished.map { it.workoutId }, workoutRepository.state.first().pendingFinished.map { it.workoutId })
+        for ((index, candidate) in finished.withIndex()) {
+            assertEquals(candidate, workoutRepository.state.first().desiredMailbox.candidate)
+            workoutRepository.consumeReceipt(
+                WorkoutReceipt(candidate.workoutId, candidate.startedAtMs, candidate.changedAtMs),
+            )
+            assertEquals(
+                finished.getOrNull(index + 1),
+                workoutRepository.state.first().desiredMailbox.candidate,
+            )
+        }
+        assertEquals(emptyList<Any>(), workoutRepository.state.first().pendingFinished)
+    }
+
+    @Test
+    fun `phone mailbox joins independent active edits`() = runBlocking {
+        referenceRepository.replaceSnapshot(snapshot())
+        workoutRepository.startWorkout("r1")
+        val base = workoutRepository.state.first().resolvedReplicas.single().replica
+        workoutRepository.updateSetValues("s1", 75.0, 5)
+        val baseActive = base.state as WorkoutReplicaState.Active
+        val phoneStamp = base.changedAtMs + 2
+        val phone = base.copy(
+            changedAtMs = phoneStamp,
+            state = WorkoutReplicaState.Active(
+                baseActive.workout.copy(
+                    fields = baseActive.workout.fields.copy(
+                        notes = baseActive.workout.fields.notes.copy(
+                            version = baseActive.workout.fields.notes.version.copy(
+                                changedAtMs = phoneStamp,
+                                writer = WorkoutWriter.PHONE,
+                            ),
+                            value = "Phone note",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        workoutRepository.applyPhoneMailbox(WorkoutMailbox(candidate = phone))
+
+        val resolved = workoutRepository.state.first().resolvedReplicas.single().replica
+        val active = resolved.state as WorkoutReplicaState.Active
+        assertEquals("Phone note", active.workout.fields.notes.value)
+        assertEquals(75.0, active.workout.exercises.single().sets.first().value?.weight)
+        assertEquals(WorkoutWriter.WATCH, workoutRepository.state.first().resolvedReplicas.single().writer)
+    }
+
+    @Test
+    fun `late older join preserves the newer workout transport intent`() = runBlocking {
+        referenceRepository.replaceSnapshot(snapshot())
+        workoutRepository.startWorkout("r1")
+        val baseA = workoutRepository.state.first().resolvedReplicas.single().replica
+        workoutRepository.updateSetValues("s1", 70.0, 5)
+        val phoneB = baseA.copy(
+            workoutId = PHONE_B_ID,
+            startedAtMs = baseA.startedAtMs + 1_000,
+            changedAtMs = baseA.changedAtMs + 1_000,
+        )
+        workoutRepository.applyPhoneMailbox(WorkoutMailbox(candidate = phoneB))
+        workoutRepository.updateSetValues("s1", 80.0, 5)
+        val baseActiveA = baseA.state as WorkoutReplicaState.Active
+        val phoneA = baseA.copy(
+            changedAtMs = baseA.changedAtMs + 2,
+            state = WorkoutReplicaState.Active(
+                baseActiveA.workout.copy(
+                    fields = baseActiveA.workout.fields.copy(
+                        notes = baseActiveA.workout.fields.notes.copy(
+                            version = baseActiveA.workout.fields.notes.version.copy(
+                                changedAtMs = baseA.changedAtMs + 2,
+                                writer = WorkoutWriter.PHONE,
+                            ),
+                            value = "Late phone note",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        workoutRepository.applyPhoneMailbox(WorkoutMailbox(candidate = phoneA))
+
+        val state = workoutRepository.state.first()
+        assertEquals(PHONE_B_ID, state.transportIntent?.workoutId)
+        assertEquals(PHONE_B_ID, state.desiredMailbox.candidate?.workoutId)
+    }
+
+    @Test
+    fun `phone echo of the current body clears stale transport intent`() = runBlocking {
+        referenceRepository.replaceSnapshot(snapshot())
+        workoutRepository.startWorkout("r1")
+        val current = workoutRepository.state.first().resolvedReplicas.single().replica
+
+        workoutRepository.applyPhoneMailbox(WorkoutMailbox(candidate = current))
+
+        assertNull(workoutRepository.state.first().transportIntent)
+    }
+
+    @Test
+    fun `valid receipt advances pending finish even when coexisting candidate is invalid`() = runBlocking {
+        referenceRepository.replaceSnapshot(snapshot())
+        workoutRepository.startWorkout("r1")
+        val finished = workoutRepository.finishWorkout("w1")
+        workoutRepository.startWorkout("r1")
+        val invalid = workoutRepository.state.first().resolvedReplicas.last().replica.copy(changedAtMs = 0)
+
+        workoutRepository.applyPhoneMailbox(
+            WorkoutMailbox(
+                candidate = invalid,
+                watchReceipt = WorkoutReceipt(
+                    finished.workoutId,
+                    finished.startedAtMs,
+                    finished.changedAtMs,
+                ),
+            ),
+        )
+
+        val state = workoutRepository.state.first()
+        assertEquals(emptyList<Any>(), state.pendingFinished)
+        assertEquals(state.activeWorkout?.id, state.desiredMailbox.candidate?.workoutId)
     }
 
     @Test
@@ -144,7 +302,7 @@ class StateRepositoriesTest {
         val retry = workoutRepository.finishWorkout("w1")
 
         assertEquals(first, retry)
-        assertEquals(listOf("w1"), workoutRepository.state.first().pendingUploads.map { it.payload.id })
+        assertEquals(listOf("w1"), workoutRepository.state.first().pendingFinished.map { it.workoutId })
     }
 
     @Test
@@ -245,38 +403,15 @@ class StateRepositoriesTest {
     }
 
     @Test
-    fun `discard clears the matching active workout without creating an upload`() = runBlocking {
+    fun `discard clears the matching active workout and advertises its terminal fence`() = runBlocking {
         referenceRepository.replaceSnapshot(snapshot())
         workoutRepository.startWorkout("r1")
 
         workoutRepository.discardWorkout("w1")
 
         assertNull(workoutRepository.state.first().activeWorkout)
-        assertEquals(emptyList<PendingWorkout>(), workoutRepository.pendingUploads.first())
-    }
-
-    @Test
-    fun `publish failure retains outbox and successful retry records attempt without deleting it`() = runBlocking {
-        referenceRepository.replaceSnapshot(snapshot())
-        workoutRepository.startWorkout("r1")
-        val failed = FinishWorkout(
-            workouts = workoutRepository,
-            publish = { throw IllegalStateException("offline") },
-            logWarning = { _, _ -> },
-        )
-
-        failed("w1")
-
-        assertEquals(1, workoutRepository.state.first().pendingUploads.size)
-        assertNull(workoutRepository.state.first().pendingUploads.single().lastPublishAttemptAtEpochMillis)
-
-        val published = mutableListOf<String>()
-        FinishWorkout(workoutRepository, publish = { published += it.id }).drainPending()
-
-        assertEquals(listOf("w1"), published)
-        val pending = workoutRepository.state.first().pendingUploads.single()
-        assertEquals("w1", pending.payload.id)
-        assertEquals(Instant.parse("2026-07-23T10:00:00Z").toEpochMilli(), pending.lastPublishAttemptAtEpochMillis)
+        assertEquals(emptyList<Any>(), workoutRepository.pendingFinished.first())
+        assertEquals("w1", workoutRepository.state.first().desiredMailbox.candidate?.workoutId)
     }
 
     private fun snapshot(

@@ -18,7 +18,8 @@ Tests may import `db/index` to create/reset an in-memory database and may import
 - Application use cases, screens, theme code, and sync transport must not import `db/index` or `db/repositories/*`. They use `mobileStore` or another application use case.
 - Application use cases own multi-repository workflows and run atomic workflows through `runInMobileStoreTransaction`.
 - `mobileStore` resolves the default connection and exposes UI-safe persistence operations. Low-level workout and personal-record mutations are available only on the transaction-bound store supplied to application use cases.
-- `completeSet`, `uncompleteSet`, `updateSetAndRecomputeRecords`, `deleteSet`, `deleteExerciseFromWorkout`, `discardWorkout`, and `startOrResumeWorkout` in `src/application/activeWorkout.ts` are the public, invariant-preserving workout mutation API.
+- Active-workout mutations use the invariant-preserving API in `src/application/activeWorkout.ts`.
+- Completed History rename/delete use `src/application/completedWorkoutHistory.ts`; these operations preserve local user choices across terminal mailbox replay and recompute affected records on deletion.
 - `runInMobileStoreTransaction` creates transaction-bound stores backed by Expo's exclusive transaction handle on native platforms. Web retains Expo's non-exclusive fallback because exclusive transactions are not supported there. Screens, theme code, and sync transport must not import it.
 - Repository functions receive a `DatabaseExecutor` from their caller. They contain SQL and row mapping but do not open connections or transactions.
 - Database initialization, versioned schema migrations, and seeding remain internal to `src/db`.

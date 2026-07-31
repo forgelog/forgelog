@@ -4,30 +4,35 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import type { ComponentProps } from 'react';
 import { FlatList, Text } from 'react-native';
 
-import { getRecordEventsForWorkout } from '../../db/repositories/personalRecords';
+import { getPreviousExerciseSets } from '../../db/repositories/workouts';
 import {
-  getPreviousExerciseSets,
-  getWorkoutDetail,
-  moveWorkoutExercise,
-} from '../../db/repositories/workouts';
-import { mobileStore } from '../../db/mobileStore';
+  addExerciseToActiveReplica,
+  getActiveWorkoutRecordEvents,
+  getWorkoutDetailFromReplica,
+  moveActiveExercise,
+} from '../../db/repositories/workoutReplicas';
 import type { WorkoutDetail, WorkoutExercise } from '../../db/types';
 import { deferred } from '../../test-utils/async';
 import { ActiveWorkoutScreen } from '../ActiveWorkoutScreen';
 
-jest.mock('../../db/repositories/personalRecords');
 jest.mock('../../db/repositories/workouts');
+jest.mock('../../db/repositories/workoutReplicas');
 jest.mock('@expo/ui/community/bottom-sheet');
 
-const mockGetWorkoutDetail = getWorkoutDetail as jest.MockedFunction<typeof getWorkoutDetail>;
+const mockGetWorkoutDetail = getWorkoutDetailFromReplica as jest.MockedFunction<
+  typeof getWorkoutDetailFromReplica
+>;
 const mockGetPreviousExerciseSets = getPreviousExerciseSets as jest.MockedFunction<
   typeof getPreviousExerciseSets
 >;
-const mockGetRecordEventsForWorkout = getRecordEventsForWorkout as jest.MockedFunction<
-  typeof getRecordEventsForWorkout
+const mockGetRecordEventsForWorkout = getActiveWorkoutRecordEvents as jest.MockedFunction<
+  typeof getActiveWorkoutRecordEvents
 >;
-const mockMoveWorkoutExercise = moveWorkoutExercise as jest.MockedFunction<
-  typeof moveWorkoutExercise
+const mockMoveWorkoutExercise = moveActiveExercise as jest.MockedFunction<
+  typeof moveActiveExercise
+>;
+const mockAddExercise = addExerciseToActiveReplica as jest.MockedFunction<
+  typeof addExerciseToActiveReplica
 >;
 
 type TestParamList = { ActiveWorkout: { workoutId: string; pickedExerciseId?: string } };
@@ -192,9 +197,7 @@ test('gates repeated reorder presses while persistence is pending', async () => 
   };
   const pendingMove = deferred<void>();
   mockGetWorkoutDetail.mockResolvedValue(groupedDetail);
-  const moveExercise = jest
-    .spyOn(mobileStore.workouts, 'moveExercise')
-    .mockReturnValue(pendingMove.promise);
+  mockMoveWorkoutExercise.mockReturnValue(pendingMove.promise);
 
   const active = await render(
     <NavigationContainer>
@@ -212,7 +215,7 @@ test('gates repeated reorder presses while persistence is pending', async () => 
   await act(async () => fireEvent.press(moveUp));
   await act(async () => fireEvent.press(moveUp));
 
-  expect(moveExercise).toHaveBeenCalledTimes(1);
+  expect(mockMoveWorkoutExercise).toHaveBeenCalledTimes(1);
   await waitFor(() =>
     expect(
       active.getAllByTestId(/workout-exercise-\d+-name/).map((node) => node.props.children)
@@ -253,7 +256,7 @@ test('scrolls to a newly picked exercise after appending it to an active workout
   const scrollToIndex = jest
     .spyOn(FlatList.prototype, 'scrollToIndex')
     .mockImplementation(() => {});
-  jest.spyOn(mobileStore.workouts, 'addExercise').mockResolvedValue(addedExercise);
+  mockAddExercise.mockResolvedValue(addedExercise);
   mockGetWorkoutDetail
     .mockResolvedValueOnce(workoutDetail)
     .mockResolvedValue(detailWithPickedExercise);

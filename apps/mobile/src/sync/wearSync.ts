@@ -1,38 +1,77 @@
 import WearSync from 'wear-sync';
 
 import { mobileStore } from '../db/mobileStore';
-import { validateWatchWorkoutPayload } from './watchWorkoutValidator';
+import {
+  notifyWorkoutMailboxApplied,
+  registerWorkoutMailboxPublisher,
+} from './workoutMailboxSignal';
 
 let started = false;
+let publishRequested = false;
+let publishPump: Promise<void> | null = null;
 
-// Subscribes once to the watch's durable workout outbox and republishes it into the
-// phone's SQLite DB via the existing repositories (single writer, so PR
-// logic stays sourced from recalcRecordsForExercise). Also subscribes to the
-// watch's on-demand "/request-sync" ping and answers it with the same
-// publishSyncSnapshot() used on app-open, so the watch isn't stuck waiting
-// for the phone to happen to be foregrounded.
+async function applyPeerMailboxPayload(payload: string): Promise<boolean> {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(payload);
+  } catch {
+    return false;
+  }
+  const accepted = await mobileStore.sync.applyWatchWorkoutMailbox(raw);
+  if (accepted) {
+    notifyWorkoutMailboxApplied();
+    await publishWorkoutMailbox();
+  }
+  return accepted;
+}
+
+export async function refreshWorkoutMailbox(): Promise<void> {
+  let published = false;
+  try {
+    const peer = await WearSync.getPeerWorkoutMailbox();
+    if (peer !== null) published = await applyPeerMailboxPayload(peer);
+  } catch {
+    // A missing or unreachable watch is normal; the next foreground/live event retries.
+  }
+  if (!published) await publishWorkoutMailbox();
+}
+
 export function initWearSync(): void {
   if (started) return;
   started = true;
-  WearSync.addListener('onWorkoutReceived', async (event) => {
-    let raw: unknown;
-    try {
-      raw = JSON.parse(event.payload);
-    } catch {
-      return;
-    }
-    if (!validateWatchWorkoutPayload(raw)) return;
-    await mobileStore.sync.ingestWatchWorkout(raw);
-    await WearSync.ackWorkout(raw.id);
+  registerWorkoutMailboxPublisher(() => {
+    void publishWorkoutMailbox();
   });
+  WearSync.addListener('onPeerWorkoutMailbox', (event) =>
+    applyPeerMailboxPayload(event.payload).catch(() => false)
+  );
   WearSync.addListener('onSyncRequested', () => {
-    publishSyncSnapshot();
+    void publishSyncSnapshot();
   });
+  void refreshWorkoutMailbox();
 }
 
-// Pushes the current routines/exercises/PR baseline to the watch so it can
-// start a workout and detect a PR while offline. Best-effort: no paired
-// watch (or no Wearable API on this device) shouldn't be a fatal error.
+export function publishWorkoutMailbox(): Promise<void> {
+  publishRequested = true;
+  publishPump ??= runPublishPump().finally(() => {
+    publishPump = null;
+    if (publishRequested) void publishWorkoutMailbox();
+  });
+  return publishPump;
+}
+
+async function runPublishPump(): Promise<void> {
+  while (publishRequested) {
+    publishRequested = false;
+    try {
+      const mailbox = await mobileStore.sync.getDesiredWorkoutMailbox();
+      await WearSync.publishWorkoutMailbox(JSON.stringify(mailbox));
+    } catch {
+      // Desired state is durable; startup or a later local/peer event retries it.
+    }
+  }
+}
+
 export async function publishSyncSnapshot(): Promise<void> {
   const snapshot = await mobileStore.sync.getSnapshot();
   try {

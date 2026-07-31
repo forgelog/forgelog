@@ -48,7 +48,7 @@
                 <data
                     android:scheme="wear"
                     android:host="*"
-                    android:pathPrefix="/workout-ack" />
+                    android:path="/workout-mailbox/phone" />
             </intent-filter>
         </service>
 

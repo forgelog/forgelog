@@ -32,7 +32,11 @@ class PhoneSyncListenerServiceTest {
             val stores = WearStoreProvider.get(context)
             stores.references.clearRecoverableCache()
             stores.workouts.currentActiveWorkout()?.let { stores.workouts.discardWorkout(it.id) }
-            stores.workouts.pendingUploads.first().forEach { stores.workouts.acknowledgeWorkout(it.payload.id) }
+            stores.workouts.pendingFinished.first().forEach { pending ->
+                stores.workouts.consumeReceipt(
+                    WorkoutReceipt(pending.workoutId, pending.startedAtMs, pending.changedAtMs),
+                )
+            }
         }
     }
 
@@ -73,7 +77,7 @@ class PhoneSyncListenerServiceTest {
     }
 
     @Test
-    fun workoutAcknowledgementDataItemRemovesPendingUpload() = runBlocking {
+    fun phoneMailboxReceiptAdvancesPendingFinish() = runBlocking {
         val stores = WearStoreProvider.get(context)
         val payload = InstrumentationRegistry.getInstrumentation().context.assets
             .open("sync-snapshot.json")
@@ -83,17 +87,24 @@ class PhoneSyncListenerServiceTest {
         val workout = stores.workouts.startWorkout("r1")
         stores.workouts.finishWorkout(workout.id)
 
-        val request = PutDataMapRequest.create("/workout-ack/${workout.id}").apply {
-            dataMap.putString("workout_id", workout.id)
-            dataMap.putLong("timestamp", System.currentTimeMillis())
+        val pending = stores.workouts.pendingFinished.first().single { it.workoutId == workout.id }
+        val mailbox = WorkoutMailbox(
+            watchReceipt = WorkoutReceipt(
+                pending.workoutId,
+                pending.startedAtMs,
+                pending.changedAtMs,
+            ),
+        )
+        val request = PutDataMapRequest.create("/workout-mailbox/phone").apply {
+            dataMap.putString("payload", syncJson.encodeToString(WorkoutMailbox.serializer(), mailbox))
         }.asPutDataRequest().setUrgent()
         Tasks.await(Wearable.getDataClient(context).putDataItem(request))
 
         val acknowledged = waitForCondition {
-            stores.workouts.pendingUploads.first().none { it.payload.id == workout.id }
+            stores.workouts.pendingFinished.first().none { it.workoutId == workout.id }
         }
 
-        assertTrue("expected the workout acknowledgement to clear the JSON outbox", acknowledged)
+        assertTrue("expected the exact receipt to advance the finish queue", acknowledged)
     }
 
     private suspend fun waitForCondition(condition: suspend () -> Boolean): Boolean {

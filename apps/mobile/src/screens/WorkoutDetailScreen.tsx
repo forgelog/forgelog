@@ -3,7 +3,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { discardWorkout } from '../application/activeWorkout';
+import { deleteCompletedWorkout } from '../application/completedWorkoutHistory';
 import { Icon } from '../components/Icon';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { mobileStore } from '../db/mobileStore';
@@ -37,15 +37,22 @@ export function WorkoutDetailScreen({ route }: Props) {
 
   const volume = totalVolume(detail);
 
-  function handleDiscard() {
+  function handleDelete() {
     Alert.alert('Delete workout', 'This workout will be permanently deleted.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await discardWorkout(workoutId);
-          navigation.goBack();
+          try {
+            await deleteCompletedWorkout(workoutId);
+            navigation.goBack();
+          } catch {
+            Alert.alert(
+              'Could not delete workout',
+              'Your workout was not deleted. Please try again.'
+            );
+          }
         },
       },
     ]);
@@ -58,7 +65,12 @@ export function WorkoutDetailScreen({ route }: Props) {
         leading="back"
         onLeadingPress={() => navigation.goBack()}
         trailing={
-          <Pressable onPress={handleDiscard} hitSlop={8}>
+          <Pressable
+            accessibilityLabel="Delete workout"
+            accessibilityRole="button"
+            onPress={handleDelete}
+            hitSlop={8}
+          >
             <Icon name="trash-can-outline" variant="sub" size={20} />
           </Pressable>
         }

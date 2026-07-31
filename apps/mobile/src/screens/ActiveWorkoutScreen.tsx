@@ -20,12 +20,16 @@ import { PillButton } from '../components/PillButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SetFieldInputs } from '../components/SetFieldInputs';
 import {
+  addExerciseToWorkout,
+  addSetToWorkout,
   completeSet,
   deleteExerciseFromWorkout,
   deleteSet,
   discardWorkout,
   finishWorkoutWithRoutineAction,
+  getActiveWorkoutRecordEvents,
   getWorkoutFinishPlan,
+  moveExerciseInWorkout,
   uncompleteSet,
   updateSetAndRecomputeRecords,
   type WorkoutFinishAction,
@@ -50,6 +54,7 @@ import {
   type SetFieldKey,
 } from '../domain/setFields';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import { subscribeWorkoutMailboxApplied } from '../sync/workoutMailboxSignal';
 import { useTheme } from '../theme/ThemeContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveWorkout'>;
@@ -96,6 +101,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   const exerciseListRef = useRef<FlatList<WorkoutExerciseDetail> | null>(null);
   const previousExerciseCount = useRef<number | null>(null);
   const pickedExerciseIdRef = useRef(pickedExerciseId);
+  const exitWhenFocusedRef = useRef(false);
 
   const reload = useCallback((options: { showLoading?: boolean } = {}) => {
     const { showLoading = true } = options;
@@ -124,7 +130,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
               ] as const
           )
         );
-        const recordEvents = await mobileStore.records.getEventsForWorkout(workoutId);
+        const recordEvents = await getActiveWorkoutRecordEvents(workoutId);
         if (!isCurrent()) return;
         setDetail(d);
         setPrevSets(Object.fromEntries(entries));
@@ -150,7 +156,32 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }, [pickedExerciseId]);
 
   useFocusEffect(
-    useCallback(() => reload({ showLoading: !pickedExerciseIdRef.current }), [reload])
+    useCallback(() => {
+      if (exitWhenFocusedRef.current) {
+        exitWhenFocusedRef.current = false;
+        navigation.goBack();
+        return;
+      }
+      return reload({ showLoading: !pickedExerciseIdRef.current });
+    }, [navigation, reload])
+  );
+
+  useEffect(
+    () =>
+      subscribeWorkoutMailboxApplied(() => {
+        void mobileStore.workouts
+          .getActive()
+          .then((activeWorkout) => {
+            if (activeWorkout?.id !== workoutId) {
+              if (navigation.isFocused()) navigation.goBack();
+              else exitWhenFocusedRef.current = true;
+              return;
+            }
+            reload({ showLoading: false });
+          })
+          .catch(() => reload({ showLoading: false }));
+      }),
+    [navigation, reload, workoutId]
   );
 
   useEffect(() => {
@@ -190,8 +221,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!pickedExerciseId) return;
     navigation.setParams({ pickedExerciseId: undefined });
-    mobileStore.workouts
-      .addExercise(workoutId, pickedExerciseId)
+    addExerciseToWorkout(workoutId, pickedExerciseId)
       .then(() => reload({ showLoading: false }))
       .catch(() => {
         Alert.alert('Save failed', 'Could not add exercise.');
@@ -221,7 +251,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
   }
 
   async function handleAddSet(we: WorkoutExerciseDetail) {
-    const created = await mobileStore.workouts.addSet(we.id);
+    const created = await addSetToWorkout(we.id);
     patchExercise(we.id, (w) => ({ ...w, sets: [...w.sets, created] }));
   }
 
@@ -249,8 +279,7 @@ export function ActiveWorkoutScreen({ route, navigation }: Props) {
       ];
       return { ...current, exercises };
     });
-    void mobileStore.workouts
-      .moveExercise(exerciseId, delta)
+    void moveExerciseInWorkout(exerciseId, delta)
       .catch(() => {
         Alert.alert('Save failed', 'Could not reorder exercise.');
         reload();

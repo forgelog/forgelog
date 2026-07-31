@@ -1,7 +1,6 @@
 package dev.bishnoi.forgelog.wear.sync
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import kotlinx.serialization.SerializationException
@@ -37,48 +36,6 @@ class SyncModelsTest {
     }
 
     @Test
-    fun `round-trips a watch-authored WorkoutPayloadDto`() {
-        val json = fixtureText("watch-workout-payload.json")
-
-        val payload = syncJson.decodeFromString(WorkoutPayloadDto.serializer(), json)
-
-        assertEquals("w1", payload.id)
-        assertEquals("r1", payload.routineId)
-        assertEquals("Push Day", payload.name)
-        assertNull(payload.endedAt)
-
-        val exercise = payload.exercises.single()
-        assertEquals("ex1", exercise.exerciseId)
-        assertEquals("weight_reps", exercise.exerciseType)
-
-        val set = exercise.sets.single()
-        assertEquals(60.0, set.weight)
-        assertEquals(8, set.reps)
-        assertEquals(true, set.completed)
-
-        val reEncoded = syncJson.encodeToString(WorkoutPayloadDto.serializer(), payload)
-
-        // Field names on the wire must match the phone's WatchWorkoutPayload
-        // (apps/mobile/src/db/repositories/sync.ts) exactly, snake_case included.
-        assertEquals(true, reEncoded.contains("\"exercise_id\":\"ex1\""))
-        assertEquals(true, reEncoded.contains("\"exercise_type\":\"weight_reps\""))
-        assertEquals(true, reEncoded.contains("\"completed_at\""))
-        assertEquals(true, reEncoded.contains("\"protocol_version\":2"))
-
-        val decoded = syncJson.decodeFromString(WorkoutPayloadDto.serializer(), reEncoded)
-        assertEquals(payload, decoded)
-    }
-
-    @Test
-    fun `version-skew fixture decodes protocol_version correctly`() {
-        val json = fixtureText("version-skew-watch-workout-payload.json")
-
-        val payload = syncJson.decodeFromString(WorkoutPayloadDto.serializer(), json)
-
-        assertEquals(99, payload.protocolVersion)
-    }
-
-    @Test
     fun `malformed sync snapshot fixture is rejected`() {
         val json = fixtureText("malformed-sync-snapshot.json")
 
@@ -96,12 +53,4 @@ class SyncModelsTest {
         assertEquals(99, snapshot.protocolVersion)
     }
 
-    @Test
-    fun `malformed watch workout fixture is rejected`() {
-        val json = fixtureText("malformed-watch-workout-payload.json")
-
-        assertThrows(SerializationException::class.java) {
-            syncJson.decodeFromString(WorkoutPayloadDto.serializer(), json)
-        }
-    }
 }
