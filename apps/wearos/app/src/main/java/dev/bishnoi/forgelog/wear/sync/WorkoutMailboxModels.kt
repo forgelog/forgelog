@@ -6,9 +6,9 @@ import kotlinx.serialization.Serializable
 const val WORKOUT_MAILBOX_PROTOCOL_VERSION = 1
 
 @Serializable
-enum class WorkoutWriter {
-    @SerialName("phone") PHONE,
-    @SerialName("watch") WATCH,
+enum class WorkoutWriter(val wireName: String) {
+    @SerialName("phone") PHONE("phone"),
+    @SerialName("watch") WATCH("watch"),
 }
 
 @Serializable

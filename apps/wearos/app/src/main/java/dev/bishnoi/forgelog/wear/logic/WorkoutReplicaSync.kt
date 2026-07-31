@@ -16,7 +16,7 @@ import dev.bishnoi.forgelog.wear.sync.WorkoutWriter
 fun compareEntryVersions(left: EntryVersion, right: EntryVersion): Int {
     val time = left.changedAtMs.compareTo(right.changedAtMs)
     // Writer names and all replica ids use Kotlin's UTF-16 code-unit order as the cross-platform contract.
-    return if (time != 0) time else left.writer.ordinal.compareTo(right.writer.ordinal)
+    return if (time != 0) time else left.writer.wireName.compareTo(right.writer.wireName)
 }
 
 private fun <T> greaterVersioned(left: VersionedValue<T>, right: VersionedValue<T>): VersionedValue<T> =
@@ -118,7 +118,7 @@ private fun lifecycleRank(state: WorkoutReplicaState): Int = when (state) {
 
 private fun compareEnvelopes(left: AuthoredWorkoutReplica, right: AuthoredWorkoutReplica): Int {
     val changedAt = left.replica.changedAtMs.compareTo(right.replica.changedAtMs)
-    return if (changedAt != 0) changedAt else left.writer.ordinal.compareTo(right.writer.ordinal)
+    return if (changedAt != 0) changedAt else left.writer.wireName.compareTo(right.writer.wireName)
 }
 
 fun resolveSameWorkout(

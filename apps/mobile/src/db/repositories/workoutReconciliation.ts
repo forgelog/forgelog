@@ -127,9 +127,9 @@ async function persistResolvedCandidate(
   existing: AuthoredWorkoutReplica | undefined,
   resolved: AuthoredWorkoutReplica
 ): Promise<void> {
-  if (!existing || !canonicalWorkoutContentEqual(existing, resolved)) {
-    await saveAuthoredWorkoutReplica(db, resolved);
-  }
+  if (existing && canonicalWorkoutContentEqual(existing, resolved)) return;
+
+  await saveAuthoredWorkoutReplica(db, resolved);
   if (resolved.replica.state.kind === 'finished') {
     await writeFinishedWorkoutTreeInDb(
       db,

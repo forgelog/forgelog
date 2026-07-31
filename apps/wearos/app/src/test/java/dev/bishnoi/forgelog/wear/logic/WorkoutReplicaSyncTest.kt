@@ -46,6 +46,8 @@ class WorkoutReplicaSyncTest {
 
     @Test
     fun `entry versions compare by timestamp then writer`() {
+        assertEquals("phone", WorkoutWriter.PHONE.wireName)
+        assertEquals("watch", WorkoutWriter.WATCH.wireName)
         assertTrue(compareEntryVersions(version(2, WorkoutWriter.PHONE), version(1, WorkoutWriter.WATCH)) > 0)
         assertTrue(compareEntryVersions(version(2, WorkoutWriter.WATCH), version(2, WorkoutWriter.PHONE)) > 0)
         assertEquals(0, compareEntryVersions(version(2, WorkoutWriter.PHONE), version(2, WorkoutWriter.PHONE)))
@@ -109,6 +111,28 @@ class WorkoutReplicaSyncTest {
 
         val newer = active.copy(replica = active.replica.copy(workoutId = "workout-2", startedAtMs = 200))
         assertEquals(newer, selectCurrentGeneration(listOf(finished, newer)))
+    }
+
+    @Test
+    fun `terminal snapshots with equal timestamps resolve by serialized writer name`() {
+        val phone = AuthoredWorkoutReplica(
+            WorkoutWriter.PHONE,
+            WorkoutReplica(
+                WORKOUT_ID,
+                100,
+                110,
+                WorkoutReplicaState.Finished(110, WorkoutBody(name = "Phone snapshot")),
+            ),
+        )
+        val watch = AuthoredWorkoutReplica(
+            WorkoutWriter.WATCH,
+            phone.replica.copy(
+                state = WorkoutReplicaState.Finished(110, WorkoutBody(name = "Watch snapshot")),
+            ),
+        )
+
+        assertEquals(watch, resolveSameWorkout(phone, watch, WorkoutWriter.PHONE, 120))
+        assertEquals(watch, resolveSameWorkout(watch, phone, WorkoutWriter.PHONE, 120))
     }
 
     @Test

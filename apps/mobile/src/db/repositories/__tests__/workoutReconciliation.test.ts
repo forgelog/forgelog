@@ -105,11 +105,25 @@ test('watch finish is durable before its exact receipt is exposed and replay is 
   };
 
   await applyWatchWorkoutMailbox(db, watchMailbox(finished), 1200);
+  await db.execAsync(`
+    CREATE TABLE workout_projection_writes (workout_id TEXT NOT NULL);
+    CREATE TRIGGER count_workout_projection_updates
+    AFTER UPDATE ON workouts
+    BEGIN
+      INSERT INTO workout_projection_writes (workout_id) VALUES (NEW.id);
+    END;
+  `);
   await applyWatchWorkoutMailbox(db, watchMailbox(finished), 1201);
 
   expect(await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) AS count FROM workouts')).toEqual(
     { count: 1 }
   );
+  expect(
+    await db.getFirstAsync<{ count: number }>(
+      'SELECT COUNT(*) AS count FROM workout_projection_writes WHERE workout_id = $id',
+      { $id: workout.id }
+    )
+  ).toEqual({ count: 0 });
   expect(await getDesiredPhoneMailbox(db)).toMatchObject({
     watch_receipt: {
       workout_id: workout.id,
