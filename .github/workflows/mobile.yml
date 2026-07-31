@@ -12,7 +12,7 @@ on:
       - '.github/workflows/mobile.yml'
 
 concurrency:
-  group: mobile-${{ github.event.pull_request.number || github.ref }}
+  group: mobile-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
