@@ -47,47 +47,50 @@ Rules:
 
 ### Handling a restored database
 
-A restored DB brings back the old phone's transport state:
+A restored DB looks like a phone that has been offline since the backup ran. Its transport tables (`workout_replica_state`, `workout_mailbox_state`, `active_workout_overlay`) are internally consistent. The phone-watch mailbox protocol already converges after long offline periods, because it merges by version and ranks `finished > discarded > active`. So transport state is **not** reset.
 
-- `workout_mailbox_state`: outbound intent and pending watch receipt for a watch the new phone may not be paired with.
-- `workout_replica_state` and `active_workout_overlay`: may include an in-progress workout from whenever the last backup ran.
+The one thing that needs handling is an **in-progress workout captured in the backup**. It's at least hours old and was probably finished on the old phone. Decision: **discard it** and tell the user once.
 
-The rules work on whole files, so these tables can't be excluded individually. Instead the app detects a restore and cleans up after it:
+The rules work on whole files, so the restore has to be detected at runtime:
 
-1. **Installation marker.** A small JSON file `{ installation_id }` in the document directory, left out of the backup rules. It is written on first launch.
+1. **Installation marker.** A small JSON file `{ installation_id }` in the document directory (`filesDir`), left out of the backup rules.
 2. **Migration 6: `backup_state` table**, a single row with `id = 0`:
    ```sql
    CREATE TABLE backup_state (
      id                  INTEGER PRIMARY KEY CHECK (id = 0),
      installation_id     TEXT,     -- installation that last opened this DB
      last_restored_at    TEXT,     -- when a restore was last detected or performed
-     last_restore_source TEXT CHECK (last_restore_source IN ('os', 'file', 'cloud'))
+     last_restore_source TEXT CHECK (last_restore_source IN ('os', 'file', 'cloud')),
+     restore_notice      TEXT CHECK (restore_notice IN ('active_workout_discarded'))
    );
    ```
    The `'file'` and `'cloud'` values are for Phases 2 and 3. Adding columns later is an append-only migration.
-3. **Startup check** (`src/application/restoreDetection.ts`, run after `getDb()`):
-   | Marker file | `backup_state.installation_id` | Meaning | Action |
+3. **Startup check** (`src/application/restore.ts`), which runs before wear sync starts. The marker is always written *before* the DB is updated, so a crash between the two steps just repeats the check on the next launch:
+   | Marker file (created if missing) | `backup_state.installation_id` | Meaning | Action |
    | --- | --- | --- | --- |
-   | missing | null | Fresh install | Write marker, store its ID |
-   | missing | set | **Restored by the OS** | `completeRestore('os')`, write marker, store its ID |
-   | present | different ID | Restored by the OS onto an install that already had a marker (rare) | Same as above |
-   | present | same ID | Normal launch | Nothing |
-4. **`completeRestore(source)`** in `src/application/restore.ts`, one exclusive transaction. It is reused unchanged in Phases 2 and 3:
-   - Reset `workout_mailbox_state` to its initial row, the same values migration 4 inserts.
-   - Apply the active-workout policy (open question 1).
+   | any | null | Fresh install, or upgrade from a build without backup support | Store the marker ID |
+   | ID | same ID | Normal launch | Nothing |
+   | ID | different ID | **Restored by the OS** (the marker was missing and has just been recreated, or was already present on the target device) | `completeRestore('os')` and store the marker ID in the same transaction |
+4. **`completeRestore(source)`**, one exclusive transaction, reused in Phases 2 and 3:
+   - If a workout is active, discard it through the normal discard path. It gets a newer `discarded` version, so a watch that already finished it still wins with `finished`. Set `restore_notice = 'active_workout_discarded'`.
    - Record `last_restored_at` and `last_restore_source`.
-   - After commit, trigger a full sync-snapshot push so a paired watch rebuilds from the restored phone.
+   - After commit, the normal startup sync publishes the mailbox and snapshot to the watch.
+5. **Notice.** Home shows a dismissible card: "Restored from backup. A workout that was in progress on your previous phone was discarded." Dismissing it clears `restore_notice`.
 
-A false-positive restore detection (for example, the marker file deleted by hand) must be harmless: `completeRestore` only resets transport state, which the phone can rebuild. Tests must cover this.
+A false-positive restore detection (for example, app data partly cleared) must be harmless. The worst case is that an in-progress workout gets discarded with a visible notice. Tests cover repeated runs and a crash between the two writes.
+
+The check runs only on Android. On iOS the marker is included in iCloud device backups, so the check would never fire, and iOS is deferred.
 
 ### Phase 1 work breakdown
 
 **PR 1: Restore detection (backup still off, so this ships with no effect)**
 - Add the `expo-file-system` dependency. Phase 2 needs it too.
 - Migration 6 (`backup_state`) in `src/db/index.ts`, plus a repository `src/db/repositories/backupState.ts`.
+- Pure launch classification in `src/domain/restoreDetection.ts`.
 - `src/backup/installationMarker.ts` (file I/O only).
-- `src/application/restoreDetection.ts` and `src/application/restore.ts` (`completeRestore`).
-- Real in-memory DB tests for every row of the detection table, for an idempotent second run, for mailbox reset contents, and for the active-workout policy.
+- `src/application/restore.ts`: startup check, `completeRestore`, restore-notice read and dismiss.
+- Startup wiring in `App.tsx` (before wear sync), and the Home restore-notice card.
+- Real in-memory DB tests for every row of the detection table, an idempotent second run, the crash-between-writes case, the active-workout discard, and the notice card.
 
 **PR 2: Turn on Android backup**
 - Delete `android:allowBackup` from the `wear-sync` library manifest. Libraries shouldn't make this decision for the app.
@@ -163,6 +166,8 @@ Workouts and routines are nested (workout → exercises → sets), not one array
 - **Replace everything.** Merging brings ID-collision and conflict problems that aren't worth solving for a backup feature.
 - Flow: pick file → parse → upgrade → validate → show a summary ("42 workouts, 6 routines, 120 measurements from 12 Sep 2026. This replaces all data on this phone.") → confirm → **write a safety snapshot of the current data to the cache directory** → one exclusive transaction that clears user tables, inserts the snapshot, and recomputes PRs → `completeRestore('file')`.
 - If anything fails, the transaction rolls back and the current data is untouched. The safety snapshot allows an "Undo restore" action for the rest of the session.
+- **Not allowed while a workout is active.** Import shows "Finish or discard your current workout before restoring a backup" and stops. That way no in-progress workout, or its watch mailbox state, gets silently replaced.
+- Unlike an OS restore, an import brings in workouts that aren't in `workout_replica_state`. The Phase 2 PR must decide how imported workouts enter the replica ledger so the watch doesn't replay or resurrect them. Resolve this before PR 4.
 
 ### Layering
 
@@ -201,12 +206,12 @@ A detailed plan comes after Phase 2 ships. The earlier phases already provide:
 
 ---
 
-## Open questions
+## Decisions
 
-1. **Restored in-progress workout.** Should a restore (any source) keep it (user can resume or discard; phone-only because the mailbox is reset) or discard it? **Recommendation: discard for OS restores**, since it's at least hours old and likely already finished on the old phone, and leave it out of JSON snapshots.
-2. **Watch backup.** Keep `allowBackup="false"` on Wear OS? **Recommendation: yes**, the watch rebuilds from the phone.
-3. **Encryption-only cloud backup** (`disableIfNoEncryptionCapabilities="true"`). Recommended for health-adjacent data. The trade-off is no OS backup on devices without a screen lock.
-4. **iOS scope.** iCloud device backup already works. Should Phase 2 export/import be tested and shipped on iOS in the same release, or Android first?
+1. **Restored in-progress workout:** OS restore discards it and shows a one-time notice on Home. File and cloud restores are blocked while a workout is active. JSON snapshots never contain the active workout.
+2. **Watch backup:** stays off (`allowBackup="false"` on Wear OS). Only the phone is backed up, and the watch rebuilds from it.
+3. **Encryption-only cloud backup:** yes (`disableIfNoEncryptionCapabilities="true"`).
+4. **Platforms:** Android first. iOS (restore detection, export/import verification, iCloud) is deferred until an iOS test device is available.
 
 ## Definition of done for every PR
 
