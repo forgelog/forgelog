@@ -18,6 +18,10 @@ jest.mock('../../db/mobileStore', () => ({
     workouts: {
       getActive: jest.fn(),
     },
+    backupState: {
+      getRestoreNotice: jest.fn().mockResolvedValue(null),
+      clearRestoreNotice: jest.fn(),
+    },
   },
 }));
 

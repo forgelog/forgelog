@@ -150,6 +150,22 @@ const MIGRATIONS: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 6,
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE backup_state (
+          id                  INTEGER PRIMARY KEY CHECK (id = 0),
+          installation_id     TEXT,
+          last_restored_at    TEXT,
+          last_restore_source TEXT CHECK (last_restore_source IN ('os', 'file', 'cloud')),
+          restore_notice      TEXT CHECK (restore_notice IN ('active_workout_discarded'))
+        );
+
+        INSERT INTO backup_state (id) VALUES (0);
+      `);
+    },
+  },
 ];
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;

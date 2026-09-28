@@ -13,7 +13,7 @@ import {
   StarterRoutineGrid,
   type StarterRoutineSheetState,
 } from '../components/StarterRoutineTemplates';
-import { mobileStore, type RoutineSummary } from '../db/mobileStore';
+import { mobileStore, type RestoreNotice, type RoutineSummary } from '../db/mobileStore';
 import { discardWorkout, startOrResumeWorkout } from '../application/activeWorkout';
 import type { Workout } from '../db/types';
 import type { RoutineTemplate } from '../domain/routineTemplates';
@@ -53,6 +53,7 @@ export function HomeScreen() {
   const [starterRoutineSheet, setStarterRoutineSheet] = useState<StarterRoutineSheetState | null>(
     null
   );
+  const [restoreNotice, setRestoreNotice] = useState<RestoreNotice | null>(null);
   const reloadRequestId = useRef(0);
 
   const reload = useCallback((options: { showLoading?: boolean } = {}) => {
@@ -83,6 +84,28 @@ export function HomeScreen() {
   useFocusEffect(useCallback(() => reload(), [reload]));
 
   useEffect(() => subscribeHomeMailboxReload(reload), [reload]);
+
+  useEffect(() => {
+    let cancelled = false;
+    mobileStore.backupState
+      .getRestoreNotice()
+      .then((notice) => {
+        if (!cancelled) setRestoreNotice(notice);
+      })
+      .catch(() => {
+        // The notice is informational; it stays pending for the next visit.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleDismissRestoreNotice() {
+    setRestoreNotice(null);
+    mobileStore.backupState.clearRestoreNotice().catch(() => {
+      // Still pending in the database, so it shows again on the next launch.
+    });
+  }
 
   async function handleStartEmpty() {
     try {
@@ -205,6 +228,7 @@ export function HomeScreen() {
         ListHeaderComponent={
           <View>
             <Text style={[styles.title, { color: c.fg }]}>Workout</Text>
+            {restoreNotice ? <RestoreNoticeCard onDismiss={handleDismissRestoreNotice} /> : null}
             <PillButton
               label={active ? 'Resume Workout' : 'Start Empty Workout'}
               onPress={handleStartEmpty}
@@ -301,6 +325,25 @@ function HomeEmptyState({ loading, loadFailed }: HomeEmptyStateProps) {
   return <Text style={[styles.empty, { color: c.sub }]}>{message}</Text>;
 }
 
+function RestoreNoticeCard({ onDismiss }: Readonly<{ onDismiss: () => void }>) {
+  const c = useTheme();
+  return (
+    <Card style={styles.restoreNotice}>
+      <Text style={[styles.restoreNoticeTitle, { color: c.fg }]}>Restored from backup</Text>
+      <Text style={[styles.restoreNoticeMessage, { color: c.sub }]}>
+        A workout that was in progress on your previous phone was discarded.
+      </Text>
+      <PillButton
+        label="Dismiss"
+        onPress={onDismiss}
+        variant="outlined"
+        accessibilityLabel="Dismiss restore notice"
+        style={styles.restoreNoticeButton}
+      />
+    </Card>
+  );
+}
+
 type RoutineActionsSheetProps = Readonly<{
   state: RoutineSheetState | null;
   onClose: () => void;
@@ -393,6 +436,10 @@ const styles = StyleSheet.create({
   listContent: { padding: 16, gap: 12 },
   title: { fontSize: 24, fontWeight: '700', marginBottom: 16 },
   startButton: { marginBottom: 24 },
+  restoreNotice: { marginBottom: 16, gap: 8 },
+  restoreNoticeTitle: { fontSize: 16, fontWeight: '700' },
+  restoreNoticeMessage: { fontSize: 14, lineHeight: 20 },
+  restoreNoticeButton: { alignSelf: 'flex-start' },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',

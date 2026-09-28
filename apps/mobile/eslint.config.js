@@ -39,6 +39,7 @@ module.exports = defineConfig([
       'src/screens/**/*.{ts,tsx}',
       'src/theme/**/*.{ts,tsx}',
       'src/sync/**/*.{ts,tsx}',
+      'src/backup/**/*.{ts,tsx}',
     ],
     ignores: ['src/**/__tests__/**'],
     rules: {
