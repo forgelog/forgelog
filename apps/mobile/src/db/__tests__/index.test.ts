@@ -125,3 +125,20 @@ test('migration 5 creates durable completed-workout local state', async () => {
   expect(version?.user_version).toBeGreaterThanOrEqual(5);
   expect(table?.name).toBe('completed_workout_local_state');
 });
+
+test('migration 6 creates a single empty backup state row', async () => {
+  const db = await getDb();
+  const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  const rows = await db.getAllAsync('SELECT * FROM backup_state');
+
+  expect(version?.user_version).toBeGreaterThanOrEqual(6);
+  expect(rows).toEqual([
+    {
+      id: 0,
+      installation_id: null,
+      last_restored_at: null,
+      last_restore_source: null,
+      restore_notice: null,
+    },
+  ]);
+});

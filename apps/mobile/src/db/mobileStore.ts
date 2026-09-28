@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import * as backupState from './repositories/backupState';
 import * as completedWorkoutHistory from './repositories/completedWorkoutHistory';
 import * as exercises from './repositories/exercises';
 import * as measurements from './repositories/measurements';
@@ -13,6 +14,7 @@ import * as workoutReplicas from './repositories/workoutReplicas';
 import type { DatabaseExecutor } from './executor';
 import { getDb } from './index';
 
+export type { RestoreNotice, RestoreSource } from './repositories/backupState';
 export type { ExerciseFilters } from './repositories/exercises';
 export type {
   CurrentMeasurement,
@@ -147,6 +149,13 @@ function createBoundMobileStore(
       applyWatchWorkoutMailbox: bindTransaction(workoutReconciliation.applyWatchWorkoutMailbox),
       getDesiredWorkoutMailbox: bind(workoutReplicas.getDesiredPhoneMailbox),
     },
+    backupState: {
+      get: bind(backupState.getBackupState),
+      saveInstallationId: bind(backupState.saveInstallationId),
+      recordRestore: bind(backupState.recordRestore),
+      getRestoreNotice: bind(backupState.getRestoreNotice),
+      clearRestoreNotice: bind(backupState.clearRestoreNotice),
+    },
   } as const;
 }
 
@@ -196,6 +205,10 @@ export const mobileStore = {
   measurements: defaultStore.measurements,
   profile: defaultStore.profile,
   sync: defaultStore.sync,
+  backupState: {
+    getRestoreNotice: defaultStore.backupState.getRestoreNotice,
+    clearRestoreNotice: defaultStore.backupState.clearRestoreNotice,
+  },
 } as const;
 
 /**

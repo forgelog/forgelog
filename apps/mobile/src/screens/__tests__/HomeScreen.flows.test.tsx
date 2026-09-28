@@ -94,6 +94,32 @@ test('shows a load-error state when routines fail to load', async () => {
   await waitFor(() => expect(error.getByText('Could not load routines.')).toBeTruthy());
 });
 
+test('shows the restore notice once and clears it on dismiss', async () => {
+  await runInMobileStoreTransaction((store) =>
+    store.backupState.recordRestore({
+      source: 'os',
+      restoredAt: '2026-09-28T10:00:00.000Z',
+      notice: 'active_workout_discarded',
+    })
+  );
+  const home = await renderHomeStack();
+
+  await waitFor(() => expect(home.getByText('Restored from backup')).toBeTruthy());
+  fireEvent.press(home.getByLabelText('Dismiss restore notice'));
+
+  await waitFor(() => expect(home.queryByText('Restored from backup')).toBeNull());
+  await waitFor(async () =>
+    expect(await mobileStore.backupState.getRestoreNotice()).toBeNull()
+  );
+});
+
+test('does not show a restore notice by default', async () => {
+  const home = await renderHomeStack();
+
+  await waitFor(() => expect(home.getByLabelText('Start Empty Workout')).toBeTruthy());
+  expect(home.queryByText('Restored from backup')).toBeNull();
+});
+
 test('starts an empty workout', async () => {
   const { getByLabelText, getByText } = await renderHomeStack();
 
