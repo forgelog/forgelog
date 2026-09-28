@@ -1,6 +1,8 @@
 # Backup and Restore Plan
 
-Status: Phase 1 in progress (PR 1 implemented on `claude/backup-remote-options-w795ij`, not yet reviewed or merged; PR 2 onward planned). Scope: `apps/mobile` (phone). The Wear OS app stays a mirror of the phone and is not backed up.
+Tracking issue: [#99](https://github.com/forgelog/forgelog/issues/99). PRs: [#100](https://github.com/forgelog/forgelog/pull/100) (plan and Phase 1 PR 1).
+
+Status: Phase 1 in progress (PR 1 open for review in #100; PR 2 onward planned). Scope: `apps/mobile` (phone). The Wear OS app stays a mirror of the phone and is not backed up.
 
 ForgeLog stores everything in one on-device SQLite database (`forgelog-v1.db`). Nothing leaves the device except phone-to-watch sync. This plan adds three backup channels in order. Each phase ships on its own, and the earlier phases are built so the later ones slot in without rework.
 
@@ -83,7 +85,7 @@ The check runs only on Android. On iOS the marker is included in iCloud device b
 
 ### Phase 1 work breakdown
 
-**PR 1: Restore detection (backup still off, so this ships with no effect)**: implemented (commit "feat(mobile): detect OS backup restores")
+**PR 1: Restore detection (backup still off, so this ships with no effect)**: implemented in [#100](https://github.com/forgelog/forgelog/pull/100)
 - Add the `expo-file-system` dependency. Phase 2 needs it too.
 - Migration 6 (`backup_state`) in `src/db/index.ts`, plus a repository `src/db/repositories/backupState.ts`.
 - Pure launch classification in `src/domain/restoreDetection.ts`.
