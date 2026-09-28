@@ -14,7 +14,7 @@ ForgeLog stores everything in one on-device SQLite database (`forgelog-v1.db`). 
 
 ## Design principles (all phases)
 
-1. **Two restore paths, one post-restore routine.** Phase 1 restores the raw DB file. Phases 2 and 3 restore a JSON snapshot. Every path finishes by calling the same `completeRestore()` application use case, which resets watch transport state and recomputes derived data.
+1. **Two restore paths, one post-restore routine.** Phase 1 restores the raw DB file. Phases 2 and 3 restore a JSON snapshot. Every path finishes by calling the same `completeRestore()` application use case. It discards any in-progress workout through the normal lifecycle and records the restore. It leaves watch transport state in place, because the phone-watch mailbox protocol converges on its own. Phases 2 and 3 also recompute derived data (personal records) as part of the import.
 2. **Phase 1 backs up only files it explicitly includes.** The Android backup rules list what to back up. Anything added later (export staging files, cloud tokens, caches) is left out unless someone deliberately adds it.
 3. **The snapshot format is a contract, not a table dump.** Phases 2 and 3 use one versioned JSON format that lives in `data/contracts`, gets validated with `ajv`, and has its own fixtures. It is shaped around domain concepts rather than SQL tables, so schema migrations don't force a format change.
 4. **Restores never happen silently.** Phase 1 restores are detected and recorded. Phases 2 and 3 always ask the user to confirm before replacing data.
