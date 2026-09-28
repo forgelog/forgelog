@@ -1,6 +1,6 @@
 # Backup and Restore Plan
 
-Status: proposed. Scope: `apps/mobile` (phone). The Wear OS app stays a mirror of the phone and is not backed up.
+Status: Phase 1 in progress (PR 1 implemented on `claude/backup-remote-options-w795ij`, not yet reviewed or merged; PR 2 onward planned). Scope: `apps/mobile` (phone). The Wear OS app stays a mirror of the phone and is not backed up.
 
 ForgeLog stores everything in one on-device SQLite database (`forgelog-v1.db`). Nothing leaves the device except phone-to-watch sync. This plan adds three backup channels in order. Each phase ships on its own, and the earlier phases are built so the later ones slot in without rework.
 
@@ -83,14 +83,21 @@ The check runs only on Android. On iOS the marker is included in iCloud device b
 
 ### Phase 1 work breakdown
 
-**PR 1: Restore detection (backup still off, so this ships with no effect)**
+**PR 1: Restore detection (backup still off, so this ships with no effect)**: implemented (commit "feat(mobile): detect OS backup restores")
 - Add the `expo-file-system` dependency. Phase 2 needs it too.
 - Migration 6 (`backup_state`) in `src/db/index.ts`, plus a repository `src/db/repositories/backupState.ts`.
 - Pure launch classification in `src/domain/restoreDetection.ts`.
 - `src/backup/installationMarker.ts` (file I/O only).
-- `src/application/restore.ts`: startup check, `completeRestore`, restore-notice read and dismiss.
-- Startup wiring in `App.tsx` (before wear sync), and the Home restore-notice card.
+- `src/application/restore.ts`: startup check (`checkForOsRestore`) and `completeRestore`. Home reads and dismisses the notice through `mobileStore.backupState`.
+- Startup wiring in `App.tsx` (before wear sync and before the navigator renders), and the Home restore-notice card.
 - Real in-memory DB tests for every row of the detection table, an idempotent second run, the crash-between-writes case, the active-workout discard, and the notice card.
+
+As built:
+- The marker file is `forgelog-installation.json` in `Paths.document` (`filesDir` on Android). PR 2's backup rules must leave it out. A corrupt marker is replaced with a new ID, which counts as a (harmless) restore.
+- `src/backup` gets the same lint import restrictions as `src/sync`.
+- The check is memoized in `App.tsx` so a remounted effect can't race two marker writes.
+- `better-sqlite3` errors can come from another jest realm, so tests match rejections by message rather than with `toThrow()`.
+- Not yet verified on a device. The end-to-end check happens in PR 2's manual `bmgr` steps.
 
 **PR 2: Turn on Android backup**
 - Delete `android:allowBackup` from the `wear-sync` library manifest. Libraries shouldn't make this decision for the app.
